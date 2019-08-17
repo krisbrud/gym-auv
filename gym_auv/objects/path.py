@@ -20,6 +20,8 @@ class ParamCurve():
         self.path_coords = path_coords
         self.s_max = arclengths[-1]
         self.length = self.s_max
+        S = np.linspace(0, self.length, 1000)
+        self.path_points = np.transpose(self.path_coords(S))
 
     def __call__(self, arclength):
         return self.path_coords(arclength)

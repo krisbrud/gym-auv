@@ -11,8 +11,9 @@ import gym_auv.utils.geomutils as geom
 from gym_auv.objects.auv import AUV2D
 from gym_auv.objects.path import RandomCurveThroughOrigin
 from gym_auv.objects.obstacles import StaticObstacle
+from gym_auv.environment import BaseShipScenario
 
-class PathColavEnv(gym.Env):
+class PathColavEnv(BaseShipScenario):
     """
     Creates an environment with a vessel and a path.
     Attributes
@@ -43,8 +44,6 @@ class PathColavEnv(gym.Env):
         self.nstates + self.nsectors floats that must be between
         0 and 1.
     """
-
-    metadata = {}
 
     def __init__(self, env_config):
         """

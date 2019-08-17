@@ -12,7 +12,3 @@ class StaticObstacle():
 
     def step(self):
         pass
-
-    def draw(self, viewer, color=None):
-        viewer.draw_circle(self.position, self.radius,
-                           color=self.color if color is None else color)

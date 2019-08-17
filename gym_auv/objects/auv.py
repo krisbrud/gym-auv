@@ -23,7 +23,7 @@ class AUV2D():
     input : np.array
         The current input. [propeller_input, rudder_position].
     """
-    def __init__(self, t_step, init_pos, width=1):
+    def __init__(self, t_step, init_pos, width=2):
         """
         The __init__ method declares all class atributes.
 
@@ -36,11 +36,11 @@ class AUV2D():
             psi is the initial heading of the AUV.
         width : float
             The maximum distance from the center of the AUV to its edge
-            in meters. Defaults to 1.
+            in meters. Defaults to 2.
         """
         self._state = np.hstack([init_pos, [0, 0, 0]])
-        self.prev_states = self._state
-        self.radius = width
+        self.prev_states = np.vstack([self._state])
+        self.width = width
         self.t_step = t_step
         self.input = [0, 0]
 
@@ -57,8 +57,7 @@ class AUV2D():
         self.input = np.array([_surge(action[0]), _steer(action[1])])
         self._sim()
 
-        self.prev_states = np.vstack([self.prev_states,
-                                      self._state])
+        self.prev_states = np.vstack([self.prev_states,self._state])
 
     def _sim(self):
         psi = self._state[2]
@@ -80,6 +79,14 @@ class AUV2D():
         coordinates.
         """
         return self._state[0:2]
+
+    @property
+    def path_taken(self):
+        """
+        Returns an array holding the path of the AUV in cartesian
+        coordinates.
+        """
+        return self.prev_states[:, 0:2]
 
     @property
     def heading(self):

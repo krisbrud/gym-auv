@@ -10,8 +10,9 @@ from gym.utils import seeding
 import gym_auv.utils.geomutils as geom
 from gym_auv.objects.auv import AUV2D
 from gym_auv.objects.obstacles import StaticObstacle
+from gym_auv.environment import BaseShipScenario
 
-class ColavEnv(gym.Env):
+class ColavEnv(BaseShipScenario):
     """
     Creates an environment with a vessel, goal and obstacles.
 
@@ -49,8 +50,6 @@ class ColavEnv(gym.Env):
         self.nstates + self.nsectors floats that must be between
         0 and 1.
     """
-
-    metadata = {}
 
     def __init__(self, env_config):
         """
