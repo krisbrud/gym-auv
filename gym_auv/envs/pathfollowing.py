@@ -68,7 +68,7 @@ class PathFollowingEnv(BaseShipScenario):
         step_reward = 0
         delta_path_prog = self.path_prog[-1] - self.path_prog[-2]
         max_prog = self.config["cruise_speed"]*self.config["t_step_size"]
-        speed_error = ((linalg.norm(self.vessel.velocity) - self.config["cruise_speed"]) /self.vessel.max_speed)
+        speed_error = ((linalg.norm(self.vessel.velocity) - self.config["cruise_speed"])/self.vessel.max_speed)
         cross_track_error = self.past_obs[-1, -1]
 
         self.past_errors['speed'] = np.append(self.past_errors['speed'], speed_error)
@@ -80,14 +80,13 @@ class PathFollowingEnv(BaseShipScenario):
 
         dist_to_endpoint = linalg.norm(self.vessel.position - self.path.get_endpoint())
 
-        self.cumulative_reward += step_reward
-
         if (self.cumulative_reward < self.config["min_reward"]
-                or abs(self.path_prog[-1] - self.path.length) < 2
-                or dist_to_endpoint < 5):
+            or abs(self.path_prog[-1] - self.path.length) < 2
+            or dist_to_endpoint < 5
+        ):
             done = True
 
-        return done, step_reward
+        return done, step_reward, {}
 
     def generate(self):
         """

@@ -447,8 +447,9 @@ def render_env(env, mode):
 
     def render_objects():
         t.enable()
-        _render_path(env)
-        _render_progress(env)
+        if (env.path is not None):
+            _render_path(env)
+            _render_progress(env)
         _render_vessel(env)
         _render_tiles(env, win)
         _render_obstacles(env)
@@ -661,16 +662,6 @@ def _render_indicators(env, W, H):
         gl.glVertex2f(hx + T*cos(angle + 4*pi/3), hy + T*sin(angle + 4*pi/3))
         gl.glEnd()
 
-    def obst_ind(place):
-        gl_boat(place * prog, h)
-
-        for obstacle in env.obstacles:
-            heading = pi*obstacle[2*i]
-            closeness = obstacle[2*i+1]
-            gl_arrow(place * prog + boatw/2, 2*h,
-                        angle=heading+pi/2,
-                        length=np.clip(closeness, 0.1, 1),
-                        color=(np.clip(1.2*closeness, 0, 1), 0.5, 0.1))
     scale = 3
     R = env.vessel.input[0]
     true_speed = np.sqrt(np.square(env.vessel.velocity[0]) + np.square(env.vessel.velocity[1]))
@@ -679,9 +670,6 @@ def _render_indicators(env, W, H):
     state_speed_error = env.past_obs[-1][0]
     vertical_ind(7, -scale*state_speed_error, color=(np.clip(true_speed, 0, 1), 0.6, 0.1))
 
-    # Visualise the obstacles as seen by the vessel
-    obst_ind(place=20)
-
     env.viewer.reward_text_field.text = "{:<40}{:2.2f}".format('Reward:', 
         env.past_rewards[-1] if len(env.past_rewards) else np.nan
     )
@@ -689,15 +677,15 @@ def _render_indicators(env, W, H):
     env.viewer.cum_reward_text_field.text = "{:<40}{:2.2f}".format('Cumulative Reward:', env.cumulative_reward)
     env.viewer.cum_reward_text_field.draw()
     env.viewer.delta_path_prog_text_field.text = "{:<40}{:2.2f}".format('Delta Path Progression:', 
-        env.path_prog[-1] - env.path_prog[-2] if len(env.path_prog) > 1 else np.nan
+        env.path_prog[-1] - env.path_prog[-2] if env.path_prog is not None and len(env.path_prog) > 1 else np.nan
     )
     env.viewer.delta_path_prog_text_field.draw()
     env.viewer.cross_track_error_text_field.text = "{:<40}{:2.2f}".format('Cross Track Error:', 
-        env.past_errors['cross_track'][-1] if len(env.past_errors['cross_track']) else np.nan
+        env.past_errors['cross_track'][-1] if 'cross_track' in env.past_errors and len(env.past_errors['cross_track']) else np.nan
     )
     env.viewer.cross_track_error_text_field.draw()
     env.viewer.speed_error_text_field.text = "{:<40}{:2.2f}".format('Speed Error:', 
-        env.past_errors['speed'][-1] if len(env.past_errors['speed']) else np.nan
+        env.past_errors['speed'][-1] if 'speed' in env.past_errors and len(env.past_errors['speed']) else np.nan
     )
     env.viewer.speed_error_text_field.draw()
     env.viewer.time_step_text_field.text = "{:<40}{}".format('Time Step:', env.t_step)

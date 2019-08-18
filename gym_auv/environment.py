@@ -136,14 +136,15 @@ class BaseShipScenario(gym.Env, EzPickle):
         self.past_actions = np.vstack([self.past_actions, action])
         self.vessel.step(action)
 
-        prog = self.path.get_closest_arclength(self.vessel.position)
-        self.path_prog = np.append(self.path_prog, prog)
+        if (self.path is not None):
+            prog = self.path.get_closest_arclength(self.vessel.position)
+            self.path_prog = np.append(self.path_prog, prog)
 
         obs = self.observe()
         self.past_obs = np.vstack([self.past_obs, obs])
-        done, step_reward = self.step_reward()
+        done, step_reward, info = self.step_reward()
         self.past_rewards = np.append(self.past_rewards, step_reward)
-        info = {}
+        self.cumulative_reward += step_reward
 
         self.t_step += 1
 
