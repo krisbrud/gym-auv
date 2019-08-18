@@ -147,7 +147,7 @@ class ColavEnv(BaseShipScenario):
     def reset(self):
         self.goal = None
         self.goal_dist = self.config["goal_dist"]
-        super().reset()
+        return super().reset()
 
     def generate(self):
         """

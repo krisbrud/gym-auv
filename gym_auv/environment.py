@@ -141,6 +141,7 @@ class BaseShipScenario(gym.Env, EzPickle):
             self.path_prog = np.append(self.path_prog, prog)
 
         obs = self.observe()
+        assert not np.isnan(obs).any(), 'Observation vector "{}" contains nan values.'.format(str(obs))
         self.past_obs = np.vstack([self.past_obs, obs])
         done, step_reward, info = self.step_reward()
         self.past_rewards = np.append(self.past_rewards, step_reward)
@@ -176,6 +177,7 @@ class BaseShipScenario(gym.Env, EzPickle):
 
         self.generate()
         obs = self.observe()
+        assert not np.isnan(obs).any(), 'Observation vector "{}" contains nan values.'.format(str(obs))
         self.past_obs = np.array([obs])
         self.t_step = 0
         self.episode += 1

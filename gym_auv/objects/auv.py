@@ -56,7 +56,7 @@ class AUV2D():
         """
         self.input = np.array([_surge(action[0]), _steer(action[1])])
         self._sim()
-
+        
         self.prev_states = np.vstack([self.prev_states,self._state])
 
     def _sim(self):
