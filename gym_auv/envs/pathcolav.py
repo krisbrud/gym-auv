@@ -98,8 +98,13 @@ class PathColavEnv(BaseShipScenario):
         progress = self.path_prog[-1] - self.path_prog[-2]
         max_prog = self.config["cruise_speed"]*self.config["t_step_size"]
         speed_error = ((linalg.norm(self.vessel.velocity) - self.config["cruise_speed"])/self.vessel.max_speed)
+        cross_track_error = self.past_obs[-1, self.nstates - 1]
+        
+        self.past_errors['speed'] = np.append(self.past_errors['speed'], speed_error)
+        self.past_errors['cross_track'] = np.append(self.past_errors['cross_track'], cross_track_error)
+
         step_reward += (np.clip(progress/max_prog, -1, 1)*self.config["reward_ds"])
-        step_reward += (abs(self.past_obs[-1, self.nstates - 1])*self.config["reward_cross_track_error"])
+        step_reward += (abs(cross_track_error)*self.config["reward_cross_track_error"])
         step_reward += (max(speed_error, 0)*self.config["reward_speed_error"])
 
         dist_to_endpoint = linalg.norm(self.vessel.position - self.path.get_endpoint())
@@ -178,8 +183,7 @@ class PathColavEnv(BaseShipScenario):
         target_heading = np.arctan2(path_position[1], path_position[0])
         heading_error = float(geom.princip(target_heading - self.vessel.heading))
         path_direction = self.path.get_direction(self.path_prog[-1])
-        cross_track_error = geom.Rzyx(0, 0, -path_direction).dot(
-            np.hstack([self.path(self.path_prog[-1]) - self.vessel.position, 0]))[1]
+        cross_track_error = geom.Rzyx(0, 0, -path_direction).dot(np.hstack([self.path(self.path_prog[-1]) - self.vessel.position, 0]))[1]
 
         obs = np.zeros((self.nstates + self.nsectors,))
 
@@ -193,15 +197,14 @@ class PathColavEnv(BaseShipScenario):
         obst_range = self.config["obst_detection_range"]
         for obst in self.obstacles:
             distance_vec = geom.Rzyx(0, 0, -self.vessel.heading).dot(
-                np.hstack([obst.position - self.vessel.position, 0]))
+                np.hstack([obst.position - self.vessel.position, 0])
+            )
             dist = linalg.norm(distance_vec)
             if dist < obst_range + obst.radius + self.vessel.width:
                 ang = ((float(np.arctan2(distance_vec[1], distance_vec[0])) + np.pi) / (2*np.pi))
-                closeness = 1 - np.clip((dist - self.vessel.width - obst.radius)/obst_range, 0, 1)
-                isector = (self.nstates + int(np.floor(ang*self.nsectors)))
-                if isector == self.nstates + self.nsectors:
-                    isector = self.nstates
-                if obs[isector] < closeness:
-                    obs[isector] = closeness
+                closeness = 1 - np.clip(np.log(1 + dist - self.vessel.width - obst.radius)/np.log(obst_range), 0, 1)
+                isector = int(np.floor(ang*self.nsectors + np.pi/self.nsectors)) % self.nsectors
+                if obs[self.nstates + isector] < closeness:
+                    obs[self.nstates + isector] = closeness
 
         return obs

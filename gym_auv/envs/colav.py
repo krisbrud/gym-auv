@@ -120,6 +120,8 @@ class ColavEnv(BaseShipScenario):
 
         max_prog = self.config["cruise_speed"]*self.config["t_step_size"]
         speed_error = ((linalg.norm(self.vessel.velocity) - self.config["cruise_speed"])/self.vessel.max_speed)
+        self.past_errors['speed'] = np.append(self.past_errors['speed'], speed_error)
+
         step_reward += (np.clip(progress/max_prog, -1, 1)*self.config["reward_ds"])
         step_reward += (max(speed_error, 0)*self.config["reward_speed_error"])
 
@@ -213,10 +215,8 @@ class ColavEnv(BaseShipScenario):
             dist = linalg.norm(distance_vec)
             if dist < obst_range + obst.radius + self.vessel.width:
                 ang = ((float(np.arctan2(distance_vec[1], distance_vec[0])) + np.pi) / (2*np.pi))
-                closeness = 1 - np.clip((dist - self.vessel.width - obst.radius)/obst_range, 0, 1)
-                isector = (self.nstates + int(np.floor(ang*self.nsectors)))
-                if isector == self.nstates + self.nsectors:
-                    isector = self.nstates
-                if obs[isector] < closeness:
-                    obs[isector] = closeness
+                closeness = 1 - np.clip(np.log(1 + dist - self.vessel.width - obst.radius)/np.log(obst_range), 0, 1)
+                isector = int(np.floor(ang*self.nsectors + np.pi/self.nsectors)) % self.nsectors
+                if obs[self.nstates + isector] < closeness:
+                    obs[self.nstates + isector] = closeness
         return obs
