@@ -51,53 +51,6 @@ class ColavEnv(BaseShipScenario):
         0 and 1.
     """
 
-    def __init__(self, env_config):
-        """
-        The __init__ method declares all class atributes and calls
-        the self.reset() to intialize them properly.
-
-        Parameters
-        ----------
-        env_config : dict
-            Configuration parameters for the environment.
-            Must have the following members:
-            reward_ds
-                The reward for moving one unit of length towards the
-                goal.
-            reward_closeness
-                reward += reward_closeness*closeness for the closest
-                obstacle within each sector.
-            reward_speed_error
-                reward += reward_speed_error*speed_error where the
-                speed error is abs(speed-cruise_speed)/max_speed.
-            reward_collision
-                The reward for colliding with an obstacle.
-                reward += reward_collisions
-            nobstacles
-                The number of obstacles.
-            obst_detection_range
-                The maximum distance at which an obstacle can be
-                detected.
-            obst_reward_range
-                The distance where closeness to an obstacle starts
-                getting punished.
-            cruise_speed
-                The desired cruising speed.
-            goal_dist
-                The distance from the initial vessel position to
-                the goal.
-            reward_rudderchange
-                The reward for changing the rudder position.
-                reward += reward_rudderchange*rudderchange where
-                0 <= rudderchange<= 1.
-            min_reward
-                The minimum reward the vessel can accumulate. If the
-                accumulated reward is less than min_reward, the episode
-                ends.
-        """
-        self.nsectors = 16
-        super().__init__(env_config)
-
     def step_reward(self):
         """
         Calculates the step_reward and decides whether the episode
@@ -166,8 +119,7 @@ class ColavEnv(BaseShipScenario):
         for _ in range(self.config["nobstacles"]):
             obst_dist = (0.75*self.config["goal_dist"]*(self.np_random.rand() + 0.2))
             obst_ang = (goal_angle + 2*np.pi*(self.np_random.rand()-0.5))
-            position = (obst_dist*np.array(
-                [np.cos(obst_ang), np.sin(obst_ang)]))
+            position = (obst_dist*np.array([np.cos(obst_ang), np.sin(obst_ang)]))
             if linalg.norm(position) < 50:
                 position[0] = np.sign(position[0])*50
                 if position[0] == 0:
@@ -215,7 +167,7 @@ class ColavEnv(BaseShipScenario):
             dist = linalg.norm(distance_vec)
             if dist < obst_range + obst.radius + self.vessel.width:
                 ang = ((float(np.arctan2(distance_vec[1], distance_vec[0])) + np.pi) / (2*np.pi))
-                closeness = 1 - np.clip(np.log(1 + dist - self.vessel.width - obst.radius)/np.log(obst_range), 0, 1)
+                closeness = 1 - np.clip(np.log(1 + max(dist - self.vessel.width - obst.radius, 0))/np.log(obst_range), 0, 1)
                 isector = int(np.floor(ang*self.nsectors + np.pi/self.nsectors)) % self.nsectors
                 if obs[self.nstates + isector] < closeness:
                     obs[self.nstates + isector] = closeness

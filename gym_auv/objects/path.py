@@ -12,10 +12,8 @@ class ParamCurve():
 
         for _ in range(3):
             arclengths = arc_len(waypoints)
-            path_coords = interpolate.pchip(
-                x=arclengths, y=waypoints, axis=1)
-            waypoints = path_coords(
-                np.linspace(arclengths[0], arclengths[-1], 1000))
+            path_coords = interpolate.pchip(x=arclengths, y=waypoints, axis=1)
+            waypoints = path_coords(np.linspace(arclengths[0], arclengths[-1], 1000))
 
         self.path_coords = path_coords
         self.s_max = arclengths[-1]
@@ -54,8 +52,7 @@ class ParamCurve():
 class RandomCurveThroughOrigin(ParamCurve):
     def __init__(self, rng, nwaypoints, length=400):
         angle_init = 2*np.pi*(rng.rand() - 0.5)
-        start = np.array([length*np.cos(angle_init),
-                          length*np.sin(angle_init)])
+        start = np.array([0.5*length*np.cos(angle_init), 0.5*length*np.sin(angle_init)])
         end = -np.array(start)
         waypoints = np.vstack([start, end])
         for waypoint in range(nwaypoints // 2):

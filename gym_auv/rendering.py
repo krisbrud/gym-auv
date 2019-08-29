@@ -18,6 +18,7 @@ import numpy as np
 import math
 from numpy import pi, sin, cos, arctan2
 from gym import error
+import gym_auv.utils.geomutils as geom
 
 if "Apple" in sys.version:
     if 'DYLD_FALLBACK_LIBRARY_PATH' in os.environ:
@@ -28,14 +29,15 @@ STATE_W = 96
 STATE_H = 96
 VIDEO_W = 720
 VIDEO_H = 600
-WINDOW_W = 720
-WINDOW_H = 600
+WINDOW_W = VIDEO_W
+WINDOW_H = VIDEO_H
 
 SCALE       = 5.0        # Track scale
-PLAYFIELD   = WINDOW_W# 3000/SCALE # Game over boundary
+PLAYFIELD   = WINDOW_W   # Game over boundary
 FPS         = 50
-ZOOM        = 3.0          # Camera ZOOM
+ZOOM        = 3.0        # Camera ZOOM
 ZOOM_FOLLOW = True       # Set to False for fixed view (don't use ZOOM)
+CAMERA_ROTATION_SPEED = 0.02
 
 RAD2DEG = 57.29577951308232
 
@@ -362,11 +364,11 @@ class PolyLine(Geom):
 
 
 class Line(Geom):
-    def __init__(self, start=(0.0, 0.0), end=(0.0, 0.0)):
+    def __init__(self, start=(0.0, 0.0), end=(0.0, 0.0), linewidth=1):
         Geom.__init__(self)
         self.start = start
         self.end = end
-        self.linewidth = LineWidth(1)
+        self.linewidth = LineWidth(linewidth)
         self.add_attr(self.linewidth)
 
     def render1(self):
@@ -450,6 +452,7 @@ def render_env(env, mode):
         if (env.path is not None):
             _render_path(env)
             _render_progress(env)
+        _render_sensors(env)
         _render_vessel(env)
         _render_tiles(env, win)
         _render_obstacles(env)
@@ -472,7 +475,7 @@ def render_env(env, mode):
     if (rot_angle is None):
         rot_angle = ship_angle
     else:
-        rot_angle += 0.01 * (ship_angle - rot_angle)
+        rot_angle += CAMERA_ROTATION_SPEED * geom.princip(ship_angle - rot_angle)
 
     env.viewer.transform.set_scale(ZOOM, ZOOM)
     env.viewer.transform.set_translation(
@@ -524,25 +527,28 @@ def init_env_viewer(env):
     env.viewer = Viewer(WINDOW_W, WINDOW_H)
     env.viewer.reward_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 20.00, anchor_x='left', anchor_y='center',
-                                            color=(255, 0, 0, 255))
+                                            color=(0, 0, 0, 255))
     env.viewer.cum_reward_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 40.00, anchor_x='left', anchor_y='center',
-                                            color=(255, 0, 0, 255))
+                                            color=(0, 0, 0, 255))
     env.viewer.delta_path_prog_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 60.00, anchor_x='left', anchor_y='center',
-                                            color=(255, 0, 0, 255))
+                                            color=(0, 0, 0, 255))
     env.viewer.cross_track_error_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 80.00, anchor_x='left', anchor_y='center',
-                                            color=(255, 0, 0, 255))
+                                            color=(0, 0, 0, 255))
     env.viewer.speed_error_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 100.00, anchor_x='left', anchor_y='center',
-                                            color=(255, 0, 0, 255))
-    env.viewer.time_step_text_field = pyglet.text.Label('0000', font_size=10,
+                                            color=(0, 0, 0, 255))
+    env.viewer.heading_error_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 120.00, anchor_x='left', anchor_y='center',
-                                            color=(255, 0, 0, 255))
-    env.viewer.episode_text_field = pyglet.text.Label('0000', font_size=10,
+                                            color=(0, 0, 0, 255))
+    env.viewer.time_step_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 140.00, anchor_x='left', anchor_y='center',
-                                            color=(255, 0, 0, 255))
+                                            color=(0, 0, 0, 255))
+    env.viewer.episode_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 160.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
 
 def _render_path(env):
     env.viewer.draw_polyline(env.path.path_points, linewidth=3, color=(0.3, 0.3, 0.3))
@@ -558,13 +564,34 @@ def _render_vessel(env):
         ], env.vessel.position, env.vessel.heading, color=(0, 0, 0.8))  # ship
     env.viewer.draw_arrow(env.vessel.position, env.vessel.heading + pi + env.vessel.input[1]/4, length=2)
 
+def _render_sensors(env):
+    for isensor, sensor_angle in enumerate(env.sensor_angles):
+        isector = isensor // env.config["n_sensors_per_sector"]
+        p0 = env.vessel.position
+        if (env.sensor_intercepts[isensor] is None):
+            p1 = (
+                p0[0] + np.cos(sensor_angle+env.vessel.heading)*env.config["obst_detection_range"],
+                p0[1] + np.sin(sensor_angle+env.vessel.heading)*env.config["obst_detection_range"]
+            )
+        else:
+            p1 = env.sensor_intercepts[isensor]
+        #brightness = 0.3*(np.sin(env.t_step/3) + 1)/2
+        redness = env.sensor_measurements[isensor]
+        greenness = 1.0 * (1 - redness/2) #env.sensor_measurements[isensor] if env.active_sensors[isector] == isensor else 0
+        blueness = (0.5 if isector % 2 == 0 else 1) #(1 - redness)
+        if (env.active_sensors[isector] == isensor):
+            redness = 1
+            blueness = 1
+        env.viewer.draw_line(p0, p1, color=(redness, greenness, blueness))
+
 def _render_progress(env):
-    p = env.path(env.path_prog[-1]).flatten()
+    p = env.path(env.max_path_prog).flatten()
     env.viewer.draw_circle(origin=p, radius=1, res=30, color=(0.8, 0.3, 0.3))
 
 def _render_obstacles(env):
     for i, o in enumerate(env.obstacles):
-        env.viewer.draw_circle(o.position, o.radius, color=(0.0, 1.0, 0.0))
+        c = (0.8, 0.8, 0.8) if not o.observed else (1.0, 0.0, 0.0)
+        env.viewer.draw_circle(o.position, o.radius, color=c)
 
 def _render_tiles(env, win):
     global env_bg
@@ -688,6 +715,10 @@ def _render_indicators(env, W, H):
         env.past_errors['speed'][-1] if 'speed' in env.past_errors and len(env.past_errors['speed']) else np.nan
     )
     env.viewer.speed_error_text_field.draw()
+    env.viewer.heading_error_text_field.text = "{:<40}{:2.2f}".format('Heading Error:', 
+        env.past_errors['heading'][-1] if 'heading' in env.past_errors and len(env.past_errors['heading']) else np.nan
+    )
+    env.viewer.heading_error_text_field.draw()
     env.viewer.time_step_text_field.text = "{:<40}{}".format('Time Step:', env.t_step)
     env.viewer.time_step_text_field.draw()
     env.viewer.episode_text_field.text = "{:<40}{}".format('Episode:', env.episode)

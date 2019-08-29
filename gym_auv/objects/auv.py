@@ -64,10 +64,12 @@ class AUV2D():
         nu = self._state[3:]
 
         eta_dot = geom.Rzyx(0, 0, geom.princip(psi)).dot(nu)
-        nu_dot = const.M_inv.dot(const.B(nu).dot(self.input)
-                                 - const.D(nu).dot(nu)
-                                 - const.C(nu).dot(nu)
-                                 - const.L(nu).dot(nu))
+        nu_dot = const.M_inv.dot(
+            const.B(nu).dot(self.input)
+            - const.D(nu).dot(nu)
+            - const.C(nu).dot(nu)
+            - const.L(nu).dot(nu)
+        )
         state_dot = np.concatenate([eta_dot, nu_dot])
         self._state += state_dot*self.t_step
         self._state[2] = geom.princip(self._state[2])

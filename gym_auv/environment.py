@@ -8,7 +8,7 @@ from gym_auv.rendering import render_env, init_env_viewer, FPS
 
 from numpy.random import random
 
-class BaseShipScenario(gym.Env, EzPickle):
+class BaseShipScenario(gym.Env):
     """Creates an environment with a vessel and a path.
     
     Attributes:
@@ -37,7 +37,7 @@ class BaseShipScenario(gym.Env, EzPickle):
             values between -1 and 1.
         observation_space : gym.spaces.Box
             The observation space. Consists of
-            self.nstates + self.nsectors floats that must be between
+            self.nstates + self.nsectors*2 floats that must be between
             0 and 1.
     
     Raises:
@@ -76,19 +76,29 @@ class BaseShipScenario(gym.Env, EzPickle):
         """
         self.config = env_config
         self.nstates = 6
+        self.nsectors = self.config["n_sectors"]
+        self.nsensors = self.config["n_sensors_per_sector"]*self.config["n_sectors"]
+        self.sensor_angles = [-np.pi/2 + (i + 1)/(self.nsensors + 1)*np.pi for i in range(self.nsensors)]
+
+        self.sensor_intercepts = [None for isensor in range(self.nsensors)]
+        self.active_sensors = [None for isector in range(self.nsectors)]
+        self.sensor_measurements = np.zeros((self.nsensors, ))
         self.vessel = None
         self.path = None
         self.obstacles = None
+        self.nearby_obstacles = None
 
         self.np_random = None
 
         self.cumulative_reward = 0
         self.past_rewards = None
+        self.max_path_prog = None
         self.path_prog = None
         self.past_actions = None
         self.past_obs = None
         self.past_errors = None
-        self.t_step = None
+        self.t_step = 0
+        self.total_t_steps = 0
         self.episode = 0
 
         init_env_viewer(self)
@@ -101,6 +111,8 @@ class BaseShipScenario(gym.Env, EzPickle):
             dtype=np.float32
         )
         nobservations = self.nstates + self.nsectors
+        if self.config["include_sensor_deltas"]:
+            nobservations += self.nsectors
         low_obs = [-1]*nobservations
         high_obs = [1]*nobservations
         low_obs[self.nstates - 1] = -10000
@@ -139,6 +151,8 @@ class BaseShipScenario(gym.Env, EzPickle):
         if (self.path is not None):
             prog = self.path.get_closest_arclength(self.vessel.position)
             self.path_prog = np.append(self.path_prog, prog)
+            if prog > self.max_path_prog:
+                self.max_path_prog = prog
 
         obs = self.observe()
         assert not np.isnan(obs).any(), 'Observation vector "{}" contains nan values.'.format(str(obs))
@@ -148,6 +162,9 @@ class BaseShipScenario(gym.Env, EzPickle):
         self.cumulative_reward += step_reward
 
         self.t_step += 1
+        self.total_t_steps += 1
+        if (self.t_step > self.config["max_timestemps"]):
+            done = True
 
         return obs, step_reward, done, info
 
@@ -163,14 +180,19 @@ class BaseShipScenario(gym.Env, EzPickle):
         self.vessel = None
         self.path = None
         self.cumulative_reward = 0
+        self.max_path_prog = 0
         self.path_prog = None
+        self.past_obs = None
         self.past_actions = np.array([[0, 0]])
         self.past_rewards = np.array([])
         self.past_errors = {
             'speed': np.array([]),
             'cross_track': np.array([]),
+            'heading': np.array([]),
         }
         self.obstacles = []
+        self.nearby_obstacles = []
+        self.t_step = 0
 
         if self.np_random is None:
             self.seed()
@@ -179,7 +201,6 @@ class BaseShipScenario(gym.Env, EzPickle):
         obs = self.observe()
         assert not np.isnan(obs).any(), 'Observation vector "{}" contains nan values.'.format(str(obs))
         self.past_obs = np.array([obs])
-        self.t_step = 0
         self.episode += 1
         return obs
 
