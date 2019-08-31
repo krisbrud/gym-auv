@@ -1,6 +1,7 @@
 from copy import deepcopy
 import numpy as np
 import numpy.linalg as linalg
+import shapely.geometry
 
 from scipy import interpolate
 from scipy.optimize import fminbound
@@ -20,6 +21,7 @@ class ParamCurve():
         self.length = self.s_max
         S = np.linspace(0, self.length, 1000)
         self.path_points = np.transpose(self.path_coords(S))
+        self.line = shapely.geometry.LineString(self.path_points)
 
     def __call__(self, arclength):
         return self.path_coords(arclength)
@@ -37,6 +39,16 @@ class ParamCurve():
         return fminbound(lambda s: linalg.norm(self(s) - position),
                          x1=0, x2=self.length, xtol=1e-6,
                          maxfun=10000)
+
+    def get_closest_point(self, position):
+        closest_arclength = self.get_closest_arclength(position)
+        closest_point = self(closest_arclength)
+        return closest_point, closest_arclength
+
+    def get_closest_point_distance(self, position):
+        closest_point, closest_arclength = self.get_closest_point(position)
+        closest_point_distance =  linalg.norm(closest_point - position)
+        return closest_point_distance, closest_point, closest_arclength
 
     def __reversed__(self):
         curve = deepcopy(self)

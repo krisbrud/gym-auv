@@ -449,13 +449,12 @@ def render_env(env, mode):
 
     def render_objects():
         t.enable()
-        if (env.path is not None):
-            _render_path(env)
-            _render_progress(env)
         _render_sensors(env)
+        _render_path(env)
         _render_vessel(env)
         _render_tiles(env, win)
         _render_obstacles(env)
+        _render_progress(env)
 
         # Visualise path error (DEBUGGING)
         # p = np.array(env.vessel.position)
@@ -543,11 +542,14 @@ def init_env_viewer(env):
     env.viewer.heading_error_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 120.00, anchor_x='left', anchor_y='center',
                                             color=(0, 0, 0, 255))
-    env.viewer.time_step_text_field = pyglet.text.Label('0000', font_size=10,
+    env.viewer.la_heading_error_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 140.00, anchor_x='left', anchor_y='center',
                                             color=(0, 0, 0, 255))
-    env.viewer.episode_text_field = pyglet.text.Label('0000', font_size=10,
+    env.viewer.time_step_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 160.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer.episode_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 180.00, anchor_x='left', anchor_y='center',
                                             color=(0, 0, 0, 255))
 
 def _render_path(env):
@@ -582,11 +584,15 @@ def _render_sensors(env):
         if (env.active_sensors[isector] == isensor):
             redness = 1
             blueness = 1
+        
         env.viewer.draw_line(p0, p1, color=(redness, greenness, blueness))
 
 def _render_progress(env):
-    p = env.path(env.max_path_prog).flatten()
-    env.viewer.draw_circle(origin=p, radius=1, res=30, color=(0.8, 0.3, 0.3))
+    progress_point = env.path(env.max_path_prog).flatten()
+    env.viewer.draw_circle(origin=progress_point, radius=1, res=30, color=(0.8, 0.3, 0.3))
+    
+    target_point = env.path(env.target_arclength).flatten()
+    env.viewer.draw_circle(origin=target_point, radius=1, res=30, color=(0.3, 0.8, 0.3))
 
 def _render_obstacles(env):
     for i, o in enumerate(env.obstacles):
@@ -696,7 +702,7 @@ def _render_indicators(env, W, H):
     vertical_ind(6, -scale*ref_speed_error, color=(np.clip(R, 0, 1), 0.5, 0.1))
     state_speed_error = env.past_obs[-1][0]
     vertical_ind(7, -scale*state_speed_error, color=(np.clip(true_speed, 0, 1), 0.6, 0.1))
-
+    
     env.viewer.reward_text_field.text = "{:<40}{:2.2f}".format('Reward:', 
         env.past_rewards[-1] if len(env.past_rewards) else np.nan
     )
@@ -719,6 +725,10 @@ def _render_indicators(env, W, H):
         env.past_errors['heading'][-1] if 'heading' in env.past_errors and len(env.past_errors['heading']) else np.nan
     )
     env.viewer.heading_error_text_field.draw()
+    env.viewer.la_heading_error_text_field.text = "{:<40}{:2.2f}".format('LA Heading Error:', 
+        env.past_errors['la_heading'][-1] if 'la_heading' in env.past_errors and len(env.past_errors['la_heading']) else np.nan
+    )
+    env.viewer.la_heading_error_text_field.draw()
     env.viewer.time_step_text_field.text = "{:<40}{}".format('Time Step:', env.t_step)
     env.viewer.time_step_text_field.draw()
     env.viewer.episode_text_field.text = "{:<40}{}".format('Episode:', env.episode)

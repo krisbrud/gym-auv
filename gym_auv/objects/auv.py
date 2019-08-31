@@ -105,6 +105,13 @@ class AUV2D():
         return self._state[3:5]
 
     @property
+    def speed(self):
+        """
+        Returns the surge and sway velocity of the AUV.
+        """
+        return linalg.norm(self.velocity)
+
+    @property
     def yawrate(self):
         """
         Returns the rate of rotation about the z-axis.
@@ -117,6 +124,14 @@ class AUV2D():
         Returns the max speed of the AUV.
         """
         return const.MAX_SPEED
+
+    @property
+    def crab_angle(self):
+        return np.arctan2(self.velocity[1], self.velocity[0])
+
+    @property
+    def course(self):
+        return self.heading + self.crab_angle
 
 
 def _surge(surge):
