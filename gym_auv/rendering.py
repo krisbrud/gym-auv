@@ -570,18 +570,18 @@ def _render_sensors(env):
     for isensor, sensor_angle in enumerate(env.sensor_angles):
         isector = isensor // env.config["n_sensors_per_sector"]
         p0 = env.vessel.position
-        if (env.sensor_intercepts[isensor] is None):
+        if (env.sensor_obst_intercepts[isensor] is None):
             p1 = (
-                p0[0] + np.cos(sensor_angle+env.vessel.heading)*env.config["obst_detection_range"],
-                p0[1] + np.sin(sensor_angle+env.vessel.heading)*env.config["obst_detection_range"]
+                p0[0] + np.cos(sensor_angle+env.vessel.heading)*env.config["lidar_range"],
+                p0[1] + np.sin(sensor_angle+env.vessel.heading)*env.config["lidar_range"]
             )
         else:
-            p1 = env.sensor_intercepts[isensor]
+            p1 = env.sensor_obst_intercepts[isensor]
         #brightness = 0.3*(np.sin(env.t_step/3) + 1)/2
-        redness = env.sensor_measurements[isensor]
-        greenness = 1.0 * (1 - redness/2) #env.sensor_measurements[isensor] if env.active_sensors[isector] == isensor else 0
+        redness = env.sensor_obst_measurements[isensor]
+        greenness = 1.0 * (1 - redness/2) #env.sensor_obst_measurements[isensor] if env.obst_active_sensors[isector] == isensor else 0
         blueness = (0.5 if isector % 2 == 0 else 1) #(1 - redness)
-        if (env.active_sensors[isector] == isensor):
+        if (env.obst_active_sensors[isector] == isensor):
             redness = 1
             blueness = 1
         

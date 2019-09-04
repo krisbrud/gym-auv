@@ -80,14 +80,14 @@ class BaseShipScenario(gym.Env):
                 The desired cruising speed.
         """
         self.config = env_config
-        self.nstates = 6
+        self.nstates = 7
         self.nsectors = self.config["n_sectors"]
         self.nsensors = self.config["n_sensors_per_sector"]*self.config["n_sectors"]
         self.sensor_angles = [-np.pi/2 + (i + 1)/(self.nsensors + 1)*np.pi for i in range(self.nsensors)]
 
-        self.sensor_intercepts = [None for isensor in range(self.nsensors)]
-        self.active_sensors = [None for isector in range(self.nsectors)]
-        self.sensor_measurements = np.zeros((self.nsensors, ))
+        self.sensor_obst_intercepts = [None for isensor in range(self.nsensors)]
+        self.obst_active_sensors = [None for isector in range(self.nsectors)]
+        self.sensor_obst_measurements = np.zeros((self.nsensors, ))
         self.sensor_path_arclengths = np.zeros((self.nsensors, ))
         self.sensor_path_index = None
         self.sensor_order = range(self.nsensors)
@@ -122,9 +122,7 @@ class BaseShipScenario(gym.Env):
             high=np.array([1, 1]),
             dtype=np.float32
         )
-        nobservations = self.nstates + self.nsectors
-        if self.config["include_sensor_deltas"]:
-            nobservations += self.nsectors
+        nobservations = self.nstates + self.nsectors*2
         low_obs = [-1]*nobservations
         high_obs = [1]*nobservations
         low_obs[self.nstates - 1] = -10000
