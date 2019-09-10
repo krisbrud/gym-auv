@@ -14,9 +14,12 @@ class ParamCurve():
         for _ in range(3):
             arclengths = arc_len(waypoints)
             path_coords = interpolate.pchip(x=arclengths, y=waypoints, axis=1)
+            path_derivatives = path_coords.derivative()
             waypoints = path_coords(np.linspace(arclengths[0], arclengths[-1], 1000))
 
         self.path_coords = path_coords
+        self.path_derivatives = path_derivatives
+
         self.s_max = arclengths[-1]
         self.length = self.s_max
         S = np.linspace(0, self.length, 1000)
@@ -27,10 +30,8 @@ class ParamCurve():
         return self.path_coords(arclength)
 
     def get_direction(self, arclength):
-        arclength = np.clip(arclength, 0.05, self.s_max - 0.05)
-        delta_x, delta_y = (self.path_coords(arclength + 0.05)
-                            - self.path_coords(arclength - 0.05))
-        return geom.princip(np.arctan2(delta_y, delta_x))
+        derivative = self.path_derivatives(arclength)
+        return np.arctan2(derivative[1], derivative[0])
 
     def get_endpoint(self):
         return self(self.s_max)

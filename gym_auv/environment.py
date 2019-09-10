@@ -3,15 +3,11 @@ import gym
 from gym import spaces
 from numpy.random import random
 import numpy as np
+import numpy.linalg as linalg
 import gym_auv.utils.geomutils as geom
 
 from gym.utils import seeding, EzPickle
 from gym_auv.rendering import render_env, init_env_viewer, FPS
-
-import matplotlib
-matplotlib.rcParams['hatch.linewidth'] = 0.5
-import matplotlib.pyplot as plt
-plt.style.use('ggplot')
 
 class BaseShipScenario(gym.Env):
     """Creates an environment with a vessel and a path.
@@ -83,10 +79,46 @@ class BaseShipScenario(gym.Env):
         self.nstates = 7
         self.nsectors = self.config["n_sectors"]
         self.nsensors = self.config["n_sensors_per_sector"]*self.config["n_sectors"]
-        self.sensor_angles = [-np.pi/2 + (i + 1)/(self.nsensors + 1)*np.pi for i in range(self.nsensors)]
+        self.nrings = self.config["n_rings"]
+        sum_radius = 30
+        self.ring_depths = [sum_radius]
+        self.rings = [sum_radius/2]
+        if (self.config["rear_detection"]):
+            self.ring_sectors = [7+4*i for i in range(self.nrings)]
+        else:
+            self.ring_sectors = [12 for i in range(self.nrings)]
+        self.n_detection_grid_sections = sum(self.ring_sectors)
+        for j in range(self.nrings-1):
+            if (self.config["rear_detection"]):
+                radius = 2*np.pi*sum_radius/(self.ring_sectors[j+1] - 2*np.pi)
+            else:
+                radius = np.pi*sum_radius/(self.ring_sectors[j+1] - np.pi)
+            self.ring_depths.append(radius)
+            self.rings.append(sum_radius + radius/2)
+            sum_radius += radius
+
+        self.sensor_angle = (4*np.pi/3)/(self.nsensors + 1)
+        self.detection_images = [np.zeros((self.ring_sectors[i]),) for i in range(self.nrings)]
+        self.feasibility_images = [np.zeros((self.ring_sectors[i]),) for i in range(self.nrings)]
+        self.sensor_angles = [-2*np.pi/3 + (i + 1)*self.sensor_angle for i in range(self.nsensors)]
+        if (self.config["rear_detection"]):
+            self.sector_angles = [
+                [-np.pi + (isector + 0.5)/(self.ring_sectors[iring])*2*np.pi for isector in range(self.ring_sectors[iring])] for iring in range(self.nrings)
+            ]
+        else:
+            self.sector_angles = [
+                [-2*np.pi/3 + (isector + 0.5)/(self.ring_sectors[iring])*4*np.pi/3 for isector in range(self.ring_sectors[iring])] for iring in range(self.nrings)
+            ]
+        
+        self.n_observations = self.nstates
+        if (self.config["detection_grid"]):
+            self.n_observations += self.n_detection_grid_sections
+        if (self.config["lidars"]):
+            self.lidar_obs_index = self.n_observations
+            self.n_observations += self.nsectors
 
         self.sensor_obst_intercepts = [None for isensor in range(self.nsensors)]
-        self.obst_active_sensors = [None for isector in range(self.nsectors)]
+        self.sector_active = [0 for isector in range(self.nsectors)]
         self.sensor_obst_measurements = np.zeros((self.nsensors, ))
         self.sensor_path_arclengths = np.zeros((self.nsensors, ))
         self.sensor_path_index = None
@@ -97,6 +129,7 @@ class BaseShipScenario(gym.Env):
         self.nearby_obstacles = None
         self.look_ahead_point = None
         self.look_ahead_arclength = None
+        self.reached_goal = None
 
         self.np_random = None
 
@@ -111,20 +144,24 @@ class BaseShipScenario(gym.Env):
         self.t_step = 0
         self.total_t_steps = 0
         self.episode = 0
-        self.memory = []
+        self.last_episode = []
+        self.history = []
+
+        self.collisions = None
+        self.sensor_updates = None
 
         init_env_viewer(self)
 
         self.reset()
 
         self.action_space = gym.spaces.Box(
-            low=np.array([0, -1]),
+            low=np.array([-1, -1]),
             high=np.array([1, 1]),
             dtype=np.float32
         )
-        nobservations = self.nstates + self.nsectors*2
-        low_obs = [-1]*nobservations
-        high_obs = [1]*nobservations
+        
+        low_obs = [-1]*self.n_observations
+        high_obs = [1]*self.n_observations
         low_obs[self.nstates - 1] = -10000
         high_obs[self.nstates - 1] = 10000
         self.observation_space = gym.spaces.Box(
@@ -155,20 +192,36 @@ class BaseShipScenario(gym.Env):
             Empty, is included because it is required of the
             OpenAI Gym frameowrk.
         """
+        action[0] = (action[0] + 1)/2
         self.past_actions = np.vstack([self.past_actions, action])
         self.vessel.step(action)
 
-        closest_point_distance, _, closest_arclength = self.path.get_closest_point_distance(self.vessel.position)
-        closest_point_heading_error = geom.princip(self.path.get_direction(closest_arclength) - self.vessel.course)
+        la_heading = self.path.get_direction(self.target_arclength)
+        self.la_heading_error = float(geom.princip(la_heading - self.vessel.heading))
+        path_position = self.path(self.target_arclength) - self.vessel.position
+        target_heading = np.arctan2(path_position[1], path_position[0])
+        self.heading_error = float(geom.princip(target_heading - self.vessel.heading))
+        self.la_distance = linalg.norm(path_position)
+        path_direction = self.path.get_direction(self.max_path_prog)
+        track_errors = geom.Rzyx(0, 0, -path_direction).dot(
+            np.hstack([self.path(self.max_path_prog) - self.vessel.position, 0])
+        )
+        self.along_track_error = track_errors[0]
+        self.cross_track_error = track_errors[1]
+        self.cross_track_errors = np.append(self.cross_track_errors, abs(self.cross_track_error))
+        self.speed_error = (linalg.norm(self.vessel.velocity) - self.config["cruise_speed"])/self.vessel.max_speed
+
+        self.past_errors['speed'] = np.append(self.past_errors['speed'], self.speed_error)
+        self.past_errors['cross_track'] = np.append(self.past_errors['cross_track'], self.cross_track_error)
+        #self.past_errors['d_cross_track'] = np.append(self.past_errors['d_cross_track'], d_cross_track_error)
+        self.past_errors['la_heading'] = np.append(self.past_errors['la_heading'], self.la_heading_error)
+        self.past_errors['heading'] = np.append(self.past_errors['heading'], self.heading_error)
+
+        #closest_point_distance, _, closest_arclength = self.path.get_closest_point_distance(self.vessel.position)
+        #closest_point_heading_error = geom.princip(self.path.get_direction(closest_arclength) - self.vessel.course)
         course_path_angle = geom.princip(self.path.get_direction(self.max_path_prog) - self.vessel.course)
-        dprog = np.cos(course_path_angle) * self.vessel.speed * self.config["t_step_size"]
-        if (
-            closest_point_distance < self.config["max_closest_point_distance"] or
-            abs(closest_point_heading_error) < self.config["max_closest_point_heading_error"]
-        ):
-            prog = closest_arclength
-        else:
-            prog = min(max(0, self.max_path_prog + dprog), self.path.length)
+        dprog = np.cos(course_path_angle)*self.vessel.speed*self.config["t_step_size"] - self.along_track_error*0.05
+        prog = min(max(0, self.max_path_prog + dprog), self.path.length)
 
         if prog > self.max_path_prog:
             self.max_path_prog = prog
@@ -176,10 +229,12 @@ class BaseShipScenario(gym.Env):
         self.path_prog = np.append(self.path_prog, prog)
 
         if (self.look_ahead_arclength is None):
-            self.target_arclength = self.max_path_prog + self.config["min_la_dist"]
+            target_arclength_candidate = self.max_path_prog + self.config["min_la_dist"]
         else:
-            self.target_arclength = max(self.look_ahead_arclength, self.max_path_prog + self.config["min_la_dist"])
-        self.target_arclength = min(self.target_arclength, self.path.length)
+            target_arclength_candidate = max(self.look_ahead_arclength, self.max_path_prog + self.config["min_la_dist"])
+        
+        if (target_arclength_candidate > self.target_arclength):
+            self.target_arclength = min(target_arclength_candidate, self.path.length)
 
         obs = self.observe()
         assert not np.isnan(obs).any(), 'Observation vector "{}" contains nan values.'.format(str(obs))
@@ -207,10 +262,19 @@ class BaseShipScenario(gym.Env):
         """
 
         if (self.t_step > 0):
-            self.memory = {
+            self.last_episode = {
                 'path': self.path(np.linspace(0, self.path.s_max, 1000)),
-                'path_taken': self.vessel.path_taken
+                'path_taken': self.vessel.path_taken,
             }
+            self.history.append({
+                'collisions': self.collisions,
+                'cross_track_error': self.cross_track_errors.mean(),
+                'collision_baselines': self.get_collision_baseline(),
+                'progress': self.max_path_prog/self.path.length,
+                'reached_goal': int(self.reached_goal),
+                'reward': self.cumulative_reward,
+                'timesteps': self.t_step
+            })
 
         self.vessel = None
         self.path = None
@@ -226,12 +290,25 @@ class BaseShipScenario(gym.Env):
             'cross_track': np.array([]),
             'heading': np.array([]),
             'la_heading': np.array([]),
+            'd_cross_track': np.array([]),
         }
+        
         self.obstacles = []
         self.nearby_obstacles = []
         self.t_step = 0
         self.look_ahead_point = None
         self.look_ahead_arclength = None
+        self.reached_goal = False
+
+        self.heading_error_la = 0
+        self.heading_error = 0
+        self.la_distance = 0
+        self.along_track_error = 0
+        self.cross_track_error = 0
+
+        self.collisions = 0
+        self.cross_track_errors = np.array([])
+        self.sensor_updates = 0
 
         if self.np_random is None:
             self.seed()
@@ -262,55 +339,11 @@ class BaseShipScenario(gym.Env):
     def render(self, mode='human'):
         image_arr = render_env(self, mode)
         return image_arr
-
-    def plot(self, fig_dir, fig_name):
-        """
-        Plots the result of a path following episode.
-
-        Parameters
-        ----------
-        fig_dir : str
-            Absolute path to a directory to store the plotted
-            figure in.
-        fig_name : str
-            Name of figure.
-        """
-
-        path = self.memory['path']
-        path_taken = self.memory['path_taken']
-
-        plt.axis('scaled')
-        fig_path = plt.figure()
-        ax_path = fig_path.add_subplot(1, 1, 1)
-        ax_path.set_aspect('equal')
-
-        # for obst in self.obstacles:
-        #     ax_path.add_patch(plt.Circle(obst.position[::-1],
-        #                                 (obst.radius
-        #                                 + self.config["obst_detection_range"]),
-        #                                 facecolor='tab:blue',
-        #                                 edgecolor='tab:blue',
-        #                                 alpha=0.2,
-        #                                 linewidth=0.5))
-        #     ax_path.add_patch(plt.Circle(obst.position[::-1],
-        #                                 (obst.radius
-        #                                 + self.config["obst_reward_range"]),
-        #                                 facecolor='tab:red',
-        #                                 edgecolor='tab:red',
-        #                                 alpha=0.4,
-        #                                 linewidth=0.5))
+    
+    def get_collision_baseline(self):
+        baseline = 0
         for obst in self.obstacles:
-            obst = ax_path.add_patch(plt.Circle(obst.position[::-1],
-                                                obst.radius,
-                                                facecolor='tab:red',
-                                                edgecolor='black',
-                                                linewidth=0.5))
-            obst.set_hatch('////')
-
-        ax_path.plot(path[1, :], path[0, :], dashes=[6, 2], color='black', linewidth=1.5, label=r'Path')
-        ax_path.plot(path_taken[:, 1], path_taken[:, 0], color='tab:blue', label=r'Path taken')
-        ax_path.set_ylabel(r"North (m)")
-        ax_path.set_xlabel(r"East (m)")
-        ax_path.legend()
-
-        fig_path.savefig(fig_dir + '/' + fig_name + '.pdf', format='pdf')
+            closest_point_distance, _, _ = self.path.get_closest_point_distance(obst.position)
+            if (closest_point_distance <= obst.radius):
+                baseline += 1
+        return baseline

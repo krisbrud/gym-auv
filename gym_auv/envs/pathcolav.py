@@ -6,7 +6,7 @@ import gym
 from gym.utils import seeding
 import numpy as np
 import numpy.linalg as linalg
-from scipy.ndimage.filters import gaussian_filter1d
+from scipy.ndimage.filters import gaussian_filter1d, gaussian_filter
 import shapely.geometry
 
 import gym_auv.utils.geomutils as geom
@@ -14,6 +14,8 @@ from gym_auv.objects.auv import AUV2D
 from gym_auv.objects.path import RandomCurveThroughOrigin
 from gym_auv.objects.obstacles import StaticObstacle
 from gym_auv.environment import BaseShipScenario
+
+from matplotlib import pyplot as plt
 
 class PathColavEnv(BaseShipScenario):
     """
@@ -71,51 +73,46 @@ class PathColavEnv(BaseShipScenario):
         info = {"collision": False}
         progress = self.path_prog[-1] - self.path_prog[-2]
         max_prog = self.config["cruise_speed"]*self.config["t_step_size"]
-        speed_error = ((linalg.norm(self.vessel.velocity) - self.config["cruise_speed"])/self.vessel.max_speed)
-        cross_track_error = self.past_obs[-1, self.nstates - 1]
-        d_cross_track_error = abs(self.past_obs[-1, self.nstates - 1]) - abs(self.past_obs[-2, self.nstates - 1])
-        la_heading_error = self.past_obs[-1, 3]
-        heading_error = self.past_obs[-1, 4]
-        
-        self.past_errors['speed'] = np.append(self.past_errors['speed'], speed_error)
-        self.past_errors['cross_track'] = np.append(self.past_errors['cross_track'], cross_track_error)
-        self.past_errors['la_heading'] = np.append(self.past_errors['la_heading'], la_heading_error)
-        self.past_errors['heading'] = np.append(self.past_errors['heading'], heading_error)
 
         ds = np.clip(progress/max_prog, -1, 1)
         step_reward += ds*self.config["reward_ds"]
         if (ds < 0):
             step_reward += ds*self.config["penalty_negative_ds"]
         
-        step_reward += (abs(cross_track_error)*self.config["reward_cross_track_error"])
-        step_reward += (d_cross_track_error/max_prog*self.config["reward_d_cross_track_error"])
-        step_reward += (max(speed_error, 0)*self.config["reward_speed_error"])
-        step_reward += (abs(la_heading_error)*self.config["reward_la_heading_error"])
-        step_reward += (abs(heading_error)*self.config["reward_heading_error"])
+        step_reward += (np.exp(-self.cross_track_error**2/200)*self.config["reward_cross_track_error"])
+        #step_reward += (self.d_cross_track_error*self.config["reward_d_cross_track_error"])
+        step_reward += (max(self.speed_error, 0)*self.config["reward_speed_error"])
+        step_reward += (abs(self.la_heading_error)*self.config["reward_la_heading_error"])
+        step_reward += (abs(self.heading_error)*self.config["reward_heading_error"])
+        step_reward += abs(self.vessel.rudder_change)*self.config["reward_rudderchange"]
+        step_reward += self.config["living_penalty"]
 
         dist_to_endpoint = linalg.norm(self.vessel.position - self.path.get_endpoint())
 
-        for obst_dist, _, _ in self.nearby_obstacles:
+        for obst_dist, _, obst in self.nearby_obstacles:
             step_reward += max(self.config["reward_collision"], np.exp(self.config["obst_reward_range"] - obst_dist)*self.config["reward_closeness"])
             if obst_dist <= 0:
+                if (not obst.collided):
+                    obst.collided = True
+                    self.collisions += 1
                 info["collision"] = True
                 if self.config["end_on_collision"]:
                     done = True
                     break
 
         step_reward = max(self.config["min_reward"] - self.cumulative_reward, step_reward)
-        if (self.cumulative_reward <= self.config["min_reward"]
-            or abs(self.path_prog[-1] - self.path.length) < 2
-            or dist_to_endpoint < 5
-        ):
+        if (self.cumulative_reward <= self.config["min_reward"]):
             done = True
+        if (abs(self.path_prog[-1] - self.path.length) < 2 or dist_to_endpoint < 5):
+            done = True
+            self.reached_goal = True
 
         return done, step_reward, info
 
     def _create_obstacle(self):
         min_distance = 0
         while min_distance <= 0:
-            obst_displacement_dist = np.random.normal(0, 50)
+            obst_displacement_dist = np.random.normal(0, 150)
             obst_arclength = (0.1 + 0.8*self.np_random.rand())*self.path.s_max
             obst_position = self.path(obst_arclength)
             obst_displacement_angle = geom.princip(self.path.get_direction(obst_arclength) - np.pi/2)
@@ -123,7 +120,7 @@ class PathColavEnv(BaseShipScenario):
                 np.cos(obst_displacement_angle), 
                 np.sin(obst_displacement_angle)
             ])
-            obst_radius = 20*(self.np_random.rand()+1)
+            obst_radius = np.random.poisson(30)
             obstacle = StaticObstacle(obst_position, obst_radius)
 
             vessel_distance_vec = geom.Rzyx(0, 0, -self.vessel.heading).dot(
@@ -149,14 +146,39 @@ class PathColavEnv(BaseShipScenario):
         init_pos[0] += 50*(self.np_random.rand()-0.5)
         init_pos[1] += 50*(self.np_random.rand()-0.5)
         init_angle = geom.princip(init_angle + 2*np.pi*(self.np_random.rand()-0.5))
-        self.vessel = AUV2D(self.config["t_step_size"], np.hstack([init_pos, init_angle]))
-        prog = self.path.get_closest_arclength(self.vessel.position)
+        self.vessel = AUV2D(self.config["t_step_size"], np.hstack([init_pos, init_angle]), width=4)
+        prog = 0
         self.path_prog = np.array([prog])
         self.max_path_prog = prog
 
         for _ in range(self.config["nobstacles"]):
             obstacle = self._create_obstacle()
             self.obstacles.append(obstacle)
+
+    def _get_sector_lidar_distance(self, measurements):
+        sort_idx = np.argsort(measurements, axis=None)
+        for idx in sort_idx:
+            surviving = measurements > measurements[idx]
+            d = measurements[idx]*self.sensor_angle
+            opening_width = 0
+            found_opening = False
+            for lidar_surviving in surviving:
+                if (lidar_surviving):
+                    opening_width += d
+                    if (opening_width > self.vessel.width):
+                        found_opening = True
+                        break
+                else:
+                    opening_width += 0.5*d
+                    if (opening_width > self.vessel.width):
+                        found_opening = True
+                        break
+                    opening_width = 0
+
+            if (not found_opening):
+                return measurements[idx]
+    
+        raise AssertionError('Should not get here.')
 
     def observe(self):
         """
@@ -181,32 +203,21 @@ class PathColavEnv(BaseShipScenario):
             All observations are between -1 and 1.
         """
 
-        la_heading = self.path.get_direction(self.target_arclength)
-        heading_error_la = float(geom.princip(la_heading - self.vessel.heading))
-        path_position = self.path(self.target_arclength) - self.vessel.position
-        target_heading = np.arctan2(path_position[1], path_position[0])
-        heading_error = float(geom.princip(target_heading - self.vessel.heading))
-        la_distance = linalg.norm(path_position)
-
-        path_direction = self.path.get_direction(self.max_path_prog)
-        cross_track_error = geom.Rzyx(0, 0, -path_direction).dot(
-            np.hstack([self.path(self.max_path_prog) - self.vessel.position, 0])
-        )[1]
-
-        obs = np.zeros((self.nstates + self.nsectors*2,))
+        obs = np.zeros((self.n_observations,))
 
         obs[0] = np.clip(self.vessel.velocity[0]/self.vessel.max_speed, -1, 1)
         obs[1] = np.clip(self.vessel.velocity[1]/0.26, -1, 1)
         obs[2] = np.clip(self.vessel.yawrate/0.55, -1, 1)
-        obs[3] = np.clip(heading_error_la/np.pi, -1, 1)
-        obs[4] = np.clip(heading_error/np.pi, -1, 1)
-        obs[5] = np.clip(cross_track_error/50, -1, 1)
-        obs[6] = np.clip((la_distance - self.config["min_la_dist"])/(self.config["lidar_range"]-self.config["min_la_dist"]), -1, 1)
+        obs[3] = np.clip(self.heading_error_la/np.pi, -1, 1)
+        obs[4] = np.clip(self.heading_error/np.pi, -1, 1)
+        obs[5] = np.clip(self.cross_track_error/200, -1, 1)
+        obs[6] = np.clip((self.la_distance - self.config["min_la_dist"])/(self.config["lidar_range"]-self.config["min_la_dist"]), -1, 1)
 
-        if (self.t_step % self.config['sensor_interval_obstacles'] != 0):
-            obs[self.nstates:self.nstates+self.nsectors] = self.past_obs[-1, self.nstates:self.nstates+self.nsectors]
+        if (self.past_obs is not None):
+            obs[self.nstates:] = self.past_obs[-1, self.nstates:]
 
-        else:
+        if (self.t_step % self.config['sensor_interval_obstacles'] == 0):
+            self.sensor_updates += 1
             vessel_center = shapely.geometry.Point(
                 self.vessel.position[0], 
                 self.vessel.position[1],
@@ -228,12 +239,8 @@ class PathColavEnv(BaseShipScenario):
                 obst.observed = False
 
             self.sensor_obst_intercepts = [None for isensor in range(self.nsensors)]
-            self.obst_active_sensors = [None for isector in range(self.nsectors)]
 
-            if (self.t_step % self.config['sensor_interval_path'] != 0):
-                obs[self.nstates+self.nsectors:] = self.past_obs[-1, self.nstates+self.nsectors:]
-
-            else:
+            if (self.t_step % self.config['sensor_interval_path'] == 0):
                 last_look_ahead_arclength = self.look_ahead_arclength
                 last_look_ahead_point = self.look_ahead_point
                 self.look_ahead_arclength = None
@@ -249,78 +256,145 @@ class PathColavEnv(BaseShipScenario):
                 self.sensor_path_arclengths = np.zeros((self.nsensors, ))
                 self.sensor_path_index = None
                 stop_path_search = False
-                
-            if (collision):
-                for isector in range(self.nsectors):
-                    obs[self.nstates + isector] = 1
 
-            else:
-                self.sensor_obst_measurements = np.zeros((self.nsensors, ))
-                for isensor in self.sensor_order:
-                    sensor_angle = self.sensor_angles[isensor]
-                    isector = isensor // self.config["n_sensors_per_sector"]
-                    global_sensor_angle = sensor_angle+self.vessel.heading
-                    sector_line = shapely.geometry.LineString([(
-                            self.vessel.position[0], 
-                            self.vessel.position[1],
-                        ),(
-                            self.vessel.position[0] + np.cos(global_sensor_angle)*self.config["lidar_range"],
-                            self.vessel.position[1] + np.sin(global_sensor_angle)*self.config["lidar_range"],
-                        )
-                    ])
 
-                    closest_obstacle_distance = np.inf
-                    for obst_dist, obst_ang, obst in self.nearby_obstacles:
-                        d_ang = geom.princip(obst_ang - sensor_angle)
-                        if (d_ang > np.pi/2):
-                            continue
-                        obst_intersect = obst.circle.intersection(sector_line)
+            if (self.config["detection_grid"] and self.t_step > 0):
+                full_detection_image = np.array([])
+                for iring in range(self.nrings):
+                    radius = self.rings[iring]
+                    old_detection_image = self.detection_images[iring].copy()
+
+                    if (self.config["rear_detection"]):
+                        image_rotation = min(1, abs(self.vessel.heading_change) / (2*np.pi/self.ring_sectors[iring]))
+                    else:
+                        image_rotation = min(1, abs(self.vessel.heading_change) / (np.pi/self.ring_sectors[iring]))
+                    for isector in range(self.ring_sectors[iring]):
+                        left_detection_value = old_detection_image[(isector - 1) % self.ring_sectors[iring]]
+                        right_detection_value = old_detection_image[(isector + 1) % self.ring_sectors[iring]]
                         
-                        if (obst_intersect):
-                            obst.observed = True
-                            obst_intersections = [obst_intersect] if type(obst_intersect) == shapely.geometry.Point else list(obst_intersect.geoms)
-                            for obst_intersection in obst_intersections:
-                                distance = float(vessel_center.distance(obst_intersection))
-                                closeness = 1 - np.clip((distance - self.vessel.width)/self.config["lidar_range"], 0, 1)
-                                if (closeness > self.sensor_obst_measurements[isensor]):
-                                    self.sensor_obst_measurements[isensor] = closeness
-                                    self.sensor_obst_intercepts[isensor] = (obst_intersection.x, obst_intersection.y)
-                                    self.obst_active_sensors[isector] = isensor
-                                    closest_obstacle_distance = distance
+                        if (self.vessel.heading_change > 0):
+                            self.detection_images[iring][isector] = image_rotation*left_detection_value + (1-image_rotation)*self.detection_images[iring][isector]
+                        if (self.vessel.heading_change > 0):
+                            self.detection_images[iring][isector] = image_rotation*right_detection_value + (1-image_rotation)*self.detection_images[iring][isector]
 
-                    if (self.t_step % self.config['sensor_interval_path'] == 0):
-                        if (not stop_path_search):
-                            path_intersect = sector_line.intersection(self.path.line)
-                            path_intersections = [path_intersect] if type(path_intersect) == shapely.geometry.Point else list(path_intersect.geoms)
-                            for path_intersection in path_intersections:
-                                distance = float(vessel_center.distance(path_intersection))
-                                if (distance < closest_obstacle_distance and distance >= self.config["min_la_dist"]):
-                                    if (last_look_ahead_arclength is not None and self.look_ahead_arclength is None):
-                                        max_look_ahead_arclength = last_look_ahead_arclength
-                                        self.look_ahead_point = last_look_ahead_point
-                                        self.look_ahead_arclength = last_look_ahead_arclength
-                                    intersection_arclength = self.path.get_closest_arclength([path_intersection.x, path_intersection.y])
-                                    if (intersection_arclength > max_look_ahead_arclength):
-                                        if (last_look_ahead_arclength is None or intersection_arclength > last_look_ahead_arclength):
-                                            max_look_ahead_arclength = intersection_arclength
-                                            self.look_ahead_point = [path_intersection.x, path_intersection.y]
-                                            self.look_ahead_arclength = intersection_arclength
-                                            self.sensor_path_index = isensor
-                                            if (distance > 0.9*self.config["lidar_range"]):
-                                                stop_path_search = True
-                                                break
-                                    if (intersection_arclength > self.sensor_path_arclengths[isensor]):
-                                        self.sensor_path_arclengths[isensor] = intersection_arclength
-                                        rel_distance = np.clip((distance - self.config["min_la_dist"])/(self.config["lidar_range"]-self.config["min_la_dist"]), -1, 1)
-                                        if obs[self.nstates + self.nsectors +  isector] < rel_distance:
-                                            obs[self.nstates + self.nsectors + isector] = rel_distance
+                        sector_angle = self.sector_angles[iring][isector]
+                        global_sector_angle = geom.princip(sector_angle+self.vessel.heading)
+                        
+                        center = np.array([
+                            self.vessel.position[0] + np.cos(global_sector_angle)*radius,
+                            self.vessel.position[1] + np.sin(global_sector_angle)*radius,
+                        ])
+                        intensity = 0
+                        for obst_dist, obst_ang, obst in self.nearby_obstacles:
+                            if (linalg.norm(obst.position - center) < obst.radius + self.ring_depths[iring]/2):
+                                intensity = 1
+                                break
+                        
+                        # 1 - linalg.norm(obst.position - center)/(obst.radius + self.ring_depths[iring]/2)
+                        self.detection_images[iring][isector] = intensity
 
-                self.sensor_obst_measurements = gaussian_filter1d(self.sensor_obst_measurements, sigma=self.config['sensor_convolution_sigma'])
-                                
-                for isensor in range(self.nsensors):
-                    isector = isensor // self.config["n_sensors_per_sector"]
-                    closeness = self.sensor_obst_measurements[isensor]
-                    if obs[self.nstates +  isector] < closeness:
-                        obs[self.nstates + isector] = closeness
+                        if (iring == 0):
+                            self.feasibility_images[iring][isector] = 1 - self.detection_images[iring][isector]
+                        else:
+                            self.feasibility_images[iring][isector] = min(self.feasibility_images[iring-1][isector], 1 - self.detection_images[iring][isector])
+
+                        full_detection_image = np.hstack((full_detection_image, self.detection_images[iring][isector]))
+
+                    if (iring > 0):
+                        for isector in range(self.ring_sectors[iring]):
+                            if (self.detection_images[iring][isector] == 0):
+                                neighbor = (isector + 1) % self.ring_sectors[iring]
+                                self.feasibility_images[iring][neighbor] = max(self.feasibility_images[iring][isector], self.feasibility_images[iring-1][neighbor])
+                        for isector in range(self.ring_sectors[iring]-1, -1, -1):
+                            if (self.detection_images[iring][isector] == 0):
+                                neighbor = (isector - 1) % self.ring_sectors[iring]
+                                self.feasibility_images[iring][neighbor] = max(self.feasibility_images[iring][isector], self.feasibility_images[iring-1][neighbor])
+                
+                #self.detection_images = gaussian_filter(self.detection_images, 1)
+                obs[self.nstates:self.nstates+self.n_detection_grid_sections] = full_detection_image
+
+            if (self.config["lidars"]):            
+                if (collision):
+                    for isector in range(self.nsectors):
+                        obs[self.lidar_obs_index + isector] = 1
+
+                else:
+
+                    sector_measurements = [[] for isector in range(self.nsectors)]
+                    self.sensor_obst_measurements = np.zeros((self.nsensors, ))
+                    self.sector_active = [0 for isector in range(self.nsectors)]
+                    for isensor in self.sensor_order:
+                        isector = isensor // self.config["n_sensors_per_sector"]
+                        if (self.config["lidar_rotation"] and (self.sensor_updates + 1) % self.nsectors != isector):
+                            continue
+                        self.sector_active[isector] = 1
+                        sensor_angle = self.sensor_angles[isensor]
+                        global_sensor_angle = geom.princip(sensor_angle+self.vessel.heading)
+                        sector_line = shapely.geometry.LineString([(
+                                self.vessel.position[0], 
+                                self.vessel.position[1],
+                            ),(
+                                self.vessel.position[0] + np.cos(global_sensor_angle)*self.config["lidar_range"],
+                                self.vessel.position[1] + np.sin(global_sensor_angle)*self.config["lidar_range"],
+                            )
+                        ])
+
+                        closest_obstacle_distance = self.config["lidar_range"]
+                        for obst_dist, obst_ang, obst in self.nearby_obstacles:
+                            d_ang = geom.princip(obst_ang - sensor_angle)
+                            if (d_ang > np.pi/2):
+                                continue
+                            obst_intersect = obst.circle.intersection(sector_line)
+                            
+                            if (obst_intersect):
+                                obst.observed = True
+                                obst_intersections = [obst_intersect] if type(obst_intersect) == shapely.geometry.Point else list(obst_intersect.geoms)
+                                for obst_intersection in obst_intersections:
+                                    distance = float(vessel_center.distance(obst_intersection)) - self.vessel.width
+                                    closeness = 1 - np.clip(distance/self.config["lidar_range"], 0, 1)
+                                    if (closeness > self.sensor_obst_measurements[isensor]):
+                                        self.sensor_obst_measurements[isensor] = closeness
+                                        self.sensor_obst_intercepts[isensor] = (obst_intersection.x, obst_intersection.y)
+                                        closest_obstacle_distance = distance
+                        sector_measurements[isector].append(closest_obstacle_distance)
+
+                        if (self.t_step % self.config['sensor_interval_path'] == 0):
+                            if (not stop_path_search):
+                                path_intersect = sector_line.intersection(self.path.line)
+                                path_intersections = [path_intersect] if type(path_intersect) == shapely.geometry.Point else list(path_intersect.geoms)
+                                for path_intersection in path_intersections:
+                                    distance = float(vessel_center.distance(path_intersection))
+                                    if (distance < closest_obstacle_distance and distance >= self.config["min_la_dist"]):
+                                        if (last_look_ahead_arclength is not None and self.look_ahead_arclength is None):
+                                            max_look_ahead_arclength = last_look_ahead_arclength
+                                            self.look_ahead_point = last_look_ahead_point
+                                            self.look_ahead_arclength = last_look_ahead_arclength
+                                        if (type(path_intersection) == shapely.geometry.LineString):
+                                            continue
+                                        intersection_arclength = self.path.get_closest_arclength([path_intersection.x, path_intersection.y])
+                                        if (intersection_arclength > max_look_ahead_arclength):
+                                            if (last_look_ahead_arclength is None or intersection_arclength > last_look_ahead_arclength):
+                                                max_look_ahead_arclength = intersection_arclength
+                                                self.look_ahead_point = [path_intersection.x, path_intersection.y]
+                                                self.look_ahead_arclength = intersection_arclength
+                                                self.sensor_path_index = isensor
+                                                if (distance > 0.9*self.config["lidar_range"]):
+                                                    stop_path_search = True
+                                                    break
+                                        if (intersection_arclength > self.sensor_path_arclengths[isensor]):
+                                            self.sensor_path_arclengths[isensor] = intersection_arclength
+
+                    self.sensor_obst_measurements = gaussian_filter1d(self.sensor_obst_measurements, sigma=self.config['sensor_convolution_sigma'])
+
+                    for isector in range(self.nsectors):
+                        if (self.config["lidar_rotation"] and (self.sensor_updates + 1) % self.nsectors != isector):
+                            continue
+                        measurements = np.array(sector_measurements[isector])
+                        distance = self._get_sector_lidar_distance(measurements)
+                        if (self.config["lidar_range_log_transform"]):
+                            closeness = 1 - np.clip(np.log(1 + distance)/np.log(1+self.config["lidar_range"]), 0, 1)
+                        else:
+                            closeness = 1 - np.clip(distance/self.config["lidar_range"], 0, 1)
+                        obs[self.lidar_obs_index + isector] = closeness
 
         return obs

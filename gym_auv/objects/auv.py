@@ -23,7 +23,7 @@ class AUV2D():
     input : np.array
         The current input. [propeller_input, rudder_position].
     """
-    def __init__(self, t_step, init_pos, width=2):
+    def __init__(self, t_step, init_pos, width=4):
         """
         The __init__ method declares all class atributes.
 
@@ -43,6 +43,7 @@ class AUV2D():
         self.width = width
         self.t_step = t_step
         self.input = [0, 0]
+        self.prev_inputs =np.vstack([self.input])
 
     def step(self, action):
         """
@@ -58,6 +59,7 @@ class AUV2D():
         self._sim()
 
         self.prev_states = np.vstack([self.prev_states,self._state])
+        self.prev_inputs = np.vstack([self.prev_inputs,self.input])
 
     def _sim(self):
         psi = self._state[2]
@@ -96,6 +98,24 @@ class AUV2D():
         Returns the heading of the AUV wrt true north.
         """
         return self._state[2]
+
+    @property
+    def heading_change(self):
+        """
+        Returns the change of heading of the AUV wrt true north.
+        """
+        return geom.princip(self.prev_states[-1, 2] - self.prev_states[-2, 2]) if len(self.prev_states) >= 2 else self.heading
+
+    @property
+    def rudder_change(self):
+        """
+        Returns the smoothed current rutter change.
+        """
+        sum_rudder_change = 0
+        n_samples = min(10, len(self.prev_inputs))
+        for i in range(n_samples):
+            sum_rudder_change += self.prev_inputs[-1 - i, 1]
+        return sum_rudder_change/n_samples
 
     @property
     def velocity(self):

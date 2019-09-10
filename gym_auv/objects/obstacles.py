@@ -11,6 +11,7 @@ class StaticObstacle():
         self.radius = radius
         self.position = position.flatten()
         self.observed = False
+        self.collided = False
         self.circle = shapely.geometry.Point(*self.position).buffer(self.radius).boundary
 
     def step(self):

@@ -128,8 +128,8 @@ class Viewer(object):
         self.onetime_geoms = []
         return arr if return_rgb_array else self.isopen
 
-    def draw_circle(self, origin=(0,0), radius=10, res=30, filled=True, outline=True, **attrs):
-        geom = make_circle(origin=origin, radius=radius, res=res, filled=filled)
+    def draw_circle(self, origin=(0,0), radius=10, res=30, filled=True, outline=True, start_angle=0, end_angle=2*np.pi, **attrs):
+        geom = make_circle(origin=origin, radius=radius, res=res, filled=filled, start_angle=start_angle, end_angle=end_angle)
         _add_attrs(geom, attrs)
         self.add_onetime(geom)
         if filled and outline:
@@ -180,10 +180,16 @@ class Viewer(object):
         self.draw_polyline([base, head], linewidth=2, **attrs)
         self.draw_polygon(tri, **attrs)
 
-    def draw_shape(self, vertices, position, angle, color):
-        poly_path = self.transform_vertices(vertices, position, angle)
-        self.draw_polygon(poly_path, color=color)
-        self.draw_polyline(poly_path + [poly_path[0]], linewidth=2, color=(0, 0, 0))
+    def draw_shape(self, vertices, position=None, angle=None, color=(1, 1, 1), filled=True, border=True):
+        if (position is not None):
+            poly_path = self.transform_vertices(vertices, position, angle)
+        else:
+            poly_path = vertices
+        if (filled):
+            self.draw_polygon(poly_path + [poly_path[0]], color=color)
+        if (border):
+            border_color = (0, 0, 0) if type(border) == bool else border
+            self.draw_polyline(poly_path + [poly_path[0]], linewidth=1, color=border_color if filled else color)
 
     def __del__(self):
         self.close()
@@ -214,8 +220,8 @@ class Geom(object):
     def add_attr(self, attr):
         self.attrs.append(attr)
 
-    def set_color(self, r, g, b):
-        self._color.vec4 = (r, g, b, 1)
+    def set_color(self, r, g, b, alpha=1):
+        self._color.vec4 = (r, g, b, alpha)
 
 
 class Attr(object):
@@ -303,15 +309,18 @@ class FilledPolygon(Geom):
         gl.glEnd()
 
 
-def make_circle(origin=(0,0), radius=10, res=30, filled=True):
+def make_circle(origin=(0,0), radius=10, res=30, filled=True, start_angle=0, end_angle=2*np.pi, return_points=False):
     points = []
-    for i in range(res):
-        ang = 2*math.pi*i / res
+    for i in range(res+1):
+        ang = start_angle + i*(end_angle - start_angle)/res
         points.append((math.cos(ang)*radius + origin[0], math.sin(ang)*radius + origin[1]))
-    if filled:
-        return FilledPolygon(points)
+    if (return_points):
+        return points
     else:
-        return PolyLine(points, True)
+        if filled:
+            return FilledPolygon(points)
+        else:
+            return PolyLine(points, True)
 
 
 def make_polygon(v, filled=True):
@@ -449,11 +458,14 @@ def render_env(env, mode):
 
     def render_objects():
         t.enable()
-        _render_sensors(env)
+        if (env.config["lidars"]):
+            _render_sensors(env)
         _render_path(env)
         _render_vessel(env)
         _render_tiles(env, win)
         _render_obstacles(env)
+        if (env.config["detection_grid"]):
+            _render_detection_grid(env)
         _render_progress(env)
 
         # Visualise path error (DEBUGGING)
@@ -536,6 +548,9 @@ def init_env_viewer(env):
     env.viewer.cross_track_error_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 80.00, anchor_x='left', anchor_y='center',
                                             color=(0, 0, 0, 255))
+    # env.viewer.d_cross_track_error_text_field = pyglet.text.Label('0000', font_size=10,
+    #                                         x=20, y=WINDOW_H - 100.00, anchor_x='left', anchor_y='center',
+    #                                         color=(0, 0, 0, 255))
     env.viewer.speed_error_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 100.00, anchor_x='left', anchor_y='center',
                                             color=(0, 0, 0, 255))
@@ -553,22 +568,70 @@ def init_env_viewer(env):
                                             color=(0, 0, 0, 255))
 
 def _render_path(env):
-    env.viewer.draw_polyline(env.path.path_points, linewidth=3, color=(0.3, 0.3, 0.3))
+    env.viewer.draw_polyline(env.path.path_points, linewidth=3, color=(0.3, 1.0, 0.3))
 
 def _render_vessel(env):
     env.viewer.draw_polyline(env.vessel.path_taken, linewidth=3, color=(0.8, 0, 0))  # previous positions
-    env.viewer.draw_shape([
-            (-env.vessel.width, -env.vessel.width),
-            (-env.vessel.width, env.vessel.width),
-            (2 * env.vessel.width, env.vessel.width),
-            (3 * env.vessel.width, 0),
-            (2 * env.vessel.width, -env.vessel.width),
-        ], env.vessel.position, env.vessel.heading, color=(0, 0, 0.8))  # ship
+    vertices = [
+        (-env.vessel.width/2, -env.vessel.width/2),
+        (-env.vessel.width/2, env.vessel.width/2),
+        (env.vessel.width/2, env.vessel.width/2),
+        (3/2*env.vessel.width, 0),
+        (env.vessel.width/2, -env.vessel.width/2),
+    ]
+
+    env.viewer.draw_shape(vertices, env.vessel.position, env.vessel.heading, color=(0, 0, 0.8))  # ship
     env.viewer.draw_arrow(env.vessel.position, env.vessel.heading + pi + env.vessel.input[1]/4, length=2)
+
+def _render_detection_grid(env):
+    for iring in range(env.nrings):
+        radius = env.rings[iring]
+        ring_depth = env.ring_depths[iring]
+        for isector in range(env.ring_sectors[iring]):
+            sector_angle = env.sector_angles[iring][isector]
+            value = env.detection_images[iring][isector]
+            #value = env.feasibility_images[iring][isector]
+
+            if (env.config["rear_detection"]):
+                start_angle = env.vessel.heading + sector_angle - np.pi/env.ring_sectors[iring]
+                end_angle = env.vessel.heading + sector_angle + np.pi/env.ring_sectors[iring]
+            else:
+                start_angle = env.vessel.heading + sector_angle - 2/3*np.pi/env.ring_sectors[iring]
+                end_angle = env.vessel.heading + sector_angle + 2/3*np.pi/env.ring_sectors[iring]
+
+            inner_circumference = make_circle(
+                origin=env.vessel.position,
+                radius=radius - 1/2*ring_depth, 
+                res=30, 
+                start_angle=start_angle,
+                end_angle=end_angle,
+                return_points=True
+            )
+
+            outer_circumference = make_circle(
+                origin=env.vessel.position,
+                radius=radius + 1/2*ring_depth, 
+                res=30,
+                start_angle=start_angle,
+                end_angle=end_angle,
+                return_points=True
+            )
+
+            vertices = [
+                inner_circumference[-1],
+                *outer_circumference[::-1],
+                *inner_circumference
+            ]
+            #alpha = 0.3*(np.sin(env.t_step/3) + 1)/2
+            color = (value, 1-value, 0, 0.1)
+            border_color = (0, 0, 0, 0.1)
+            env.viewer.draw_shape(vertices, (0, 0), 0, color=color, border=border_color, filled=True)
 
 def _render_sensors(env):
     for isensor, sensor_angle in enumerate(env.sensor_angles):
         isector = isensor // env.config["n_sensors_per_sector"]
+        if (not env.sector_active[isector]):
+            continue
         p0 = env.vessel.position
         if (env.sensor_obst_intercepts[isensor] is None):
             p1 = (
@@ -577,15 +640,13 @@ def _render_sensors(env):
             )
         else:
             p1 = env.sensor_obst_intercepts[isensor]
-        #brightness = 0.3*(np.sin(env.t_step/3) + 1)/2
-        redness = env.sensor_obst_measurements[isensor]
-        greenness = 1.0 * (1 - redness/2) #env.sensor_obst_measurements[isensor] if env.obst_active_sensors[isector] == isensor else 0
-        blueness = (0.5 if isector % 2 == 0 else 1) #(1 - redness)
-        if (env.obst_active_sensors[isector] == isensor):
-            redness = 1
-            blueness = 1
         
-        env.viewer.draw_line(p0, p1, color=(redness, greenness, blueness))
+        redness = 0.5 + 0.5*env.past_obs[-1, env.lidar_obs_index + isector]#env.sensor_obst_measurements[isensor]
+        greenness = 1 - env.past_obs[-1, env.lidar_obs_index + isector]#0.5 - 0.5*env.past_obs[-1, env.lidar_obs_index + isector] #env.sensor_obst_measurements[isensor] if env.obst_active_sensors[isector] == isensor else 0
+        blueness = 0.5 if isector % 2 == 0 else 1 #(0.5 if isector % 2 == 0 else 1) #(1 - redness)
+        alpha = 0.5
+        
+        env.viewer.draw_line(p0, p1, color=(redness, greenness, blueness, alpha))
 
 def _render_progress(env):
     progress_point = env.path(env.max_path_prog).flatten()
@@ -596,7 +657,7 @@ def _render_progress(env):
 
 def _render_obstacles(env):
     for i, o in enumerate(env.obstacles):
-        c = (0.8, 0.8, 0.8) if not o.observed else (1.0, 0.0, 0.0)
+        c = (0.8, 0.8, 0.8)
         env.viewer.draw_circle(o.position, o.radius, color=c)
 
 def _render_tiles(env, win):
@@ -650,51 +711,6 @@ def _render_indicators(env, W, H):
         gl.glVertex3f((place+0)*prog, 2*h, 0)
         gl.glEnd()
 
-
-    def horiz_ind(place, val, color):
-        gl.glBegin(gl.GL_QUADS)
-        gl.glColor4f(color[0], color[1], color[2], 1)
-        gl.glVertex3f((place+0)*prog, 4*h, 0)
-        gl.glVertex3f((place+val)*prog, 4*h, 0)
-        gl.glVertex3f((place+val)*prog, 2*h, 0)
-        gl.glVertex3f((place+0)*prog, 2*h, 0)
-        gl.glEnd()
-
-    def gl_boat(x, y):
-        # Draw boat shape
-        gl.glBegin(gl.GL_LINES)
-        gl.glColor3f(0.9, 0.9, 0.9)
-        gl.glVertex2f(x, y)
-        gl.glVertex2f(x + boatw, y)
-        gl.glVertex2f(x + boatw, y)
-        gl.glVertex2f(x + boatw, y + 2 * h)
-        gl.glVertex2f(x + boatw, y + 2 * h)
-        gl.glVertex2f(x + boatw / 2, y + 2.5 * h)
-        gl.glVertex2f(x + boatw / 2, y + 2.5 * h)
-        gl.glVertex2f(x, y + 2*h)
-        gl.glVertex2f(x, y + 2*h)
-        gl.glVertex2f(x, y)
-        gl.glEnd()
-
-    def gl_arrow(x, y, angle, length, color=(0.9, 0.9, 0.9)):
-        L = 50
-        T = np.clip(7*length, 0, 7)
-        hx, hy = x + length*L*cos(angle), y + length*L*sin(angle)
-
-        gl.glEnable(gl.GL_LINE_SMOOTH)
-        gl.glLineWidth(2)
-        gl.glBegin(gl.GL_LINES)
-        gl.glColor3f(*color)
-        gl.glVertex2f(x, y)
-        gl.glVertex2f(hx, hy)
-        gl.glEnd()
-
-        gl.glBegin(gl.GL_TRIANGLES)
-        gl.glVertex2f(hx+T*cos(angle), hy+T*sin(angle))
-        gl.glVertex2f(hx + T*cos(angle + 2*pi/3), hy + T*sin(angle + 2*pi/3))
-        gl.glVertex2f(hx + T*cos(angle + 4*pi/3), hy + T*sin(angle + 4*pi/3))
-        gl.glEnd()
-
     scale = 3
     R = env.vessel.input[0]
     true_speed = np.sqrt(np.square(env.vessel.velocity[0]) + np.square(env.vessel.velocity[1]))
@@ -703,29 +719,33 @@ def _render_indicators(env, W, H):
     state_speed_error = env.past_obs[-1][0]
     vertical_ind(7, -scale*state_speed_error, color=(np.clip(true_speed, 0, 1), 0.6, 0.1))
     
-    env.viewer.reward_text_field.text = "{:<40}{:2.2f}".format('Reward:', 
+    env.viewer.reward_text_field.text = "{:<40}{:2.3f}".format('Reward:', 
         env.past_rewards[-1] if len(env.past_rewards) else np.nan
     )
     env.viewer.reward_text_field.draw()
-    env.viewer.cum_reward_text_field.text = "{:<40}{:2.2f}".format('Cumulative Reward:', env.cumulative_reward)
+    env.viewer.cum_reward_text_field.text = "{:<40}{:2.3f}".format('Cumulative Reward:', env.cumulative_reward)
     env.viewer.cum_reward_text_field.draw()
-    env.viewer.delta_path_prog_text_field.text = "{:<40}{:2.2f}".format('Delta Path Progression:', 
+    env.viewer.delta_path_prog_text_field.text = "{:<40}{:2.3f}".format('Delta Path Progression:', 
         env.path_prog[-1] - env.path_prog[-2] if env.path_prog is not None and len(env.path_prog) > 1 else np.nan
     )
     env.viewer.delta_path_prog_text_field.draw()
-    env.viewer.cross_track_error_text_field.text = "{:<40}{:2.2f}".format('Cross Track Error:', 
+    env.viewer.cross_track_error_text_field.text = "{:<40}{:2.3f}".format('Cross-Track Error:', 
         env.past_errors['cross_track'][-1] if 'cross_track' in env.past_errors and len(env.past_errors['cross_track']) else np.nan
     )
     env.viewer.cross_track_error_text_field.draw()
-    env.viewer.speed_error_text_field.text = "{:<40}{:2.2f}".format('Speed Error:', 
+    # env.viewer.d_cross_track_error_text_field.text = "{:<40}{:2.3f}".format('Delta-Cross-Track Error:', 
+    #     env.past_errors['d_cross_track'][-1] if 'd_cross_track' in env.past_errors and len(env.past_errors['d_cross_track']) else np.nan
+    # )
+    # env.viewer.d_cross_track_error_text_field.draw()
+    env.viewer.speed_error_text_field.text = "{:<40}{:2.3f}".format('Speed Error:', 
         env.past_errors['speed'][-1] if 'speed' in env.past_errors and len(env.past_errors['speed']) else np.nan
     )
     env.viewer.speed_error_text_field.draw()
-    env.viewer.heading_error_text_field.text = "{:<40}{:2.2f}".format('Heading Error:', 
+    env.viewer.heading_error_text_field.text = "{:<40}{:2.3f}".format('Heading Error:', 
         env.past_errors['heading'][-1] if 'heading' in env.past_errors and len(env.past_errors['heading']) else np.nan
     )
     env.viewer.heading_error_text_field.draw()
-    env.viewer.la_heading_error_text_field.text = "{:<40}{:2.2f}".format('LA Heading Error:', 
+    env.viewer.la_heading_error_text_field.text = "{:<40}{:2.3f}".format('LA Heading Error:', 
         env.past_errors['la_heading'][-1] if 'la_heading' in env.past_errors and len(env.past_errors['la_heading']) else np.nan
     )
     env.viewer.la_heading_error_text_field.draw()
