@@ -35,8 +35,9 @@ WINDOW_H = VIDEO_H
 SCALE       = 5.0        # Track scale
 PLAYFIELD   = WINDOW_W   # Game over boundary
 FPS         = 50
-ZOOM        = 3.0        # Camera ZOOM
-ZOOM_FOLLOW = True       # Set to False for fixed view (don't use ZOOM)
+ZOOM        = 3        # Camera ZOOM
+current_zoom = 2
+DYNAMIC_ZOOM = True
 CAMERA_ROTATION_SPEED = 0.02
 
 RAD2DEG = 57.29577951308232
@@ -460,13 +461,15 @@ def render_env(env, mode):
         t.enable()
         if (env.config["lidars"]):
             _render_sensors(env)
-        _render_path(env)
+        if (env.path is not None):
+            _render_path(env)
         _render_vessel(env)
         _render_tiles(env, win)
         _render_obstacles(env)
         if (env.config["detection_grid"]):
             _render_detection_grid(env)
-        _render_progress(env)
+        if (env.path is not None):
+            _render_progress(env)
 
         # Visualise path error (DEBUGGING)
         # p = np.array(env.vessel.position)
@@ -478,7 +481,8 @@ def render_env(env, mode):
 
         t.disable()
 
-        _render_indicators(env, WINDOW_W, WINDOW_H)
+        if (env.config["show_indicators"]):
+            _render_indicators(env, WINDOW_W, WINDOW_H)
 
     scroll_x = env.vessel.position[0]
     scroll_y = env.vessel.position[1]
@@ -488,10 +492,15 @@ def render_env(env, mode):
     else:
         rot_angle += CAMERA_ROTATION_SPEED * geom.princip(ship_angle - rot_angle)
 
-    env.viewer.transform.set_scale(ZOOM, ZOOM)
+    global current_zoom
+    if (int(env.t_step/1000) % 2 == 0):
+        current_zoom = 0.999*current_zoom + 0.001*(ZOOM - current_zoom)
+    else:
+        current_zoom = 0.999*current_zoom + 0.001*(1 - current_zoom)
+    env.viewer.transform.set_scale(current_zoom, current_zoom)
     env.viewer.transform.set_translation(
-        WINDOW_W/2 - (scroll_x*ZOOM*cos(rot_angle) - scroll_y*ZOOM*sin(rot_angle)),
-        WINDOW_H/2 - (scroll_x*ZOOM*sin(rot_angle) + scroll_y*ZOOM*cos(rot_angle))
+        WINDOW_W/2 - (scroll_x*current_zoom*cos(rot_angle) - scroll_y*current_zoom*sin(rot_angle)),
+        WINDOW_H/2 - (scroll_x*current_zoom*sin(rot_angle) + scroll_y*current_zoom*cos(rot_angle))
     )
     env.viewer.transform.set_rotation(rot_angle)
 
@@ -548,23 +557,32 @@ def init_env_viewer(env):
     env.viewer.cross_track_error_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 80.00, anchor_x='left', anchor_y='center',
                                             color=(0, 0, 0, 255))
-    # env.viewer.d_cross_track_error_text_field = pyglet.text.Label('0000', font_size=10,
-    #                                         x=20, y=WINDOW_H - 100.00, anchor_x='left', anchor_y='center',
-    #                                         color=(0, 0, 0, 255))
-    env.viewer.speed_error_text_field = pyglet.text.Label('0000', font_size=10,
+    env.viewer.along_track_error_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 100.00, anchor_x='left', anchor_y='center',
                                             color=(0, 0, 0, 255))
-    env.viewer.heading_error_text_field = pyglet.text.Label('0000', font_size=10,
+    env.viewer.d_cross_track_error_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 120.00, anchor_x='left', anchor_y='center',
                                             color=(0, 0, 0, 255))
-    env.viewer.la_heading_error_text_field = pyglet.text.Label('0000', font_size=10,
+    env.viewer.speed_error_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 140.00, anchor_x='left', anchor_y='center',
                                             color=(0, 0, 0, 255))
-    env.viewer.time_step_text_field = pyglet.text.Label('0000', font_size=10,
+    env.viewer.rudder_change_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 160.00, anchor_x='left', anchor_y='center',
                                             color=(0, 0, 0, 255))
-    env.viewer.episode_text_field = pyglet.text.Label('0000', font_size=10,
+    env.viewer.heading_error_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 180.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer.la_heading_error_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 200.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer.time_step_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 220.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer.episode_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 240.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer.lambda_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 260.00, anchor_x='left', anchor_y='center',
                                             color=(0, 0, 0, 255))
 
 def _render_path(env):
@@ -582,6 +600,10 @@ def _render_vessel(env):
 
     env.viewer.draw_shape(vertices, env.vessel.position, env.vessel.heading, color=(0, 0, 0.8))  # ship
     env.viewer.draw_arrow(env.vessel.position, env.vessel.heading + pi + env.vessel.input[1]/4, length=2)
+
+    if (env.vessel.planned_path is not None):
+        planned_path = np.vstack(env.vessel.planned_path).T
+        env.viewer.draw_polyline(planned_path, linewidth=1, color=(0.2, 0.2, 1.0))
 
 def _render_detection_grid(env):
     for iring in range(env.nrings):
@@ -630,8 +652,6 @@ def _render_detection_grid(env):
 def _render_sensors(env):
     for isensor, sensor_angle in enumerate(env.sensor_angles):
         isector = isensor // env.config["n_sensors_per_sector"]
-        if (not env.sector_active[isector]):
-            continue
         p0 = env.vessel.position
         if (env.sensor_obst_intercepts[isensor] is None):
             p1 = (
@@ -641,10 +661,11 @@ def _render_sensors(env):
         else:
             p1 = env.sensor_obst_intercepts[isensor]
         
-        redness = 0.5 + 0.5*env.past_obs[-1, env.lidar_obs_index + isector]#env.sensor_obst_measurements[isensor]
-        greenness = 1 - env.past_obs[-1, env.lidar_obs_index + isector]#0.5 - 0.5*env.past_obs[-1, env.lidar_obs_index + isector] #env.sensor_obst_measurements[isensor] if env.obst_active_sensors[isector] == isensor else 0
-        blueness = 0.5 if isector % 2 == 0 else 1 #(0.5 if isector % 2 == 0 else 1) #(1 - redness)
-        alpha = 0.5
+        closeness = env.past_obs[-1, env.lidar_obs_index + isector]
+        redness = 0.5 + 0.5*max(0, closeness)
+        greenness = 1 - max(0, closeness)
+        blueness = 0.5 if isector % 2 == 0 and not env.config["lidar_rotation"] else 1
+        alpha = 0.5 if env.sector_active[isector] else 0.2
         
         env.viewer.draw_line(p0, p1, color=(redness, greenness, blueness, alpha))
 
@@ -733,14 +754,22 @@ def _render_indicators(env, W, H):
         env.past_errors['cross_track'][-1] if 'cross_track' in env.past_errors and len(env.past_errors['cross_track']) else np.nan
     )
     env.viewer.cross_track_error_text_field.draw()
-    # env.viewer.d_cross_track_error_text_field.text = "{:<40}{:2.3f}".format('Delta-Cross-Track Error:', 
-    #     env.past_errors['d_cross_track'][-1] if 'd_cross_track' in env.past_errors and len(env.past_errors['d_cross_track']) else np.nan
-    # )
-    # env.viewer.d_cross_track_error_text_field.draw()
+    env.viewer.along_track_error_text_field.text = "{:<40}{:2.3f}".format('Along-Track Error:', 
+        env.past_errors['along_track'][-1] if 'along_track' in env.past_errors and len(env.past_errors['along_track']) else np.nan
+    )
+    env.viewer.along_track_error_text_field.draw()
+    env.viewer.d_cross_track_error_text_field.text = "{:<40}{:2.3f}".format('Delta-Cross-Track Error:', 
+        env.past_errors['d_cross_track'][-1] if 'd_cross_track' in env.past_errors and len(env.past_errors['d_cross_track']) else np.nan
+    )
+    env.viewer.d_cross_track_error_text_field.draw()
     env.viewer.speed_error_text_field.text = "{:<40}{:2.3f}".format('Speed Error:', 
         env.past_errors['speed'][-1] if 'speed' in env.past_errors and len(env.past_errors['speed']) else np.nan
     )
     env.viewer.speed_error_text_field.draw()
+    env.viewer.rudder_change_text_field.text = "{:<40}{:2.3f}".format('Rudder Change:', 
+        env.past_errors['rudder_change'][-1] if 'rudder_change' in env.past_errors and len(env.past_errors['rudder_change']) else np.nan
+    )
+    env.viewer.rudder_change_text_field.draw()
     env.viewer.heading_error_text_field.text = "{:<40}{:2.3f}".format('Heading Error:', 
         env.past_errors['heading'][-1] if 'heading' in env.past_errors and len(env.past_errors['heading']) else np.nan
     )
@@ -753,3 +782,5 @@ def _render_indicators(env, W, H):
     env.viewer.time_step_text_field.draw()
     env.viewer.episode_text_field.text = "{:<40}{}".format('Episode:', env.episode)
     env.viewer.episode_text_field.draw()
+    env.viewer.lambda_text_field.text = "{:<40}{:2.2f}".format('Log10 Lambda:', np.log10(env.config["reward_lambda"]))
+    env.viewer.lambda_text_field.draw()

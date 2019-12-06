@@ -78,24 +78,24 @@ class ColavEnv(BaseShipScenario):
         step_reward += (np.clip(progress/max_prog, -1, 1)*self.config["reward_ds"])
         step_reward += (max(speed_error, 0)*self.config["reward_speed_error"])
 
-        for sector in range(self.nsectors):
-            closeness = self.past_obs[-1, self.nstates + sector]
-            dist = self.config["obst_detection_range"]*(1 - closeness)
-            reward_range = self.config["obst_reward_range"]
-            if closeness >= 1:
-                step_reward = self.config["reward_collision"]
-                info["collision"] = True
-                if self.config["end_on_collision"]:
-                    done = True
-            elif dist < reward_range:
-                step_reward += ((1 - dist/reward_range)*self.config["reward_closeness"])
+        # for sector in range(self.nsectors):
+        #     closeness = self.past_obs[-1, self.nstates + sector]
+        #     dist = self.config["obst_detection_range"]*(1 - closeness)
+        #     reward_range = self.config["obst_reward_range"]
+        #     if closeness >= 1:
+        #         step_reward = self.config["reward_collision"]
+        #         info["collision"] = True
+        #         if self.config["end_on_collision"]:
+        #             done = True
+        #     elif dist < reward_range:
+        #         step_reward += ((1 - dist/reward_range)*self.config["reward_closeness"])
 
-        if (self.cumulative_reward < self.config["min_reward"]
-            or self.goal_dist > 3*self.config["goal_dist"]
-            or self.past_actions.shape[0] >= 20000
-            or abs(self.goal_dist) < 5
-        ):
-            done = True
+        # if (self.cumulative_reward < self.config["min_reward"]
+        #     or self.goal_dist > 3*self.config["goal_dist"]
+        #     or self.past_actions.shape[0] >= 20000
+        #     or abs(self.goal_dist) < 5
+        # ):
+        #     done = True
 
         return done, step_reward, info
 
@@ -149,7 +149,7 @@ class ColavEnv(BaseShipScenario):
             ]
             All observations are between -1 and 1.
         """
-        obst_range = self.config["obst_detection_range"]
+        obst_range = self.config["lidar_range"]
 
         goal_vector = self.goal - self.vessel.position
         goal_direction = np.arctan2(goal_vector[1], goal_vector[0])

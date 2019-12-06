@@ -34,7 +34,9 @@ M_RB = np.diag([m, m, I_zz])
 
 M_A = -np.diag([X_udot, Y_vdot,N_rdot])
 
-M_inv = np.linalg.inv(M_RB + M_A)
+M = M_RB + M_A
+
+M_inv = np.linalg.inv(M)
 
 C_RB = np.array([[0, 0, -m],
                  [0, 0, m],
@@ -53,8 +55,7 @@ L_mat = np.array([[0, 0, 0],
                   [0, -9.9, 3.1]])
 
 def D(nu):
-    D = (D_lin
-         + D_quad @ np.diag(np.absolute(nu)))
+    D = (D_lin + D_quad @ np.diag(np.absolute(nu)))
     D[2, 1] += D_quad[2, 1]*abs(nu[1])
     D[1, 2] += D_quad[1, 2]*abs(nu[2])
     return D
@@ -76,3 +77,13 @@ def C(nu):
 
 def L(nu):
     return L_mat*nu[0]
+
+# print('System matrices: ')
+# print('M: ', M)
+# print('C(v=1): ', C(np.array([1, 1, 1])))
+# print('D_lin: ', D_lin)
+# print('D_quad(v=1): ', D_quad @ np.diag(np.absolute(np.array([1, 1, 1]))))
+# print('L(v=1): ', L(np.array([1, 1, 1])))
+# print('B(v=1): ', B(np.array([1, 1, 1])))
+# print()
+# raise

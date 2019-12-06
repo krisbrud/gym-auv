@@ -2,28 +2,30 @@ from copy import deepcopy
 import numpy as np
 import numpy.linalg as linalg
 import shapely.geometry
+from scipy.optimize import minimize
 
 from scipy import interpolate
-from scipy.optimize import fminbound
 
 import gym_auv.utils.geomutils as geom
 
 class ParamCurve():
     def __init__(self, waypoints):
-
+        self.init_waypoints = waypoints.copy()
         for _ in range(3):
             arclengths = arc_len(waypoints)
             path_coords = interpolate.pchip(x=arclengths, y=waypoints, axis=1)
             path_derivatives = path_coords.derivative()
+            path_dderivatives = path_derivatives.derivative()
             waypoints = path_coords(np.linspace(arclengths[0], arclengths[-1], 1000))
 
         self.path_coords = path_coords
         self.path_derivatives = path_derivatives
+        self.path_dderivatives = path_dderivatives
 
         self.s_max = arclengths[-1]
         self.length = self.s_max
-        S = np.linspace(0, self.length, 1000)
-        self.path_points = np.transpose(self.path_coords(S))
+        self.S = np.linspace(0, self.length, 1000)
+        self.path_points = np.transpose(self.path_coords(self.S))
         self.line = shapely.geometry.LineString(self.path_points)
 
     def __call__(self, arclength):
@@ -36,18 +38,30 @@ class ParamCurve():
     def get_endpoint(self):
         return self(self.s_max)
 
-    def get_closest_arclength(self, position):
-        return fminbound(lambda s: linalg.norm(self(s) - position),
-                         x1=0, x2=self.length, xtol=1e-6,
-                         maxfun=10000)
+    def get_closest_arclength(self, position, x0=None):
+        if x0 is not None:
+            x = position[0]
+            y = position[1]
+            d = minimize(
+                    fun=lambda w: linalg.norm(self(w) - position),
+                    x0=x0,
+                    jac=lambda w: -2*(x - self(w)[0])*self.path_derivatives(w)[0] -2*(y - self(w)[1])*self.path_derivatives(w)[1],
+                    hess=lambda w: 2*(-(x - self(w)[0])*self.path_dderivatives(w)[0] -(y - self(w)[1])*self.path_dderivatives(w)[1] + self.path_derivatives(w)[0]**2*self.path_derivatives(w)[1]**2),
+                    method='Newton-CG' 
+                ).x[0]
+            d = np.clip(d, 0, self.length)
+        else:
+            d = self.line.project(shapely.geometry.Point(position))
+        return d
 
-    def get_closest_point(self, position):
-        closest_arclength = self.get_closest_arclength(position)
-        closest_point = self(closest_arclength)
-        return closest_point, closest_arclength
+    def get_closest_point(self, position, x0=None):
+        d = self.get_closest_arclength(position, x0)
+        p = self.line.interpolate(d)
+        closest_point = list(p.coords)[0]
+        return closest_point, d
 
-    def get_closest_point_distance(self, position):
-        closest_point, closest_arclength = self.get_closest_point(position)
+    def get_closest_point_distance(self, position, x0=None):
+        closest_point, closest_arclength = self.get_closest_point(position, x0=x0)
         closest_point_distance =  linalg.norm(closest_point - position)
         return closest_point_distance, closest_point, closest_arclength
 
