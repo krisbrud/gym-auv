@@ -75,7 +75,7 @@ class AUV2D():
             [propeller_input, rudder_position], where
             0 <= propeller_input <= 1 and -1 <= rudder_position <= 1.
         """
-        self.input = np.array([self._surge(action[0]), self._steer(action[1])])
+        self.input = np.array([self._thrust_surge(action[0]), self._moment_steer(action[1])])
         self._sim()
 
         self.prev_states = np.vstack([self.prev_states,self._state])
@@ -102,12 +102,13 @@ class AUV2D():
         psi = state[2]
         nu = state[3:]
 
+        tau = np.array([self.input[0], 0, self.input[1]])
+
         eta_dot = geom.Rzyx(0, 0, geom.princip(psi)).dot(nu)
         nu_dot = const.M_inv.dot(
-            const.B(nu).dot(self.input)
-            - const.D(nu).dot(nu)
-            - const.C(nu).dot(nu)
-            - const.L(nu).dot(nu)
+            tau
+            #- const.D.dot(nu)
+            - const.N(nu).dot(nu)
         )
         state_dot = np.concatenate([eta_dot, nu_dot])
         return state_dot
@@ -145,6 +146,14 @@ class AUV2D():
         return self._state[0:2]
 
     @property
+    def x(self):
+        return self.position[0]
+
+    @property
+    def y(self):
+        return self.position[1]
+
+    @property
     def init_position(self):
         """
         Returns an array holding the path of the AUV in cartesian
@@ -166,6 +175,13 @@ class AUV2D():
         Returns the heading of the AUV wrt true north.
         """
         return self._state[2]
+
+    @property
+    def heading_history(self):
+        """
+        Returns the heading of the AUV wrt true north.
+        """
+        return self.prev_states[:, 2]
 
     @property
     def heading_change(self):
@@ -210,14 +226,13 @@ class AUV2D():
     def course(self):
         return self.heading + self.crab_angle
 
-    def _surge(self, surge):
+    def _thrust_surge(self, surge):
         surge = np.clip(surge, 0, 1)
-        return (surge*(const.THRUST_MAX_AUV - const.THRUST_MIN_AUV)
-                + const.THRUST_MIN_AUV)
+        return surge*const.THRUST_MAX_AUV
 
-    def _steer(self, steer):
+    def _moment_steer(self, steer):
         steer = np.clip(steer, -1, 1)
-        return steer*const.RUDDER_MAX_AUV
+        return steer*const.MOMENT_MAX_AUV
 
 class AUVPerfectFollower(AUV2D):
     def step(self, action):

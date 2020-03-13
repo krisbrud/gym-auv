@@ -9,9 +9,10 @@ from scipy import interpolate
 import gym_auv.utils.geomutils as geom
 
 class ParamCurve():
-    def __init__(self, waypoints):
+    def __init__(self, waypoints, smooth=True):
         self.init_waypoints = waypoints.copy()
-        for _ in range(3):
+        forloop_range = 3 if smooth else 1
+        for _ in range(forloop_range):
             arclengths = arc_len(waypoints)
             path_coords = interpolate.pchip(x=arclengths, y=waypoints, axis=1)
             path_derivatives = path_coords.derivative()
@@ -24,7 +25,7 @@ class ParamCurve():
 
         self.s_max = arclengths[-1]
         self.length = self.s_max
-        self.S = np.linspace(0, self.length, 1000)
+        self.S = np.linspace(0, self.length, 10*self.length)
         self.path_points = np.transpose(self.path_coords(self.S))
         self.line = shapely.geometry.LineString(self.path_points)
 

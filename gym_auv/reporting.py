@@ -6,8 +6,9 @@ import numpy as np
 from scipy.ndimage.filters import gaussian_filter1d
 from scipy.optimize import minimize
 import shapely.geometry
-from gym_auv.objects.obstacles import StaticObstacle
+from gym_auv.objects.obstacles import CircularObstacle, PolygonObstacle, VesselObstacle
 from gym_auv.objects.path import RandomCurveThroughOrigin, ParamCurve
+from gym_auv.envs import RealWorldEnv
 
 import matplotlib
 matplotlib.rcParams['hatch.linewidth'] = 0.5
@@ -29,7 +30,6 @@ def report(env, report_dir):
 
         relevant_history = env.history[-min(100, len(env.history)):]
         collisions = np.array([obj['collisions'] for obj in relevant_history])
-        collision_baselines = np.array([obj['collision_baseline'] for obj in relevant_history])
         no_collisions = collisions == 0
         cross_track_errors = np.array([obj['cross_track_error'] for obj in relevant_history])
         steers = np.array([obj['steer'] for obj in relevant_history])
@@ -48,16 +48,12 @@ def report(env, report_dir):
             f.write('{:<30}{:<30.2%}\n'.format('Avg. Progress', progresses.mean()))
             f.write('{:<30}{:<30.2%}\n'.format('Reached Goal Percentage', reached_goals.mean()))
             f.write('{:<30}{:<30.2f}\n'.format('Avg. Collisions', collisions.mean()))
-            f.write('{:<30}{:<30.2f}\n'.format('Avg. Collision Baseline', collision_baselines.mean()))
             f.write('{:<30}{:<30.2%}\n'.format('No collisions', no_collisions.mean()))
             f.write('{:<30}{:<30.2%}\n'.format('Success', success.mean()))
             f.write('{:<30}{:<30.2f}\n'.format('Avg. Cross-Track Error', cross_track_errors.mean()))
             f.write('{:<30}{:<30.2f}\n'.format('Avg. Timesteps', timesteps.mean()))
             f.write('{:<30}{:<30.2f}\n'.format('Avg. Steer', steers.mean()))
             f.write('{:<30}{:<30.2f}\n'.format('Avg. Surge', surges.mean()))
-
-        if (env.config["save_measurements"]):
-            np.save(os.path.join(report_dir, 'measurements'), env.measurement_history)
 
         plt.style.use('ggplot')
         plt.rc('font', family='serif')
@@ -69,15 +65,12 @@ def report(env, report_dir):
 
         collisions = np.array([obj['collisions'] for obj in env.history])
         smoothed_collisions = gaussian_filter1d(collisions.astype(float), sigma=100)
-        collision_baselines = np.array([obj['collision_baseline'] for obj in env.history])
         plt.axis('scaled')
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1)
         ax.plot(collisions, color='blue', linewidth=0.5, alpha=0.2, label='Collisions')
-        ax.scatter(range(len(collision_baselines)), collision_baselines, s=1, marker='x', color='red', linewidth=0.5, alpha=0.2)
         ax.plot(smoothed_collisions, color='blue', linewidth=1, alpha=0.4)
-        ax.hlines(collision_baselines.mean(), 0, env.episode-2, color='red', linestyles='dashed', linewidth=1, label='Baseline')
-        ax.set_title('Collisions vs. Baseline')
+        ax.set_title('Collisions')
         ax.set_ylabel(r"Collisions")
         ax.set_xlabel(r"Episode")
         ax.legend()
@@ -195,18 +188,17 @@ def test_report(fig_dir):
     env.history = []
     env.episode = 1001
     env.config = gym_auv.DEFAULT_CONFIG
-    env.nsensors = env.config["n_sensors_per_sector"]*env.config["n_sectors"]
-    env.sensor_angle = (4*np.pi/3)/(env.nsensors + 1)
+    env.n_sensors = env.config["n_sensors_per_sector"]*env.config["n_sectors"]
+    env.sensor_angle = (4*np.pi/3)/(env.n_sensors + 1)
     for episode in range(1000):
         env.path = Struct()
         env.path.length = np.random.poisson(1000)
         env.path.s_max = env.path.length
         progress = min(1, np.random.random() + np.random.random()*episode/1000)
-        timesteps_baseline = env.path.length / (env.config['cruise_speed'] * env.config['t_step_size'])
+        timesteps_baseline = env.path.length / (env.config["cruise_speed"] * env.config["t_step_size"])
         env.history.append({
             'collisions': np.random.poisson(0.1 + 7*(1-episode/1000)),
-            'cross_track_error': np.random.gamma(10 - 5*episode/1000, 3) ,
-            'collision_baseline': np.random.poisson(7),
+            'cross_track_error': np.random.gamma(10 - 5*episode/1000, 3),
             'progress': progress,
             'reached_goal': int(progress > 0.9),
             'reward': np.random.normal(-1000 + 2000*progress + episode**1.1, 2000),
@@ -249,7 +241,7 @@ def test_report(fig_dir):
         ])
         obst.radius = np.random.poisson(30) 
         env.obstacles.append(obst)
-        env.last_episode['obstacles'].append([obst.position, obst.radius])
+        env.last_episode['obstacles'].append(('circle', [obst.position, obst.radius]))
 
     report(env, fig_dir)
     plot_last_episode(env, fig_dir)
@@ -268,6 +260,8 @@ def plot_last_episode(env, fig_dir, fig_prefix='', episode_dict=None):
     path = env.last_episode['path']
     path_taken = env.last_episode['path_taken']
     obstacles = env.last_episode['obstacles']
+
+    np.savetxt(os.path.join(fig_dir, 'path_taken.txt'), path_taken) 
 
     if (fig_prefix != '' and not fig_prefix[0] == '_'):
         fig_prefix = '_' + fig_prefix
@@ -322,17 +316,26 @@ def plot_last_episode(env, fig_dir, fig_prefix='', episode_dict=None):
     ax.set_ylim(axis_min_y, axis_max_y)
     ax.legend()
 
-    for obst in obstacles:
-        circle = plt.Circle(
-            obst[0],
-            obst[1],
-            facecolor='tab:red',
-            edgecolor='black',
-            linewidth=0.5,
-            zorder=10
-        )
-        obst = ax.add_patch(circle)
-        obst.set_hatch('////')
+    for obsttype, obst in obstacles:
+        if obsttype == 'circle':
+            obst_object = plt.Circle(
+                obst[0],
+                obst[1],
+                facecolor='tab:red',
+                edgecolor='black',
+                linewidth=0.5,
+                zorder=10
+            )
+            obst_object.set_hatch('////')
+        elif obsttype == 'polygon':
+            obst_object = plt.Polygon(
+                np.array(obst), True,
+                facecolor='tab:red',
+                edgecolor='black',
+                linewidth=0.5,
+                zorder=10
+            )
+        ax.add_patch(obst_object)
 
     goal = plt.Circle(
         (path[0, -1], path[1, -1]),
@@ -362,7 +365,7 @@ def plot_last_episode(env, fig_dir, fig_prefix='', episode_dict=None):
     fig.savefig(os.path.join(fig_dir, '{}path.pdf'.format(fig_prefix)), format='pdf')
     plt.close(fig)
 
-def plot_scenario(env, fig_dir, fig_postfix=''):
+def plot_scenario(env, fig_dir, fig_postfix='', show=True):
     path = env.path(np.linspace(0, env.path.s_max, 1000))
 
     plt.style.use('ggplot')
@@ -375,10 +378,10 @@ def plot_scenario(env, fig_dir, fig_postfix=''):
     ax = fig.add_subplot(1, 1, 1)
     ax.set_aspect(1.0)
 
-    axis_min_x = path[0, :].min() - 200
-    axis_max_x = path[0, :].max() + 200
-    axis_min_y = path[1, :].min() - 200
-    axis_max_y = path[1, :].max() + 200
+    axis_min_x = path[0, :].min() - 100
+    axis_max_x = path[0, :].max() + 100
+    axis_min_y = path[1, :].min() - 100
+    axis_max_y = path[1, :].max() + 100
     daxisx = axis_max_x - axis_min_x
     daxisy = axis_max_y - axis_min_y
     if (daxisx > daxisy):
@@ -393,52 +396,92 @@ def plot_scenario(env, fig_dir, fig_postfix=''):
     axis_max = max(axis_max_x, axis_max_y)
     axis_min = min(axis_min_x, axis_min_y)
 
-    ax.plot(path[0, :], path[1, :], dashes=[6, 2], color='black', linewidth=1.5)
+    obstacles = getattr(env, 'all_obstacles', env.obstacles)
+
+    for obst in obstacles:
+        if isinstance(obst, CircularObstacle):
+            obst_object = plt.Circle(
+                obst.position,
+                obst.radius,
+                facecolor='tab:red',
+                edgecolor='black',
+                linewidth=0.5,
+                zorder=10
+            )
+            obst_object.set_hatch('////')
+            
+        elif isinstance(obst, PolygonObstacle):
+            obst_object = plt.Polygon(
+                np.array(obst.points), True,
+                facecolor='#C0C0C0',
+                edgecolor='black',
+                linewidth=0.5,
+                #zord
+                # 
+                # er=10
+            )
+        elif isinstance(obst, VesselObstacle):
+            obst_object = plt.Polygon(
+                np.array(list(obst.boundary.exterior.coords)), True,
+                facecolor='#C0C0C0',
+                edgecolor='red',
+                linewidth=0.5,
+                #zord
+                # 
+                # er=10
+            )
+        obst = ax.add_patch(obst_object)
+
+    for obst in obstacles:
+        #if isinstance(obst, CircularObstacle):
+        if not obst.static:
+            plt.arrow(
+                obst.boundary.centroid.coords[0][0],
+                obst.boundary.centroid.coords[0][1],
+                75*obst.dx,
+                75*obst.dy,
+                head_width=3,
+                color='black',
+                zorder=11
+            )
+
+        if isinstance(obst, VesselObstacle):
+            x_arr = [elm[1][0] for elm in obst.trajectory]
+            y_arr = [elm[1][1] for elm in obst.trajectory]
+            ax.plot(x_arr, y_arr, dashes=[6, 2], color='red', linewidth=1.0, alpha=0.5)
+
+    
     ax.set_ylabel(r"North (m)")
     ax.set_xlabel(r"East (m)")
     ax.set_xlim(axis_min_x, axis_max_x)
     ax.set_ylim(axis_min_y, axis_max_y)
     ax.legend()
 
-    for obst in env.obstacles:
-        circle = plt.Circle(
-            obst.position,
-            obst.radius,
-            facecolor='tab:red',
-            edgecolor='black',
-            linewidth=0.5,
-            zorder=10
-        )
-        obst = ax.add_patch(circle)
-        obst.set_hatch('////')
-
-    goal = plt.Circle(
-        (path[0, -1], path[1, -1]),
-        (axis_max - axis_min)/100,
-        facecolor='black',
-        linewidth=0.5,
-        zorder=11
-    )
-    ax.add_patch(goal)
-    ax.annotate("Goal", 
-        xy=(path[0, -1] + (axis_max - axis_min)/15, path[1, -1]), 
-        fontsize=12, ha="center", zorder=20, color='black',
-    )
-
-    start = plt.Circle(
-        (env.vessel.init_position),
-        (axis_max - axis_min)/100,
-        facecolor='black',
-        linewidth=0.5,
-        zorder=11
-    )
-    ax.add_patch(start)
-    ax.annotate("Start", 
-        xy=(env.vessel.init_position[0] + (axis_max - axis_min)/15, env.vessel.init_position[1]),
-        fontsize=12, ha="center", zorder=20, color='black',
-    )
+    # ax.plot(path[0, :], path[1, :], dashes=[6, 2], color='black', linewidth=1.5)
+    # if isinstance(env, RealWorldEnv):
+    #     for x, y in zip(*env.path.init_waypoints):
+    #         waypoint_marker = plt.Circle(
+    #             (x, y),
+    #             (axis_max - axis_min)/150,
+    #             facecolor='red',
+    #             linewidth=0.5,
+    #             zorder=11
+    #         )
+    #         ax.add_patch(waypoint_marker)
+    # ax.annotate("Goal", 
+    #     xy=(path[0, -1], path[1, -1]),
+    #     fontsize=11, ha="center", zorder=20, color='white', family='sans-serif',
+    #     bbox=dict(facecolor='tab:red', edgecolor='black', alpha=0.75, boxstyle='round')
+    # )
+    # ax.annotate("Start", 
+    #     xy=(path[0, 0], path[1, 0]),
+    #     fontsize=11, ha="center", zorder=20, color='white', family='sans-serif',
+    #     bbox=dict(facecolor='tab:red', edgecolor='black', alpha=0.75, boxstyle='round')
+    # )
 
     fig.savefig(os.path.join(fig_dir, 'Scenario_{}.pdf'.format(fig_postfix)), format='pdf')
+    if show:
+        plt.show()
     plt.close(fig)
 
 def plot_actions(env, agent, fig_dir, fig_prefix='', N=500, creategifs=True, createpdfs=True):
@@ -454,7 +497,7 @@ def plot_actions(env, agent, fig_dir, fig_prefix='', N=500, creategifs=True, cre
     for i_t, theta in enumerate(theta_arr):
         for i_r, r in enumerate(r_arr):
             position = (np.cos(theta)*(r + OBST_RADIUS), np.sin(theta)*(r + OBST_RADIUS))
-            env.obstacles = [StaticObstacle(position, OBST_RADIUS)]
+            env.obstacles = [CircularObstacle(position, OBST_RADIUS)]
             obs = env.observe()
             action, _states = agent.predict(obs, deterministic=True)
             action[0] = (action[0] + 1)/2 
@@ -562,8 +605,8 @@ def plot_streamlines(env, agent, fig_dir, fig_prefix='', N=11):
 
     waypoints = np.vstack([[0, 0], [0, 100]]).T
     env.path = ParamCurve(waypoints)
-    env.obstacles = [StaticObstacle(OBST_POSITION, OBST_RADIUS)]
-    env.config["min_goal_closeness"] = 0
+    env.obstacles = [CircularObstacle(OBST_POSITION, OBST_RADIUS)]
+    env.config["min_goal_distance"] = 0
     env.config["min_goal_progress"] = 0
     path = env.path(np.linspace(0, env.path.s_max, 1000))
 
@@ -639,7 +682,7 @@ def plot_vector_field(env, agent, fig_dir, fig_prefix='', xstep=2.0, ystep=5.0, 
     OBST_POSITION = [0, 50]
     OBST_RADIUS = 10
     if obstacle:
-        obstacles = [StaticObstacle(OBST_POSITION, OBST_RADIUS)]
+        obstacles = [CircularObstacle(OBST_POSITION, OBST_RADIUS)]
     else:
         obstacles = []
     env.reset()
@@ -649,7 +692,7 @@ def plot_vector_field(env, agent, fig_dir, fig_prefix='', xstep=2.0, ystep=5.0, 
     ax = fig.add_subplot(1, 1, 1)
 
     waypoints = np.vstack([[0, 0], [0, 100]]).T
-    env.config["min_goal_closeness"] = 0
+    env.config["min_goal_distance"] = 0
     env.config["min_goal_progress"] = 1
     env.config["lidar_rotation"] = False
     env.path = ParamCurve(waypoints)

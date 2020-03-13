@@ -16,9 +16,10 @@ import pyglet
 from pyglet import gl
 import numpy as np
 import math
-from numpy import pi, sin, cos, arctan2
+from numpy import sin, cos, arctan2
 from gym import error
 import gym_auv.utils.geomutils as geom
+from gym_auv.objects.obstacles import CircularObstacle, PolygonObstacle, VesselObstacle
 
 if "Apple" in sys.version:
     if 'DYLD_FALLBACK_LIBRARY_PATH' in os.environ:
@@ -33,16 +34,18 @@ WINDOW_W = VIDEO_W
 WINDOW_H = VIDEO_H
 
 SCALE       = 5.0        # Track scale
-PLAYFIELD   = WINDOW_W   # Game over boundary
+PLAYFIELD   = 5000   # Game over boundary
 FPS         = 50
-ZOOM        = 3        # Camera ZOOM
-current_zoom = 2
-DYNAMIC_ZOOM = True
+ZOOM        = 2       # Camera ZOOM
+DYNAMIC_ZOOM = False
 CAMERA_ROTATION_SPEED = 0.02
+env_bg_h = int(2*PLAYFIELD)
+env_bg_w = int(2*PLAYFIELD)
 
 RAD2DEG = 57.29577951308232
 
 env_bg = None
+bg = None
 rot_angle = None
 
 def get_display(spec):
@@ -72,6 +75,7 @@ class Viewer(object):
         self.onetime_geoms = []
         self.fixed_geoms = []
         self.transform = Transform()
+        self.camera_zoom = 1.5
 
         gl.glEnable(gl.GL_BLEND)
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
@@ -401,195 +405,11 @@ class Image(Geom):
         self.img.blit(-self.width/2, -self.height/2, width=self.width, height=self.height)
 
 
-# ================================================================
-class SimpleImageViewer(object):
-    def __init__(self, display=None, maxwidth=500):
-        self.window = None
-        self.isopen = False
-        self.display = display
-        self.maxwidth = maxwidth
-
-    def imshow(self, arr):
-        if self.window is None:
-            height, width, _channels = arr.shape
-            if width > self.maxwidth:
-                scale = self.maxwidth / width
-                width = int(scale * width)
-                height = int(scale * height)
-            self.window = pyglet.window.Window(width=width, height=height, 
-                display=self.display, vsync=False, resizable=True)            
-            self.width = width
-            self.height = height
-            self.isopen = True
-
-            @self.window.event
-            def on_resize(width, height):
-                self.width = width
-                self.height = height
-
-            @self.window.event
-            def on_close():
-                self.isopen = False
-
-        assert len(arr.shape) == 3, "You passed in an image with the wrong number shape"
-        image = pyglet.image.ImageData(arr.shape[1], arr.shape[0], 
-            'RGB', arr.tobytes(), pitch=arr.shape[1]*-3)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, 
-            gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
-        texture = image.get_texture()
-        texture.width = self.width
-        texture.height = self.height
-        self.window.clear()
-        self.window.switch_to()
-        self.window.dispatch_events()
-        texture.blit(0, 0) # draw
-        self.window.flip()
-
-    def close(self):
-        if self.isopen:
-            self.window.close()
-            self.isopen = False
-
-    def __del__(self):
-        self.close()
-
-
-def render_env(env, mode):
-    global rot_angle
-
-    def render_objects():
-        t.enable()
-        if (env.config["lidars"]):
-            _render_sensors(env)
-        if (env.path is not None):
-            _render_path(env)
-        _render_vessel(env)
-        _render_tiles(env, win)
-        _render_obstacles(env)
-        if (env.config["detection_grid"]):
-            _render_detection_grid(env)
-        if (env.path is not None):
-            _render_progress(env)
-
-        # Visualise path error (DEBUGGING)
-        # p = np.array(env.vessel.position)
-        # dir = rotate(env.past_obs[-1][0:2], env.vessel.heading)
-        # env.viewer.draw_line(p, p + 10*np.array(dir), color=(0.8, 0.3, 0.3))
-
-        for geom in env.viewer.onetime_geoms:
-           geom.render()
-
-        t.disable()
-
-        if (env.config["show_indicators"]):
-            _render_indicators(env, WINDOW_W, WINDOW_H)
-
-    scroll_x = env.vessel.position[0]
-    scroll_y = env.vessel.position[1]
-    ship_angle = -env.vessel.heading + pi/2
-    if (rot_angle is None):
-        rot_angle = ship_angle
-    else:
-        rot_angle += CAMERA_ROTATION_SPEED * geom.princip(ship_angle - rot_angle)
-
-    global current_zoom
-    if (int(env.t_step/1000) % 2 == 0):
-        current_zoom = 0.999*current_zoom + 0.001*(ZOOM - current_zoom)
-    else:
-        current_zoom = 0.999*current_zoom + 0.001*(1 - current_zoom)
-    env.viewer.transform.set_scale(current_zoom, current_zoom)
-    env.viewer.transform.set_translation(
-        WINDOW_W/2 - (scroll_x*current_zoom*cos(rot_angle) - scroll_y*current_zoom*sin(rot_angle)),
-        WINDOW_H/2 - (scroll_x*current_zoom*sin(rot_angle) + scroll_y*current_zoom*cos(rot_angle))
-    )
-    env.viewer.transform.set_rotation(rot_angle)
-
-    arr = None
-    win = env.viewer.window
-    if mode != 'state_pixels':
-        win.switch_to()
-        win.dispatch_events()
-
-    if mode=="rgb_array" or mode=="state_pixels":
-        win.clear()
-        t = env.viewer.transform
-        if mode=='rgb_array':
-            VP_W = VIDEO_W
-            VP_H = VIDEO_H
-        else:
-            VP_W = STATE_W
-            VP_H = STATE_H
-        gl.glViewport(0, 0, VP_W, VP_H)
-
-        render_objects()
-
-        image_data = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
-        arr = np.fromstring(image_data.data, dtype=np.uint8, sep='')
-        arr = arr.reshape(VP_H, VP_W, 4)
-        arr = arr[::-1, :, 0:3]
-
-    if mode=="rgb_array": # agent can call or not call base_env.render() itself when recording video.
-        win.flip()
-
-    if mode=='human':
-        win.clear()
-        t = env.viewer.transform
-        gl.glViewport(0, 0, WINDOW_W, WINDOW_H)
-
-        render_objects()
-
-        win.flip()
-
-    env.viewer.onetime_geoms = []
-    return arr
-
-def init_env_viewer(env):
-    env.viewer = Viewer(WINDOW_W, WINDOW_H)
-    env.viewer.reward_text_field = pyglet.text.Label('0000', font_size=10,
-                                            x=20, y=WINDOW_H - 20.00, anchor_x='left', anchor_y='center',
-                                            color=(0, 0, 0, 255))
-    env.viewer.cum_reward_text_field = pyglet.text.Label('0000', font_size=10,
-                                            x=20, y=WINDOW_H - 40.00, anchor_x='left', anchor_y='center',
-                                            color=(0, 0, 0, 255))
-    env.viewer.delta_path_prog_text_field = pyglet.text.Label('0000', font_size=10,
-                                            x=20, y=WINDOW_H - 60.00, anchor_x='left', anchor_y='center',
-                                            color=(0, 0, 0, 255))
-    env.viewer.cross_track_error_text_field = pyglet.text.Label('0000', font_size=10,
-                                            x=20, y=WINDOW_H - 80.00, anchor_x='left', anchor_y='center',
-                                            color=(0, 0, 0, 255))
-    env.viewer.along_track_error_text_field = pyglet.text.Label('0000', font_size=10,
-                                            x=20, y=WINDOW_H - 100.00, anchor_x='left', anchor_y='center',
-                                            color=(0, 0, 0, 255))
-    env.viewer.d_cross_track_error_text_field = pyglet.text.Label('0000', font_size=10,
-                                            x=20, y=WINDOW_H - 120.00, anchor_x='left', anchor_y='center',
-                                            color=(0, 0, 0, 255))
-    env.viewer.speed_error_text_field = pyglet.text.Label('0000', font_size=10,
-                                            x=20, y=WINDOW_H - 140.00, anchor_x='left', anchor_y='center',
-                                            color=(0, 0, 0, 255))
-    env.viewer.rudder_change_text_field = pyglet.text.Label('0000', font_size=10,
-                                            x=20, y=WINDOW_H - 160.00, anchor_x='left', anchor_y='center',
-                                            color=(0, 0, 0, 255))
-    env.viewer.heading_error_text_field = pyglet.text.Label('0000', font_size=10,
-                                            x=20, y=WINDOW_H - 180.00, anchor_x='left', anchor_y='center',
-                                            color=(0, 0, 0, 255))
-    env.viewer.la_heading_error_text_field = pyglet.text.Label('0000', font_size=10,
-                                            x=20, y=WINDOW_H - 200.00, anchor_x='left', anchor_y='center',
-                                            color=(0, 0, 0, 255))
-    env.viewer.time_step_text_field = pyglet.text.Label('0000', font_size=10,
-                                            x=20, y=WINDOW_H - 220.00, anchor_x='left', anchor_y='center',
-                                            color=(0, 0, 0, 255))
-    env.viewer.episode_text_field = pyglet.text.Label('0000', font_size=10,
-                                            x=20, y=WINDOW_H - 240.00, anchor_x='left', anchor_y='center',
-                                            color=(0, 0, 0, 255))
-    env.viewer.lambda_text_field = pyglet.text.Label('0000', font_size=10,
-                                            x=20, y=WINDOW_H - 260.00, anchor_x='left', anchor_y='center',
-                                            color=(0, 0, 0, 255))
-
 def _render_path(env):
-    env.viewer.draw_polyline(env.path.path_points, linewidth=3, color=(0.3, 1.0, 0.3))
+    env.viewer2d.draw_polyline(env.path.path_points, linewidth=3, color=(0.3, 1.0, 0.3))
 
 def _render_vessel(env):
-    env.viewer.draw_polyline(env.vessel.path_taken, linewidth=3, color=(0.8, 0, 0))  # previous positions
+    env.viewer2d.draw_polyline(env.vessel.path_taken, linewidth=3, color=(0.8, 0, 0))  # previous positions
     vertices = [
         (-env.vessel.width/2, -env.vessel.width/2),
         (-env.vessel.width/2, env.vessel.width/2),
@@ -598,56 +418,17 @@ def _render_vessel(env):
         (env.vessel.width/2, -env.vessel.width/2),
     ]
 
-    env.viewer.draw_shape(vertices, env.vessel.position, env.vessel.heading, color=(0, 0, 0.8))  # ship
-    env.viewer.draw_arrow(env.vessel.position, env.vessel.heading + pi + env.vessel.input[1]/4, length=2)
+    env.viewer2d.draw_shape(vertices, env.vessel.position, env.vessel.heading, color=(0, 0, 0.8))  # ship
+    env.viewer2d.draw_arrow(env.vessel.position, env.vessel.heading + np.pi + env.vessel.input[1]/4, length=2)
 
     if (env.vessel.planned_path is not None):
         planned_path = np.vstack(env.vessel.planned_path).T
-        env.viewer.draw_polyline(planned_path, linewidth=1, color=(0.2, 0.2, 1.0))
+        env.viewer2d.draw_polyline(planned_path, linewidth=1, color=(0.2, 0.2, 1.0))
 
-def _render_detection_grid(env):
-    for iring in range(env.nrings):
-        radius = env.rings[iring]
-        ring_depth = env.ring_depths[iring]
-        for isector in range(env.ring_sectors[iring]):
-            sector_angle = env.sector_angles[iring][isector]
-            value = env.detection_images[iring][isector]
-            #value = env.feasibility_images[iring][isector]
-
-            if (env.config["rear_detection"]):
-                start_angle = env.vessel.heading + sector_angle - np.pi/env.ring_sectors[iring]
-                end_angle = env.vessel.heading + sector_angle + np.pi/env.ring_sectors[iring]
-            else:
-                start_angle = env.vessel.heading + sector_angle - 2/3*np.pi/env.ring_sectors[iring]
-                end_angle = env.vessel.heading + sector_angle + 2/3*np.pi/env.ring_sectors[iring]
-
-            inner_circumference = make_circle(
-                origin=env.vessel.position,
-                radius=radius - 1/2*ring_depth, 
-                res=30, 
-                start_angle=start_angle,
-                end_angle=end_angle,
-                return_points=True
-            )
-
-            outer_circumference = make_circle(
-                origin=env.vessel.position,
-                radius=radius + 1/2*ring_depth, 
-                res=30,
-                start_angle=start_angle,
-                end_angle=end_angle,
-                return_points=True
-            )
-
-            vertices = [
-                inner_circumference[-1],
-                *outer_circumference[::-1],
-                *inner_circumference
-            ]
-            #alpha = 0.3*(np.sin(env.t_step/3) + 1)/2
-            color = (value, 1-value, 0, 0.1)
-            border_color = (0, 0, 0, 0.1)
-            env.viewer.draw_shape(vertices, (0, 0), 0, color=color, border=border_color, filled=True)
+def _render_interceptions(env):
+    for t, obst_intercept_array in enumerate(env.sensor_obst_intercepts_transformed_hist):
+        for obst_intercept in obst_intercept_array:
+            env.viewer2d.draw_circle(origin=obst_intercept, radius=1.0 - t/len(env.sensor_obst_intercepts_transformed_hist), res=30, color=(0.3, 1.0 - t/len(env.sensor_obst_intercepts_transformed_hist), 0.3))
 
 def _render_sensors(env):
     for isensor, sensor_angle in enumerate(env.sensor_angles):
@@ -667,29 +448,40 @@ def _render_sensors(env):
         blueness = 0.5 if isector % 2 == 0 and not env.config["lidar_rotation"] else 1
         alpha = 0.5 if env.sector_active[isector] else 0.2
         
-        env.viewer.draw_line(p0, p1, color=(redness, greenness, blueness, alpha))
+        env.viewer2d.draw_line(p0, p1, color=(redness, greenness, blueness, alpha))
 
 def _render_progress(env):
     progress_point = env.path(env.max_path_prog).flatten()
-    env.viewer.draw_circle(origin=progress_point, radius=1, res=30, color=(0.8, 0.3, 0.3))
+    env.viewer2d.draw_circle(origin=progress_point, radius=1, res=30, color=(0.8, 0.3, 0.3))
     
     target_point = env.path(env.target_arclength).flatten()
-    env.viewer.draw_circle(origin=target_point, radius=1, res=30, color=(0.3, 0.8, 0.3))
+    env.viewer2d.draw_circle(origin=target_point, radius=1, res=30, color=(0.3, 0.8, 0.3))
 
 def _render_obstacles(env):
-    for i, o in enumerate(env.obstacles):
+    for i, obst in enumerate(env.obstacles):
         c = (0.8, 0.8, 0.8)
-        env.viewer.draw_circle(o.position, o.radius, color=c)
+
+        if not obst.valid:
+            continue
+
+        if isinstance(obst, CircularObstacle):
+            env.viewer2d.draw_circle(obst.position, obst.radius, color=c)
+
+        elif isinstance(obst, PolygonObstacle):
+            env.viewer2d.draw_shape(obst.points, color=c)
+        
+        elif isinstance(obst, VesselObstacle):
+            env.viewer2d.draw_shape(list(obst.boundary.exterior.coords), color=c)
+        
 
 def _render_tiles(env, win):
     global env_bg
+    global bg
 
     if env_bg is None:
         # Initialise background
         from pyglet.gl.gl import GLubyte
-        data = np.zeros((int(2*PLAYFIELD), int(2*PLAYFIELD), 3))
-        env_bg_h = data.shape[0]
-        env_bg_w = data.shape[1]
+        data = np.zeros((env_bg_h, env_bg_w, 3))
         k = env_bg_h//100
         for x in range(0, data.shape[0], k):
             for y in range(0, data.shape[1], k):
@@ -702,10 +494,14 @@ def _render_tiles(env, win):
         pixels = data.flatten().astype('int').tolist()
         raw_data = (GLubyte * len(pixels))(*pixels)
         bg = pyglet.image.ImageData(width=env_bg_w, height=env_bg_h, format='RGB', data=raw_data)
-        if not os.path.exists('./tmp'):
-            os.mkdir('./tmp')
-        bg.save('./tmp/bg.png')
-        env_bg = pyglet.sprite.Sprite(bg, x=-env_bg_w/2, y=-env_bg_h/2)
+        if not os.path.exists('./resources'):
+            os.mkdir('./resources')
+        bg.save('./resources/bg.png')
+        env_bg = pyglet.sprite.Sprite(bg, x=env.vessel.x - env_bg_w/2, y=env.vessel.y - env_bg_h/2)
+        env_bg.scale = 1
+
+    if env.t_step % 250 == 0:
+        env_bg = pyglet.sprite.Sprite(bg, x=env.vessel.x - env_bg_w/2, y=env.vessel.y - env_bg_h/2)
         env_bg.scale = 1
 
     env_bg.draw()
@@ -740,47 +536,167 @@ def _render_indicators(env, W, H):
     state_speed_error = env.past_obs[-1][0]
     vertical_ind(7, -scale*state_speed_error, color=(np.clip(true_speed, 0, 1), 0.6, 0.1))
     
-    env.viewer.reward_text_field.text = "{:<40}{:2.3f}".format('Reward:', 
+    env.viewer2d.reward_text_field.text = "{:<40}{:2.3f}".format('Reward:', 
         env.past_rewards[-1] if len(env.past_rewards) else np.nan
     )
-    env.viewer.reward_text_field.draw()
-    env.viewer.cum_reward_text_field.text = "{:<40}{:2.3f}".format('Cumulative Reward:', env.cumulative_reward)
-    env.viewer.cum_reward_text_field.draw()
-    env.viewer.delta_path_prog_text_field.text = "{:<40}{:2.3f}".format('Delta Path Progression:', 
-        env.path_prog[-1] - env.path_prog[-2] if env.path_prog is not None and len(env.path_prog) > 1 else np.nan
+    env.viewer2d.reward_text_field.draw()
+    env.viewer2d.cum_reward_text_field.text = "{:<40}{:2.3f}".format('Cumulative Reward:', env.cumulative_reward)
+    env.viewer2d.cum_reward_text_field.draw()
+    env.viewer2d.delta_path_prog_text_field.text = "{:<40}{:2.3f}".format('Delta Path Progression:', 
+        env.path_prog_hist[-1] - env.path_prog_hist[-2] if env.path_prog_hist is not None and len(env.path_prog_hist) > 1 else np.nan
     )
-    env.viewer.delta_path_prog_text_field.draw()
-    env.viewer.cross_track_error_text_field.text = "{:<40}{:2.3f}".format('Cross-Track Error:', 
+    env.viewer2d.delta_path_prog_text_field.draw()
+    env.viewer2d.cross_track_error_text_field.text = "{:<40}{:2.3f}".format('Cross-Track Error:', 
         env.past_errors['cross_track'][-1] if 'cross_track' in env.past_errors and len(env.past_errors['cross_track']) else np.nan
     )
-    env.viewer.cross_track_error_text_field.draw()
-    env.viewer.along_track_error_text_field.text = "{:<40}{:2.3f}".format('Along-Track Error:', 
+    env.viewer2d.cross_track_error_text_field.draw()
+    env.viewer2d.along_track_error_text_field.text = "{:<40}{:2.3f}".format('Along-Track Error:', 
         env.past_errors['along_track'][-1] if 'along_track' in env.past_errors and len(env.past_errors['along_track']) else np.nan
     )
-    env.viewer.along_track_error_text_field.draw()
-    env.viewer.d_cross_track_error_text_field.text = "{:<40}{:2.3f}".format('Delta-Cross-Track Error:', 
+    env.viewer2d.along_track_error_text_field.draw()
+    env.viewer2d.d_cross_track_error_text_field.text = "{:<40}{:2.3f}".format('Delta-Cross-Track Error:', 
         env.past_errors['d_cross_track'][-1] if 'd_cross_track' in env.past_errors and len(env.past_errors['d_cross_track']) else np.nan
     )
-    env.viewer.d_cross_track_error_text_field.draw()
-    env.viewer.speed_error_text_field.text = "{:<40}{:2.3f}".format('Speed Error:', 
+    env.viewer2d.d_cross_track_error_text_field.draw()
+    env.viewer2d.speed_error_text_field.text = "{:<40}{:2.3f}".format('Speed Error:', 
         env.past_errors['speed'][-1] if 'speed' in env.past_errors and len(env.past_errors['speed']) else np.nan
     )
-    env.viewer.speed_error_text_field.draw()
-    env.viewer.rudder_change_text_field.text = "{:<40}{:2.3f}".format('Rudder Change:', 
+    env.viewer2d.speed_error_text_field.draw()
+    env.viewer2d.rudder_change_text_field.text = "{:<40}{:2.3f}".format('Rudder Change:', 
         env.past_errors['rudder_change'][-1] if 'rudder_change' in env.past_errors and len(env.past_errors['rudder_change']) else np.nan
     )
-    env.viewer.rudder_change_text_field.draw()
-    env.viewer.heading_error_text_field.text = "{:<40}{:2.3f}".format('Heading Error:', 
+    env.viewer2d.rudder_change_text_field.draw()
+    env.viewer2d.heading_error_text_field.text = "{:<40}{:2.3f}".format('Heading Error:', 
         env.past_errors['heading'][-1] if 'heading' in env.past_errors and len(env.past_errors['heading']) else np.nan
     )
-    env.viewer.heading_error_text_field.draw()
-    env.viewer.la_heading_error_text_field.text = "{:<40}{:2.3f}".format('LA Heading Error:', 
+    env.viewer2d.heading_error_text_field.draw()
+    env.viewer2d.la_heading_error_text_field.text = "{:<40}{:2.3f}".format('LA Heading Error:', 
         env.past_errors['la_heading'][-1] if 'la_heading' in env.past_errors and len(env.past_errors['la_heading']) else np.nan
     )
-    env.viewer.la_heading_error_text_field.draw()
-    env.viewer.time_step_text_field.text = "{:<40}{}".format('Time Step:', env.t_step)
-    env.viewer.time_step_text_field.draw()
-    env.viewer.episode_text_field.text = "{:<40}{}".format('Episode:', env.episode)
-    env.viewer.episode_text_field.draw()
-    env.viewer.lambda_text_field.text = "{:<40}{:2.2f}".format('Log10 Lambda:', np.log10(env.config["reward_lambda"]))
-    env.viewer.lambda_text_field.draw()
+    env.viewer2d.la_heading_error_text_field.draw()
+    env.viewer2d.time_step_text_field.text = "{:<40}{}".format('Time Step:', env.t_step)
+    env.viewer2d.time_step_text_field.draw()
+    env.viewer2d.episode_text_field.text = "{:<40}{}".format('Episode:', env.episode)
+    env.viewer2d.episode_text_field.draw()
+    env.viewer2d.lambda_text_field.text = "{:<40}{:2.2f}".format('Log10 Lambda:', np.log10(env.config["reward_lambda"]))
+    env.viewer2d.lambda_text_field.draw()
+    env.viewer2d.pos_text_field.text = "{:<40}{:2.2f},{:2.2f}".format('Position:', env.vessel.x, env.vessel.y)
+    env.viewer2d.pos_text_field.draw()
+
+def render_env(env, mode):
+    global rot_angle
+
+    def render_objects():
+        t = env.viewer2d.transform
+        t.enable()
+        _render_sensors(env)
+        _render_interceptions(env)
+        if env.path is not None:
+            _render_path(env)
+        _render_vessel(env)
+        _render_tiles(env, win)
+        _render_obstacles(env)
+        if env.path is not None:
+            _render_progress(env)
+        _render_interceptions(env)
+
+        # Visualise path error (DEBUGGING)
+        # p = np.array(env.vessel.position)
+        # dir = rotate(env.past_obs[-1][0:2], env.vessel.heading)
+        # env.viewer2d.draw_line(p, p + 10*np.array(dir), color=(0.8, 0.3, 0.3))
+
+        for geom in env.viewer2d.onetime_geoms:
+           geom.render()
+
+        t.disable()
+
+        if (env.config["show_indicators"]):
+            _render_indicators(env, WINDOW_W, WINDOW_H)
+            
+    scroll_x = env.vessel.position[0]
+    scroll_y = env.vessel.position[1]
+    ship_angle = -env.vessel.heading + np.pi/2
+    if (rot_angle is None):
+        rot_angle = ship_angle
+    else:
+        rot_angle += CAMERA_ROTATION_SPEED * geom.princip(ship_angle - rot_angle)
+
+    if DYNAMIC_ZOOM:
+        if (int(env.t_step/1000) % 2 == 0):
+            env.viewer2d.camera_zoom = 0.999*env.viewer2d.camera_zoom + 0.001*(ZOOM - env.viewer2d.camera_zoom)
+        else:
+            env.viewer2d.camera_zoom = 0.999*env.viewer2d.camera_zoom + 0.001*(1 - env.viewer2d.camera_zoom)
+
+    env.viewer2d.transform.set_scale(env.viewer2d.camera_zoom, env.viewer2d.camera_zoom)
+    env.viewer2d.transform.set_translation(
+        WINDOW_W/2 - (scroll_x*env.viewer2d.camera_zoom*cos(rot_angle) - scroll_y*env.viewer2d.camera_zoom*sin(rot_angle)),
+        WINDOW_H/2 - (scroll_x*env.viewer2d.camera_zoom*sin(rot_angle) + scroll_y*env.viewer2d.camera_zoom*cos(rot_angle))
+    )
+    env.viewer2d.transform.set_rotation(rot_angle)
+
+    win = env.viewer2d.window
+    win.switch_to()
+    x = win.dispatch_events()
+    win.clear()
+    gl.glViewport(0, 0, WINDOW_W, WINDOW_H)
+    render_objects()
+    arr = None
+
+    if mode == 'rgb_array':
+        image_data = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
+        arr = np.fromstring(image_data.data, dtype=np.uint8, sep='')
+        arr = arr.reshape(WINDOW_H, WINDOW_W, 4)
+        arr = arr[::-1, :, 0:3]
+
+    win.flip()
+
+    env.viewer2d.onetime_geoms = []
+
+    return arr
+
+def init_env_viewer(env):
+    env.viewer2d = Viewer(WINDOW_W, WINDOW_H)
+    env.viewer2d.reward_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 20.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer2d.cum_reward_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 40.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer2d.delta_path_prog_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 60.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer2d.cross_track_error_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 80.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer2d.along_track_error_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 100.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer2d.d_cross_track_error_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 120.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer2d.speed_error_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 140.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer2d.rudder_change_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 160.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer2d.heading_error_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 180.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer2d.la_heading_error_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 200.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer2d.time_step_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 220.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer2d.episode_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 240.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer2d.lambda_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 260.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer2d.pos_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 280.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+
+    print('Initialized 2D viewer')
