@@ -81,9 +81,9 @@ class AUV2D():
         self.prev_states = np.vstack([self.prev_states,self._state])
         self.prev_inputs = np.vstack([self.prev_inputs,self.input])
 
-        rudder_change = self.input[1] - self.prev_inputs[-2, 1] if len(self.prev_inputs) > 1 else self.input[1]
-        self.smoothed_rudder_change = 0.9*self.smoothed_rudder_change + 0.1*abs(rudder_change)
-        self.smoothed_rudder = 0.9*self.smoothed_rudder + 0.1*abs(self.input[1])
+        torque_change = self.input[1] - self.prev_inputs[-2, 1] if len(self.prev_inputs) > 1 else self.input[1]
+        self.smoothed_torque_change = 0.9*self.smoothed_torque_change + 0.1*abs(torque_change)
+        self.smoothed_torque = 0.9*self.smoothed_torque + 0.1*abs(self.input[1])
 
     def reset(self, init_pos, init_speed=None):
         if (init_speed is None):
@@ -94,8 +94,8 @@ class AUV2D():
         self.prev_states = np.vstack([self._state])
         self.input = [0, 0]
         self.prev_inputs =np.vstack([self.input])
-        self.smoothed_rudder_change = 0
-        self.smoothed_rudder = 0
+        self.smoothed_torque_change = 0
+        self.smoothed_torque = 0
         self.planned_path = None
 
     def _state_dot(self, state):

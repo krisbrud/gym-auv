@@ -191,7 +191,7 @@ class BaseShipScenario(gym.Env):
             self.past_errors['along_track'] = np.append(self.past_errors['along_track'], self.along_track_error)
             self.past_errors['la_heading'] = np.append(self.past_errors['la_heading'], self.heading_error_la)
             self.past_errors['heading'] = np.append(self.past_errors['heading'], self.heading_error)
-            self.past_errors['rudder_change'] = np.append(self.past_errors['rudder_change'], self.vessel.smoothed_rudder_change)
+            self.past_errors['torque_change'] = np.append(self.past_errors['torque_change'], self.vessel.smoothed_torque_change)
             
             # Updating path reference point if vessel is going forward.
             closest_arclength = self.path.get_closest_arclength(self.vessel.position)
@@ -209,7 +209,7 @@ class BaseShipScenario(gym.Env):
         self.update()
 
         # Obtaining the observation vector which is fed to the agent
-        obs = self.observe()
+        obs, collision = self.observe()
         assert not np.isnan(obs).any(), 'Observation vector "{}" contains nan values.'.format(str(obs))
         self.past_obs = np.vstack([self.past_obs, obs])
 
@@ -221,7 +221,8 @@ class BaseShipScenario(gym.Env):
             self.past_actions = np.vstack([self.past_actions, action])
 
         # Receiving agent's reward as well as whether the episode is done or not
-        done, step_reward, info = self.get_reward()
+        done, step_reward, info = self.get_reward(collision)
+        info['collision'] = collision
         self.past_rewards = np.append(self.past_rewards, step_reward)
         self.past_path_rewards = np.append(self.past_path_rewards, info['path_reward'])
         self.past_closeness_rewards = np.append(self.past_closeness_rewards, info['closeness_reward'])
@@ -246,6 +247,16 @@ class BaseShipScenario(gym.Env):
             done = True
         if self.cumulative_reward <= self.config["min_cumulative_reward"] and not self.test_mode:
             done = True
+        if collision:
+            if self.config["end_on_collision"]:
+                # Ending episode
+                step_reward = self.config["min_cumulative_reward"]*(1-self.config["reward_lambda"])
+                done = True
+            elif self.config["teleport_on_collision"]:
+                # Teleporting vesesl back in time
+                step_reward = self.config["min_cumulative_reward"]*(1-self.config["reward_lambda"])
+                self.vessel.teleport_back(200)
+
         dist_to_endpoint = linalg.norm(self.vessel.position - self.path.get_endpoint())
         if (abs(self.path_prog_hist[-1] - self.path.length) < self.config["min_goal_progress"] or dist_to_endpoint < self.config["min_goal_distance"]):
             done = True
@@ -253,7 +264,7 @@ class BaseShipScenario(gym.Env):
 
         return obs, step_reward, done, info
         
-    def get_reward(self):
+    def get_reward(self, collision):
         """
         Calculates the step reward and decides whether the episode
         should be ended.
@@ -269,32 +280,14 @@ class BaseShipScenario(gym.Env):
         """
         done = False
         step_reward = 0
-        info = {"collision": False, 'path_reward': None, 'closeness_reward': None}
-
-        # Testing if collision has occured for each nearby obstacle
-        for obst_dist, obst in self.nearby_obstacles:
-            if obst_dist <= 0:
-                if not obst.collided:
-                    obst.collided = True
-                    self.collisions += 1
-                info["collision"] = True
-                if self.config["end_on_collision"]:
-                    # Ending episode
-                    step_reward = self.config["min_cumulative_reward"]*(1-self.config["reward_lambda"])
-                    done = True
-                    break
-                elif self.config["teleport_on_collision"]:
-                    # Teleporting vesesl back in time
-                    step_reward = self.config["min_cumulative_reward"]*(1-self.config["reward_lambda"])
-                    self.vessel.teleport_back(200)
-                    break
+        info = {'path_reward': None, 'closeness_reward': None}
 
         # Calculating reward
-        if not self.test_mode and not done:
+        if not done:
             path_reward = self.get_path_reward()
             info['path_reward'] = path_reward
 
-            closeness_reward = self.get_closeness_reward(collision=info["collision"])
+            closeness_reward = self.get_closeness_reward(collision=collision)
             info['closeness_reward'] = closeness_reward
 
             # Calculating total reward
@@ -302,7 +295,8 @@ class BaseShipScenario(gym.Env):
                 (1-self.config["reward_lambda"])*closeness_reward - \
                 self.living_penalty + \
                 self.config["reward_speed"]*self.vessel.speed/self.vessel.max_speed - \
-                self.config["penalty_yawrate"]*abs(self.vessel.yawrate)
+                self.config["penalty_yawrate"]*abs(self.vessel.yawrate) - \
+                self.config["penalty_torque_change"]*abs(self.vessel.smoothed_torque_change)
 
         # Capping reward so that it will not lead to a cumulative reward less than the minimum
         step_reward = max(self.config["min_cumulative_reward"] - self.cumulative_reward, step_reward)
@@ -392,7 +386,7 @@ class BaseShipScenario(gym.Env):
             'heading': np.array([]),
             'la_heading': np.array([]),
             'd_cross_track': np.array([]),
-            'rudder_change': np.array([])
+            'torque_change': np.array([])
         }
         
         try:
@@ -444,7 +438,7 @@ class BaseShipScenario(gym.Env):
             self.viewer3d.create_path(self.path)
 
         # Getting initial observation vector
-        obs = self.observe()
+        obs, _ = self.observe()
         assert not np.isnan(obs).any(), 'Observation vector "{}" contains nan values.'.format(str(obs))
 
         self.past_obs = np.array([obs])
@@ -567,6 +561,8 @@ class BaseShipScenario(gym.Env):
             if self.verbose:
                 print('Loaded nearby obstacles ({} / {})...'.format(len(self.nearby_obstacles), len(self.obstacles)))
 
+        collision = False
+
         # Updating sensor readings
         if (self.t_step % self.config["sensor_interval_obstacles"] == 0):
             self.sensor_updates += 1
@@ -578,7 +574,6 @@ class BaseShipScenario(gym.Env):
             )
             
             # Testing if vessel has collided so that all observations can be set accordingly
-            collision = False
             for _, obst in self.nearby_obstacles:
                 obst_dist = float(vessel_center.distance(obst.boundary)) - self.vessel.width
                 if obst_dist + self.vessel.width <= 0:
@@ -647,13 +642,13 @@ class BaseShipScenario(gym.Env):
                         except AttributeError as e:
                             continue
 
-                        if obst_intersect:
+                        if not obst_intersect.is_empty:
                             self.sector_empty[isector] = 0
                             obst.observed = True
                             try:
                                 # Retrieving a list of intersection points
                                 obst_intersections = [obst_intersect] if type(obst_intersect) in (shapely.geometry.Point, shapely.geometry.LineString) else list(obst_intersect.geoms)
-                            except AttributeError:
+                            except AttributeError as e:
                                 continue
 
                             # Iterating over intersection points
@@ -687,6 +682,11 @@ class BaseShipScenario(gym.Env):
                                         obst_speed_rel = geom.to_cartesian(obst_speed_rel_homogenous)
                                         self.sensor_obst_reldx[isensor] = obst_speed_rel[0]
                                         self.sensor_obst_reldy[isensor] = obst_speed_rel[1]
+
+                                    else:
+                                        self.sensor_obst_reldx[isensor] = 0
+                                        self.sensor_obst_reldy[isensor] = 0
+
                     
                     # Saving the measurement to the data structure containing measurements for each sensor sector
                     sector_measurements[isector][isensor_internal] = self.sensor_obst_distances[isensor]
@@ -708,7 +708,7 @@ class BaseShipScenario(gym.Env):
 
                     measurements = sector_measurements[isector]
 
-                    # Calculating maximum feasible distance according to Feasibility Pooling Algorithm 
+                    # Calculating maximum feasible distance according to Feasibility Pooling algorithm 
                     feasible_distance, critical_sensor_index = geom.feasibility_pooling(
                         x=measurements, 
                         W=self.vessel.width, 
@@ -734,7 +734,7 @@ class BaseShipScenario(gym.Env):
                     
                     self.sector_last_heartbeat[isector] = self.t_step
 
-        return obs
+        return (obs, collision)
     
     def save(self, filepath):
         self.vessel._state = np.array(self.vessel._state)
@@ -745,11 +745,12 @@ class BaseShipScenario(gym.Env):
             'obstacles': []
         }
         for obst in self.obstacles:
-            obstacle_data = {
-                'position': obst.position.tolist(),
-                'radius': obst.radius
-            }
-            environment_data['obstacles'].append(obstacle_data)
+            if obst.static:
+                obstacle_data = {
+                    'position': obst.position.tolist(),
+                    'radius': obst.radius
+                }
+                environment_data['obstacles'].append(obstacle_data)
         try:
             with open(filepath, 'wb') as f:
                 pickle.dump(environment_data, f)

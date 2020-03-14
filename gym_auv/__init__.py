@@ -10,6 +10,9 @@ def sample_lambda(scale):
 def observe_obstacle_fun(t, dist):
     return t % (int(0.0025*dist**1.7) + 1) == 0
 
+def return_true_fun(t, dist):
+    return True
+
 DEFAULT_CONFIG = {
     # ---- REWARD ---- #
     "reward_lambda": partial(sample_lambda, 2),     # Function that returns new (random) lambda value
@@ -18,6 +21,7 @@ DEFAULT_CONFIG = {
     "reward_gamma_y_e": 0.05,                       # Reward parameter for cross-track error
     "reward_speed": 1.0,                            # Reward parameter for speed
     "penalty_yawrate": 0.5,                         # Penalty parameter for yaw rate
+    "penalty_torque_change": 0.0,                   # Penalty parameter for applied torque
     "cruise_speed": 2,                              # Ideal vessel speed [m/s]
 
     # ---- EPISODE ---- #
@@ -58,6 +62,7 @@ MOVING_CONFIG = DEFAULT_CONFIG.copy()
 MOVING_CONFIG['reward_lambda'] = partial(sample_lambda, 0.2)
 MOVING_CONFIG['min_reward'] = -1000
 MOVING_CONFIG['t_step_size'] = 1.0 #0.3
+MOVING_CONFIG['observe_obstacle_fun'] = return_true_fun
 
 DEBUG_CONFIG = DEFAULT_CONFIG.copy()
 DEBUG_CONFIG['t_step_size'] = 0.5

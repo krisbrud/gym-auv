@@ -562,10 +562,10 @@ def _render_indicators(env, W, H):
         env.past_errors['speed'][-1] if 'speed' in env.past_errors and len(env.past_errors['speed']) else np.nan
     )
     env.viewer2d.speed_error_text_field.draw()
-    env.viewer2d.rudder_change_text_field.text = "{:<40}{:2.3f}".format('Rudder Change:', 
-        env.past_errors['rudder_change'][-1] if 'rudder_change' in env.past_errors and len(env.past_errors['rudder_change']) else np.nan
+    env.viewer2d.torque_change_text_field.text = "{:<40}{:2.3f}".format('Rudder Change:', 
+        env.past_errors['torque_change'][-1] if 'torque_change' in env.past_errors and len(env.past_errors['torque_change']) else np.nan
     )
-    env.viewer2d.rudder_change_text_field.draw()
+    env.viewer2d.torque_change_text_field.draw()
     env.viewer2d.heading_error_text_field.text = "{:<40}{:2.3f}".format('Heading Error:', 
         env.past_errors['heading'][-1] if 'heading' in env.past_errors and len(env.past_errors['heading']) else np.nan
     )
@@ -677,7 +677,7 @@ def init_env_viewer(env):
     env.viewer2d.speed_error_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 140.00, anchor_x='left', anchor_y='center',
                                             color=(0, 0, 0, 255))
-    env.viewer2d.rudder_change_text_field = pyglet.text.Label('0000', font_size=10,
+    env.viewer2d.torque_change_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 160.00, anchor_x='left', anchor_y='center',
                                             color=(0, 0, 0, 255))
     env.viewer2d.heading_error_text_field = pyglet.text.Label('0000', font_size=10,
