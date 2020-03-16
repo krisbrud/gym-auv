@@ -432,7 +432,7 @@ def _render_interceptions(env):
 
 def _render_sensors(env):
     for isensor, sensor_angle in enumerate(env.sensor_angles):
-        isector = isensor // env.config["n_sensors_per_sector"]
+        isector = env.config["sector_partition_fun"](env, isensor) # isensor // env.config["n_sensors_per_sector"]
         p0 = env.vessel.position
         if (env.sensor_obst_intercepts[isensor] is None):
             p1 = (
@@ -445,7 +445,7 @@ def _render_sensors(env):
         closeness = env.past_obs[-1, env.lidar_obs_index + isector]
         redness = 0.5 + 0.5*max(0, closeness)
         greenness = 1 - max(0, closeness)
-        blueness = 0.5 if isector % 2 == 0 and not env.config["lidar_rotation"] else 1
+        blueness = 0.5 if abs(isector - int(np.floor(env.config["n_sectors"]/2) + 1))  % 2 == 0 and not env.config["lidar_rotation"] else 1
         alpha = 0.5 if env.sector_active[isector] else 0.2
         
         env.viewer2d.draw_line(p0, p1, color=(redness, greenness, blueness, alpha))

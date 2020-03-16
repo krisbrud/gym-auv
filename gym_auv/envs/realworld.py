@@ -31,7 +31,7 @@ class RealWorldEnv(BaseShipScenario):
 
         #print('Preprocessing traffic...')
         for vessel_idx, vessel_name in enumerate(vessel_names):
-            if vessel_idx > 50:
+            if vessel_idx > 20:
                 break
 
             vessels[vessel_name]['AIS_Timestamp'] = pd.to_datetime(vessels[vessel_name]['AIS_Timestamp'])
@@ -41,7 +41,8 @@ class RealWorldEnv(BaseShipScenario):
             last_timestamp = pd.to_timedelta(0, unit='D')
             cutoff_dt = pd.to_timedelta(0.1, unit='D')
             path = []
-            for _, row in vessels[vessel_name].iterrows():
+            start_index = np.random.randint(0, len(vessels[vessel_name])-1)
+            for _, row in vessels[vessel_name][start_index:].iterrows():
                 if len(path) == 0:
                     start_timestamp = row['AIS_Timestamp']
                 timedelta = row['AIS_Timestamp'] - last_timestamp

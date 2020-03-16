@@ -63,6 +63,15 @@ class BaseShipScenario(gym.Env):
         self.n_sensors = self.config["n_sensors_per_sector"]*self.config["n_sectors"]
         self.sensor_angle = 2*np.pi/(self.n_sensors)
         self.sensor_angles = [-np.pi + (i + 1)*self.sensor_angle for i in range(self.n_sensors)]
+        self.n_sensors_per_sector = [0]*self.config["n_sectors"]
+        self.sector_start_indeces = [0]*self.config["n_sectors"]
+        last_isector = -1
+        for isensor in range(self.n_sensors):
+            isector = self.config["sector_partition_fun"](self, isensor)
+            if isector != last_isector:
+                last_isector = isector
+                self.sector_start_indeces[isector] = isensor
+            self.n_sensors_per_sector[isector] += 1
 
         # Setting dimension of observation vector
         self.n_observations = self.nstates
@@ -576,7 +585,7 @@ class BaseShipScenario(gym.Env):
             # Testing if vessel has collided so that all observations can be set accordingly
             for _, obst in self.nearby_obstacles:
                 obst_dist = float(vessel_center.distance(obst.boundary)) - self.vessel.width
-                if obst_dist + self.vessel.width <= 0:
+                if obst_dist <= 0:
                     collision = True
             if collision:
                 for isector in range(self.n_sectors):
@@ -585,7 +594,7 @@ class BaseShipScenario(gym.Env):
             else:
                 sector_lines = [None for isensor in range(self.n_sensors)]
                 sector_processed = [False for isector in range(self.n_sectors)]
-                sector_measurements = [np.zeros((self.config["n_sensors_per_sector"],)) for isector in range(self.n_sectors)]
+                sector_measurements = [np.zeros((self.n_sensors_per_sector[isector],)) for isector in range(self.n_sectors)]
                 self.sector_active = [0 for isector in range(self.n_sectors)]
 
                 for obst_dist, obst in self.nearby_obstacles:
@@ -595,8 +604,8 @@ class BaseShipScenario(gym.Env):
 
                 # Iterating over all sensors
                 for isensor in range(self.n_sensors):
-                    isensor_internal = isensor % self.config["n_sensors_per_sector"]
-                    isector = isensor // self.config["n_sensors_per_sector"]
+                    isector = self.config["sector_partition_fun"](self, isensor)
+                    isensor_internal = isensor - self.sector_start_indeces[isector]
                     if self.config["lidar_rotation"] and (self.sensor_updates + 1) % (int(self.n_sectors/2) + 1) != abs(int(self.n_sectors/2)-isector):
                         continue
                     self.sector_active[isector] = 1
@@ -713,7 +722,7 @@ class BaseShipScenario(gym.Env):
                         x=measurements, 
                         W=self.vessel.width, 
                         theta=self.sensor_angle, 
-                        N_sensors=self.config["n_sensors_per_sector"]
+                        N_sensors=self.n_sensors_per_sector[isector]
                     )
 
                     # Calculating feasible closeness
@@ -729,8 +738,8 @@ class BaseShipScenario(gym.Env):
                     if self.detect_movement:
                         if critical_sensor_index is None:
                             critical_sensor_index = 0
-                        obs[self.lidar_obs_index + self.n_sectors + isector] = self.sensor_obst_reldx[isector*self.config["n_sensors_per_sector"] + critical_sensor_index]
-                        obs[self.lidar_obs_index + self.n_sectors*2 + isector] = self.sensor_obst_reldy[isector*self.config["n_sensors_per_sector"] + critical_sensor_index]
+                        obs[self.lidar_obs_index + self.n_sectors + isector] = self.sensor_obst_reldx[self.sector_start_indeces[isector] + critical_sensor_index]
+                        obs[self.lidar_obs_index + self.n_sectors*2 + isector] = self.sensor_obst_reldy[self.sector_start_indeces[isector] + critical_sensor_index]
                     
                     self.sector_last_heartbeat[isector] = self.t_step
 

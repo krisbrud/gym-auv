@@ -39,7 +39,7 @@ class MovingObstacles(BaseShipScenario):
 
             obst_position, obst_radius = self._generate_obstacle(obst_radius_mean=10, displacement_dist_std=500)
             obst_direction = np.random.random()*2*np.pi
-            obst_speed = np.random.random()*2
+            obst_speed = np.random.random()*1
 
             for i in range(10000):
                 other_vessel_trajectory.append((i, (

@@ -13,13 +13,20 @@ def observe_obstacle_fun(t, dist):
 def return_true_fun(t, dist):
     return True
 
+def sector_partition_fun(env, isensor):
+    a = env.config["n_sensors_per_sector"]*env.config["n_sectors"]
+    b = env.config["n_sectors"]
+    c = 0.1
+    sigma = lambda x: b / (1 + np.exp((-x + a / 2) / (c * a)))
+    return int(np.floor(sigma(isensor) - sigma(0)))
+
 DEFAULT_CONFIG = {
     # ---- REWARD ---- #
     "reward_lambda": partial(sample_lambda, 2),     # Function that returns new (random) lambda value
     "reward_gamma_theta": 10,                       # Reward parameter for obstacle angle
     "reward_gamma_x": 0.005,                        # Reward parameter for obstacle distance
     "reward_gamma_y_e": 0.05,                       # Reward parameter for cross-track error
-    "reward_speed": 1.0,                            # Reward parameter for speed
+    "reward_speed": 0.2,                            # Reward parameter for speed
     "penalty_yawrate": 0.5,                         # Penalty parameter for yaw rate
     "penalty_torque_change": 0.0,                   # Penalty parameter for applied torque
     "cruise_speed": 2,                              # Ideal vessel speed [m/s]
@@ -43,8 +50,9 @@ DEFAULT_CONFIG = {
     "sensor_interval_obstacles": 2,                 # Interval for simulating rangefinder sensors
     "update_interval_path": 1,                      # Interval for updating path following-related variables
     "sensor_interval_load_obstacles": 100,          # Interval for loading nearby obstacles
-    "n_sensors_per_sector": 7,                      # Number of rangefinder sensors within each sector
-    "n_sectors": 25,                                # Number of sensor sectors
+    "n_sensors_per_sector": 26,                      # Number of rangefinder sensors within each sector
+    "n_sectors": 9,                                # Number of sensor sectors
+    "sector_partition_fun": sector_partition_fun,   # Function that returns corresponding sector for a given sensor index
     "lidar_rotation": False,                        # Whether to activate the sectors in a rotating pattern (for performance reasons)
     "lidar_range": 150,                             # Range of rangefinder sensors [m]
     "lidar_range_log_transform": True,              # Whether to use a log. transform when calculating closeness                 #
@@ -59,7 +67,7 @@ DEFAULT_CONFIG = {
 }
 
 MOVING_CONFIG = DEFAULT_CONFIG.copy()
-MOVING_CONFIG['reward_lambda'] = partial(sample_lambda, 0.2)
+MOVING_CONFIG['reward_lambda'] = 0.5# partial(sample_lambda, 0.2)
 MOVING_CONFIG['min_reward'] = -1000
 MOVING_CONFIG['t_step_size'] = 1.0 #0.3
 MOVING_CONFIG['observe_obstacle_fun'] = return_true_fun
