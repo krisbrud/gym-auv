@@ -6,8 +6,8 @@ import gym_auv.utils.geomutils as geom
 class BaseObstacle():
     def __init__(self):
         self.valid = True
-        self.last_obs_distance = 0
-        self.last_obs_linestring = []
+        self.last_distance = 0
+        self.virtual_boundary = []
 
 class CircularObstacle(BaseObstacle):
     def __init__(self, position, radius, color=(0.6, 0, 0)):

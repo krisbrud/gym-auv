@@ -91,9 +91,10 @@ class Environment(gym.Env):
         self.sector_clear = [0 for isector in range(self.n_sectors)]
         self.sector_closeness = [0.0 for isector in range(self.n_sectors)]
         self.sector_last_heartbeat = [0 for isector in range(self.n_sectors)]
+        self.sector_obst_distances = np.ones((self.n_sectors, ))*self.config["sensor_range"]
         self.sensor_obst_closenesses = np.zeros((self.n_sensors, ))
-        self.sensor_obst_reldx = np.zeros((self.n_sensors, ))
-        self.sensor_obst_reldy = np.zeros((self.n_sensors, ))
+        self.sector_obst_speed_x = np.zeros((self.n_sectors, ))
+        self.sector_obst_speed_y = np.zeros((self.n_sectors, ))
         self.sensor_obst_distances = np.ones((self.n_sensors, ))*self.config["sensor_range"]
         self.sensor_path_arclengths = np.zeros((self.n_sensors, ))
         self.sensor_path_index = None
@@ -269,7 +270,7 @@ class Environment(gym.Env):
                 self.vessel.teleport_back(200)
 
         dist_to_endpoint = linalg.norm(self.vessel.position - self.path.end)
-        if (abs(self.path_prog_hist[-1] - self.path.length) < self.config["min_goal_progress"] or dist_to_endpoint < self.config["min_goal_distance"]):
+        if abs(self.path_prog_hist[-1] - self.path.length) < self.config["min_goal_progress"] or dist_to_endpoint < self.config["min_goal_distance"]:
             done = True
             self.reached_goal = True
 
@@ -354,7 +355,7 @@ class Environment(gym.Env):
         """
 
         # Saving information about episode
-        if (self.t_step > 0):
+        if self.t_step > 0:
             self.last_episode = {
                 'path': self.path(np.linspace(0, self.path.length, 1000)) if self.path is not None else None,
                 'path_taken': self.vessel.path_taken,
@@ -435,9 +436,10 @@ class Environment(gym.Env):
         self.sector_clear = [0 for isector in range(self.n_sectors)]
         self.sector_closeness = [0.0 for isector in range(self.n_sectors)]
         self.sector_last_heartbeat = [0 for isector in range(self.n_sectors)]
+        self.sector_obst_distances = np.ones((self.n_sectors, ))*self.config["sensor_range"]
         self.sensor_obst_closenesses = np.zeros((self.n_sensors, ))
-        self.sensor_obst_reldx = np.zeros((self.n_sensors, ))
-        self.sensor_obst_reldy = np.zeros((self.n_sensors, ))
+        self.sector_obst_speed_x = np.zeros((self.n_sectors, ))
+        self.sector_obst_speed_y = np.zeros((self.n_sectors, ))
         self.sensor_obst_distances = np.ones((self.n_sensors, ))*self.config["sensor_range"]
         self.sensor_path_arclengths = np.zeros((self.n_sensors, ))
         if self.np_random is None:
@@ -527,6 +529,9 @@ class Environment(gym.Env):
             obstacle = CircularObstacle(*self._generate_obstacle())
             self.obstacles.append(obstacle)
 
+    def _sample_sensor(self, isensor):
+        pass
+
     def observe(self):
         """
         Generates the observation of the environment.
@@ -555,12 +560,12 @@ class Environment(gym.Env):
 
         # Initializing obstacle detection-related values to the previous ones
         # in case they are not intended to be recalculated (for performance reasons)
-        if (self.past_obs is not None):
+        if self.past_obs is not None:
             obs[self.n_states:] = self.past_obs[-1, self.n_states:]
 
         # Loading nearby obstacles so that the rest can be ignored
         # when calculating the sensor interception points (for performance reasons)
-        if (self.t_step % self.config["sensor_interval_load_obstacles"] == 0):
+        if self.t_step % self.config["sensor_interval_load_obstacles"] == 0:
             if self.verbose:
                 print('Loading nearby obstacles...')
             vessel_center = shapely.geometry.Point(
@@ -570,7 +575,7 @@ class Environment(gym.Env):
             self.nearby_obstacles = []
             for obst in self.obstacles:
                 obst_dist = float(vessel_center.distance(obst.boundary)) - self.vessel.width
-                if (obst_dist < self.config["sensor_range"]):
+                if obst_dist < self.config["sensor_range"]:
                     self.nearby_obstacles.append((obst_dist, obst))    
                 self.nearby_obstacles = sorted(self.nearby_obstacles, key=lambda x: x[0])
             if self.verbose:
@@ -579,9 +584,12 @@ class Environment(gym.Env):
         collision = False
 
         # Updating sensor readings
-        if (self.t_step % self.config["sensor_interval_obstacles"] == 0):
+        if self.t_step % self.config["sensor_interval_obstacles"] == 0:
             self.sensor_updates += 1
             self.sensor_obst_intercepts = [None for isensor in range(self.n_sensors)]
+            self.sector_obst_speed_x = np.zeros((self.n_sectors, ))
+            self.sector_obst_speed_y = np.zeros((self.n_sectors, ))
+            self.sector_obst_distances = np.ones((self.n_sectors, ))*self.config["sensor_range"]
 
             vessel_center = shapely.geometry.Point(
                 self.vessel.position[0], 
@@ -593,6 +601,7 @@ class Environment(gym.Env):
                 obst_dist = float(vessel_center.distance(obst.boundary)) - self.vessel.width
                 if obst_dist <= 0:
                     collision = True
+                    break
             if collision:
                 for isector in range(self.n_sectors):
                     obs[self.n_states + isector] = 1
@@ -600,13 +609,14 @@ class Environment(gym.Env):
             else:
                 sector_lines = [None for isensor in range(self.n_sensors)]
                 sector_processed = [False for isector in range(self.n_sectors)]
-                sector_measurements = [np.zeros((self.n_sensors_per_sector[isector],)) for isector in range(self.n_sectors)]
+                sector_measurement_arrs = [np.zeros((self.n_sensors_per_sector[isector],)) for isector in range(self.n_sectors)]
                 self.sector_active = [0 for isector in range(self.n_sectors)]
 
+                # Resetting virtual obstacles
                 for obst_dist, obst in self.nearby_obstacles:
-                    if self.config["observe_obstacle_fun"](self.sensor_updates,  obst.last_obs_distance):
-                        obst.last_obs_distance = self.config["sensor_range"]
-                        obst.last_obs_linestring = []
+                    if self.config["observe_obstacle_fun"](self.sensor_updates,  obst.last_distance):
+                        obst.last_distance = self.config["sensor_range"]
+                        obst.virtual_boundary = []
 
                 # Iterating over all sensors
                 for isensor in range(self.n_sensors):
@@ -624,6 +634,9 @@ class Environment(gym.Env):
                         self.vessel.position[0] + np.cos(global_sensor_angle)*self.config["sensor_range"],
                         self.vessel.position[1] + np.sin(global_sensor_angle)*self.config["sensor_range"],
                     )
+                    self.sensor_obst_closenesses[isensor] = 0
+                    self.sensor_obst_distances[isensor] = self.config["sensor_range"]
+
                     sector_lines[isensor] = shapely.geometry.LineString([(
                             self.vessel.position[0], 
                             self.vessel.position[1],
@@ -632,23 +645,19 @@ class Environment(gym.Env):
                             self.vessel.position[1] + np.sin(global_sensor_angle)*self.config["sensor_range"],
                         )
                     ])
-                    self.sensor_obst_closenesses[isensor] = 0                
-                    self.sensor_obst_reldx[isensor] = 0
-                    self.sensor_obst_reldy[isensor] = 0
-                    self.sensor_obst_distances[isensor] = self.config["sensor_range"]
 
                     # Iterating over all nearby obstacles
                     for obst_dist, obst in self.nearby_obstacles:
                         if not obst.valid:
                             continue
-                        should_observe = self.config["observe_obstacle_fun"](self.sensor_updates,  obst.last_obs_distance)
+                        should_observe = self.config["observe_obstacle_fun"](self.sensor_updates,  obst.last_distance)
                         try:
                             if should_observe:
                                 # Calculating real intersection point between sensor ray and obstacle
                                 obst_intersect = obst.boundary.intersection(sector_lines[isensor])
                             else:
                                 # Calculating virtual intersection point between sensor ray and obstacle (for performance reasons)
-                                obst_intersect = obst.last_obs_linestring.intersection(sector_lines[isensor])
+                                obst_intersect = obst.virtual_boundary.intersection(sector_lines[isensor])
                         except shapely.errors.TopologicalError as e:
                             # Obstacle geometry is invalid - ignoring it for the future
                             obst.valid = False
@@ -669,47 +678,49 @@ class Environment(gym.Env):
                             for obst_intersection in obst_intersections:
                                 # Converting the intersection object to a point if it is a string
                                 # (happens if the sensor ray is parallell to the obstacle boundary)
-                                if (type(obst_intersection) == shapely.geometry.LineString):
+                                if type(obst_intersection) == shapely.geometry.LineString:
                                     obst_intersection = shapely.geometry.Point(obst_intersection.coords[0])
 
                                 if should_observe:
-                                    obst.last_obs_linestring.append(obst_intersection)
+                                    obst.virtual_boundary.append(obst_intersection)
 
                                 # Calculating distance from the vessel to the obstacle
                                 distance = max(0, float(vessel_center.distance(obst_intersection)) - self.vessel.width)
-                                if distance < obst.last_obs_distance and should_observe:
+                                if distance < obst.last_distance and should_observe:
                                     obst.last_obst_distance = distance
 
                                 # Calculating closeless (scaled inverse distance)
                                 closeness = 1 - np.clip(distance/self.config["sensor_range"], 0, 1)
 
                                 # Updating sensor reading if the obstacle reading is closer than the existing one
-                                if (closeness > self.sensor_obst_closenesses[isensor]):
+                                if closeness > self.sensor_obst_closenesses[isensor]:
                                     self.sensor_obst_closenesses[isensor] = closeness
                                     self.sensor_obst_distances[isensor] = distance
                                     self.sensor_obst_intercepts[isensor] = (obst_intersection.x, obst_intersection.y)
 
+                                if distance < self.sector_obst_distances[isector]:
+                                    self.sector_obst_distances[isector] = distance
+
                                     # Updating decomposed obstacle velocity 
                                     if not obst.static:
+                                        # Performing coordinate transformation of obstacle speed to the sensor-relative coordinate frame.
                                         obst_speed_homogenous = geom.to_homogeneous([obst.dx, obst.dy])
                                         obst_speed_rel_homogenous = geom.Rz(-global_sensor_angle - np.pi/2).dot(obst_speed_homogenous)
                                         obst_speed_rel = geom.to_cartesian(obst_speed_rel_homogenous)
-                                        self.sensor_obst_reldx[isensor] = obst_speed_rel[0]
-                                        self.sensor_obst_reldy[isensor] = obst_speed_rel[1]
-
+                                        self.sector_obst_speed_x[isector] = obst_speed_rel[0]
+                                        self.sector_obst_speed_y[isector] = obst_speed_rel[1]
                                     else:
-                                        self.sensor_obst_reldx[isensor] = 0
-                                        self.sensor_obst_reldy[isensor] = 0
-
+                                        self.sector_obst_speed_x[isector] = 0
+                                        self.sector_obst_speed_y[isector] = 0
                     
                     # Saving the measurement to the data structure containing measurements for each sensor sector
-                    sector_measurements[isector][isensor_internal] = self.sensor_obst_distances[isensor]
+                    sector_measurement_arrs[isector][isensor_internal] = self.sensor_obst_distances[isensor]
 
-                # Updating virtual obstacles
+                # Reconstructing virtual obstacles
                 for obst_dist, obst in self.nearby_obstacles:
-                    if self.config["observe_obstacle_fun"](self.sensor_updates, obst.last_obs_distance):
-                        if len(obst.last_obs_linestring) >= 2:
-                            obst.last_obs_linestring = shapely.geometry.LineString(obst.last_obs_linestring)
+                    if self.config["observe_obstacle_fun"](self.sensor_updates, obst.last_distance):
+                        if len(obst.virtual_boundary) >= 2:
+                            obst.virtual_boundary = shapely.geometry.LineString(obst.virtual_boundary)
 
                 self.sensor_obst_intercepts_hist.append(self.sensor_obst_intercepts.copy())
 
@@ -720,7 +731,7 @@ class Environment(gym.Env):
                     if self.config["sensor_rotation"] and (self.sensor_updates + 1) % (int(self.n_sectors/2) + 1) != abs(int(self.n_sectors/2)-isector):
                         continue
 
-                    measurements = sector_measurements[isector]
+                    measurements = sector_measurement_arrs[isector]
 
                     # Calculating maximum feasible distance according to Feasibility Pooling algorithm 
                     feasible_distance, critical_sensor_index = geom.feasibility_pooling(
@@ -743,13 +754,16 @@ class Environment(gym.Env):
                     if self.detect_movement:
                         if critical_sensor_index is None:
                             critical_sensor_index = 0
-                        obs[self.n_states + self.n_sectors + isector] = self.sensor_obst_reldx[self.sector_start_indeces[isector] + critical_sensor_index]
-                        obs[self.n_states + self.n_sectors*2 + isector] = self.sensor_obst_reldy[self.sector_start_indeces[isector] + critical_sensor_index]
+                        obs[self.n_states + self.n_sectors + isector] = self.sector_obst_speed_x[isector]
+                        obs[self.n_states + self.n_sectors*2 + isector] = self.sector_obst_speed_y[isector]
                     
                     self.sector_last_heartbeat[isector] = self.t_step
 
         return (obs, collision)
     
+    def _sample_sensor(self, isensor):
+        pass
+
     def save(self, filepath):
         self.vessel._state = np.array(self.vessel._state)
         self.path.waypoints = np.array(self.path.waypoints)

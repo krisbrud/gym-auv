@@ -442,7 +442,7 @@ def _render_sensors(env):
         else:
             p1 = env.sensor_obst_intercepts[isensor]
         
-        closeness = env.past_obs[-1, env.lidar_obs_index + isector]
+        closeness = env.past_obs[-1, env.n_states + isector]
         redness = 0.5 + 0.5*max(0, closeness)
         greenness = 1 - max(0, closeness)
         blueness = 0.5 if abs(isector - int(np.floor(env.config["n_sectors"]/2) + 1))  % 2 == 0 and not env.config["sensor_rotation"] else 1
