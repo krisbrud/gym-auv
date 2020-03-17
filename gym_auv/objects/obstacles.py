@@ -3,16 +3,13 @@ import shapely.geometry
 import shapely.affinity
 import gym_auv.utils.geomutils as geom
 
-class BaseObstacles():
+class BaseObstacle():
     def __init__(self):
-        self.observed = False
-        self.collided = False
-        self.within_range = False
         self.valid = True
         self.last_obs_distance = 0
         self.last_obs_linestring = []
 
-class CircularObstacle(BaseObstacles):
+class CircularObstacle(BaseObstacle):
     def __init__(self, position, radius, color=(0.6, 0, 0)):
         super().__init__()
         self.color = color
@@ -29,7 +26,7 @@ class CircularObstacle(BaseObstacles):
     def calculate_boundary(self):
         self.boundary = shapely.geometry.Point(*self.position).buffer(self.radius).boundary
 
-class PolygonObstacle(BaseObstacles):
+class PolygonObstacle(BaseObstacle):
     def __init__(self, points, color=(0.6, 0, 0)):
         super().__init__()
         self.static = True
@@ -37,7 +34,7 @@ class PolygonObstacle(BaseObstacles):
         self.points = points
         self.boundary = shapely.geometry.Polygon(points)
 
-class VesselObstacle(BaseObstacles):
+class VesselObstacle(BaseObstacle):
     def __init__(self, width, trajectory, name=''):
         super().__init__()
         self.static = False

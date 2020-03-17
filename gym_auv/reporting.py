@@ -7,7 +7,7 @@ from scipy.ndimage.filters import gaussian_filter1d
 from scipy.optimize import minimize
 import shapely.geometry
 from gym_auv.objects.obstacles import CircularObstacle, PolygonObstacle, VesselObstacle
-from gym_auv.objects.path import RandomCurveThroughOrigin, ParamCurve
+from gym_auv.objects.path import RandomCurveThroughOrigin, Path
 from gym_auv.envs import RealWorldEnv
 
 import matplotlib
@@ -162,7 +162,7 @@ def report(env, report_dir):
         fig.savefig(os.path.join(report_dir, 'timesteps.pdf'), format='pdf')
         plt.close(fig)
 
-        distance = np.linspace(0, env.config["lidar_range"], 100)
+        distance = np.linspace(0, env.config["sensor_range"], 100)
         resolution = env.sensor_angle*distance
         plt.axis('scaled')
         fig = plt.figure()
@@ -193,7 +193,6 @@ def test_report(fig_dir):
     for episode in range(1000):
         env.path = Struct()
         env.path.length = np.random.poisson(1000)
-        env.path.s_max = env.path.length
         progress = min(1, np.random.random() + np.random.random()*episode/1000)
         timesteps_baseline = env.path.length / (env.config["cruise_speed"] * env.config["t_step_size"])
         env.history.append({
@@ -366,7 +365,7 @@ def plot_last_episode(env, fig_dir, fig_prefix='', episode_dict=None):
     plt.close(fig)
 
 def plot_scenario(env, fig_dir, fig_postfix='', show=True):
-    path = env.path(np.linspace(0, env.path.s_max, 1000))
+    path = env.path(np.linspace(0, env.path.length, 1000))
 
     plt.style.use('ggplot')
     plt.rc('font', family='serif')
@@ -459,7 +458,7 @@ def plot_scenario(env, fig_dir, fig_postfix='', show=True):
 
     # ax.plot(path[0, :], path[1, :], dashes=[6, 2], color='black', linewidth=1.5)
     # if isinstance(env, RealWorldEnv):
-    #     for x, y in zip(*env.path.init_waypoints):
+    #     for x, y in zip(*env.path.waypoints):
     #         waypoint_marker = plt.Circle(
     #             (x, y),
     #             (axis_max - axis_min)/150,
@@ -604,11 +603,11 @@ def plot_streamlines(env, agent, fig_dir, fig_prefix='', N=11):
     ax = fig.add_subplot(1, 1, 1)
 
     waypoints = np.vstack([[0, 0], [0, 100]]).T
-    env.path = ParamCurve(waypoints)
+    env.path = Path(waypoints)
     env.obstacles = [CircularObstacle(OBST_POSITION, OBST_RADIUS)]
     env.config["min_goal_distance"] = 0
     env.config["min_goal_progress"] = 0
-    path = env.path(np.linspace(0, env.path.s_max, 1000))
+    path = env.path(np.linspace(0, env.path.length, 1000))
 
     plt.style.use('ggplot')
     plt.rc('font', family='serif')
@@ -694,10 +693,10 @@ def plot_vector_field(env, agent, fig_dir, fig_prefix='', xstep=2.0, ystep=5.0, 
     waypoints = np.vstack([[0, 0], [0, 100]]).T
     env.config["min_goal_distance"] = 0
     env.config["min_goal_progress"] = 1
-    env.config["lidar_rotation"] = False
-    env.path = ParamCurve(waypoints)
+    env.config["sensor_rotation"] = False
+    env.path = Path(waypoints)
     env.obstacles = obstacles
-    path = env.path(np.linspace(0, env.path.s_max, 1000))
+    path = env.path(np.linspace(0, env.path.length, 1000))
 
     axis_min_x = -30
     axis_max_x = 30
@@ -725,7 +724,7 @@ def plot_vector_field(env, agent, fig_dir, fig_prefix='', xstep=2.0, ystep=5.0, 
 
             for _ in range(50):
                 #env.reset()
-                env.path = ParamCurve(waypoints)
+                env.path = Path(waypoints)
                 env.obstacles = obstacles
                 env.vessel.reset([x, y, psi], [0, 0, 0])
                 env.target_arclength = env.path.length

@@ -1,16 +1,16 @@
 import numpy as np
 
 import gym_auv.utils.geomutils as geom
-from gym_auv.objects.auv import AUV2D
-from gym_auv.objects.path import RandomCurveThroughOrigin, ParamCurve
+from gym_auv.objects.vessel import Vessel
+from gym_auv.objects.path import RandomCurveThroughOrigin, Path
 from gym_auv.objects.obstacles import PolygonObstacle, VesselObstacle, CircularObstacle
-from gym_auv.environment import BaseShipScenario
+from gym_auv.environment import Environment
 import shapely.geometry, shapely.errors
 
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-class MovingObstacles(BaseShipScenario):
+class MovingObstacles(Environment):
 
     def __init__(self, env_config, render_mode, test_mode):
         super().__init__(env_config, test_mode, render_mode, detect_moving=True)
@@ -26,7 +26,7 @@ class MovingObstacles(BaseShipScenario):
         init_pos[0] += 50*(self.np_random.rand()-0.5)
         init_pos[1] += 50*(self.np_random.rand()-0.5)
         init_angle = geom.princip(init_angle + 2*np.pi*(self.np_random.rand()-0.5))
-        self.vessel = AUV2D(self.config["t_step_size"], np.hstack([init_pos, init_angle]), width=self.config["vessel_width"], adaptive_step_size=self.config["adaptive_step_size"])
+        self.vessel = Vessel(self.config["t_step_size"], np.hstack([init_pos, init_angle]), width=self.config["vessel_width"], adaptive_step_size=self.config["adaptive_step_size"])
         prog = 0
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog

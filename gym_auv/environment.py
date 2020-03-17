@@ -11,8 +11,8 @@ import gym_auv.utils.geomutils as geom
 
 from scipy.ndimage.filters import gaussian_filter1d, gaussian_filter
 import shapely.geometry, shapely.errors
-from gym_auv.objects.auv import AUV2D
-from gym_auv.objects.path import RandomCurveThroughOrigin, ParamCurve
+from gym_auv.objects.vessel import Vessel
+from gym_auv.objects.path import RandomCurveThroughOrigin, Path
 from gym_auv.objects.obstacles import CircularObstacle, PolygonObstacle, VesselObstacle
 
 from gym.utils import seeding, EzPickle
@@ -20,7 +20,7 @@ import gym_auv.rendering.render2d as render2d
 import gym_auv.rendering.render3d as render3d
 
 
-class BaseShipScenario(gym.Env):
+class Environment(gym.Env):
     """Creates an environment with a vessel and a path.
     """
 
@@ -28,6 +28,9 @@ class BaseShipScenario(gym.Env):
         'render.modes': ['human', 'rgb_array', 'state_pixels'],
         'video.frames_per_second': render2d.FPS
     }
+
+    # Number of observation features unrelated to rangefinder sensors
+    N_STATES = 11
 
     def __init__(self, env_config, test_mode=False, render_mode='2d', detect_moving=False, verbose=False):
         """
@@ -50,15 +53,15 @@ class BaseShipScenario(gym.Env):
                 Whether to print debugging information.
         """
         
-        self.env_config = env_config
+        self.input_config = env_config
         self.test_mode = test_mode
         self.render_mode = render_mode
         self.detect_movement = detect_moving
         self.verbose = verbose
         self.viewer2d = None
         self.viewer3d = None
-        self.config = dict(env_config)
-        self.nstates = 10
+        self.config = dict(env_config).copy()
+        self.n_states = Environment.N_STATES
         self.n_sectors = self.config["n_sectors"]
         self.n_sensors = self.config["n_sensors_per_sector"]*self.config["n_sectors"]
         self.sensor_angle = 2*np.pi/(self.n_sensors)
@@ -74,8 +77,7 @@ class BaseShipScenario(gym.Env):
             self.n_sensors_per_sector[isector] += 1
 
         # Setting dimension of observation vector
-        self.n_observations = self.nstates
-        self.lidar_obs_index = self.n_observations
+        self.n_observations = self.n_states
         self.n_observations += self.n_sectors
         if self.detect_movement:
             self.n_observations += 2*self.n_sectors # x and y columns
@@ -92,7 +94,7 @@ class BaseShipScenario(gym.Env):
         self.sensor_obst_closenesses = np.zeros((self.n_sensors, ))
         self.sensor_obst_reldx = np.zeros((self.n_sensors, ))
         self.sensor_obst_reldy = np.zeros((self.n_sensors, ))
-        self.sensor_obst_distances = np.ones((self.n_sensors, ))*self.config["lidar_range"]
+        self.sensor_obst_distances = np.ones((self.n_sensors, ))*self.config["sensor_range"]
         self.sensor_path_arclengths = np.zeros((self.n_sensors, ))
         self.sensor_path_index = None
         self.sensor_order = range(self.n_sensors)
@@ -130,8 +132,8 @@ class BaseShipScenario(gym.Env):
         )
         low_obs = [-1]*self.n_observations
         high_obs = [1]*self.n_observations
-        low_obs[self.nstates - 1] = -10000
-        high_obs[self.nstates - 1] = 10000
+        low_obs[self.n_states - 1] = -10000
+        high_obs[self.n_states - 1] = 10000
         self.observation_space = gym.spaces.Box(
             low=np.array(low_obs),
             high=np.array(high_obs),
@@ -159,7 +161,7 @@ class BaseShipScenario(gym.Env):
         -------
         obs : np.array
             Observation of the environment after action is performed.
-        step_reward : double
+        reward : double
             The reward for performing action at his timestep.
         done : bool
             If True the episode is ended, due to either a collision or having reached the goal position.
@@ -230,12 +232,12 @@ class BaseShipScenario(gym.Env):
             self.past_actions = np.vstack([self.past_actions, action])
 
         # Receiving agent's reward as well as whether the episode is done or not
-        done, step_reward, info = self.get_reward(collision)
+        done, reward, info = self._get_reward(collision)
         info['collision'] = collision
-        self.past_rewards = np.append(self.past_rewards, step_reward)
+        self.past_rewards = np.append(self.past_rewards, reward)
         self.past_path_rewards = np.append(self.past_path_rewards, info['path_reward'])
         self.past_closeness_rewards = np.append(self.past_closeness_rewards, info['closeness_reward'])
-        self.cumulative_reward += step_reward
+        self.cumulative_reward += reward
         
         # Testing criteria for ending episode because vessel is too far from the path
         if self.path is not None and self.t_step % self.config["update_interval_path"] == 0:
@@ -259,21 +261,21 @@ class BaseShipScenario(gym.Env):
         if collision:
             if self.config["end_on_collision"]:
                 # Ending episode
-                step_reward = self.config["min_cumulative_reward"]*(1-self.config["reward_lambda"])
+                reward = self.config["min_cumulative_reward"]*(1-self.config["reward_lambda"])
                 done = True
             elif self.config["teleport_on_collision"]:
                 # Teleporting vesesl back in time
-                step_reward = self.config["min_cumulative_reward"]*(1-self.config["reward_lambda"])
+                reward = self.config["min_cumulative_reward"]*(1-self.config["reward_lambda"])
                 self.vessel.teleport_back(200)
 
-        dist_to_endpoint = linalg.norm(self.vessel.position - self.path.get_endpoint())
+        dist_to_endpoint = linalg.norm(self.vessel.position - self.path.end)
         if (abs(self.path_prog_hist[-1] - self.path.length) < self.config["min_goal_progress"] or dist_to_endpoint < self.config["min_goal_distance"]):
             done = True
             self.reached_goal = True
 
-        return obs, step_reward, done, info
+        return obs, reward, done, info
         
-    def get_reward(self, collision):
+    def _get_reward(self, collision):
         """
         Calculates the step reward and decides whether the episode
         should be ended.
@@ -282,13 +284,13 @@ class BaseShipScenario(gym.Env):
         -------
         done : bool
             If True the episode is ended.
-        step_reward : float
+        reward : float
             The reward for performing action at his timestep.
         info : dict
             Dictionary with extra information.
         """
         done = False
-        step_reward = 0
+        reward = 0
         info = {'path_reward': None, 'closeness_reward': None}
 
         # Calculating reward
@@ -300,21 +302,21 @@ class BaseShipScenario(gym.Env):
             info['closeness_reward'] = closeness_reward
 
             # Calculating total reward
-            step_reward = self.config["reward_lambda"]*path_reward + \
+            reward = self.config["reward_lambda"]*path_reward + \
                 (1-self.config["reward_lambda"])*closeness_reward - \
                 self.living_penalty + \
-                self.config["reward_speed"]*self.vessel.speed/self.vessel.max_speed - \
+                self.config["reward_eta"]*self.vessel.speed/self.vessel.max_speed - \
                 self.config["penalty_yawrate"]*abs(self.vessel.yawrate) - \
                 self.config["penalty_torque_change"]*abs(self.vessel.smoothed_torque_change)
 
         # Capping reward so that it will not lead to a cumulative reward less than the minimum
-        step_reward = max(self.config["min_cumulative_reward"] - self.cumulative_reward, step_reward)
+        reward = max(self.config["min_cumulative_reward"] - self.cumulative_reward, reward)
 
         # A trick to improve performance?
-        if step_reward < 0:
-            step_reward *= 2 
+        if reward < 0:
+            reward *= 2 
 
-        return done, step_reward, info
+        return done, reward, info
 
     def get_path_reward(self):
         cross_track_performance = np.exp(-self.config["reward_gamma_y_e"]*np.abs(self.cross_track_error))
@@ -354,7 +356,7 @@ class BaseShipScenario(gym.Env):
         # Saving information about episode
         if (self.t_step > 0):
             self.last_episode = {
-                'path': self.path(np.linspace(0, self.path.s_max, 1000)) if self.path is not None else None,
+                'path': self.path(np.linspace(0, self.path.length, 1000)) if self.path is not None else None,
                 'path_taken': self.vessel.path_taken,
                 'obstacles': []
             }
@@ -374,6 +376,14 @@ class BaseShipScenario(gym.Env):
                 'timesteps': self.t_step,
                 'timesteps_baseline': self.path.length/(self.config["cruise_speed"]*self.config["t_step_size"]) if self.path is not None else 0
             })
+
+        # Resampling stochastic config parameters
+        for param in self.config["stochastic_params"]:
+            try:
+                self.config[param] = self.input_config[param]()
+            except TypeError as e:
+                raise e
+                pass
 
         # Resetting all internal variables
         self.vessel = None
@@ -397,11 +407,6 @@ class BaseShipScenario(gym.Env):
             'd_cross_track': np.array([]),
             'torque_change': np.array([])
         }
-        
-        try:
-            self.config["reward_lambda"] = self.env_config["reward_lambda"]()
-        except TypeError:
-            pass     
         self.vessel_obstacles = []
         self.obstacles = []
         self.nearby_obstacles = []
@@ -410,7 +415,7 @@ class BaseShipScenario(gym.Env):
         self.look_ahead_arclength = None
         self.reached_goal = False
         living_penalty_alpha = 0.1
-        self.living_penalty = self.config["reward_lambda"]*(2*living_penalty_alpha+1) + self.config["reward_speed"]*living_penalty_alpha
+        self.living_penalty = self.config["reward_lambda"]*(2*living_penalty_alpha+1) + self.config["reward_eta"]*living_penalty_alpha
         self.heading_error_la = 0
         self.heading_error = 0
         self.goal_heading_error = 0
@@ -433,7 +438,7 @@ class BaseShipScenario(gym.Env):
         self.sensor_obst_closenesses = np.zeros((self.n_sensors, ))
         self.sensor_obst_reldx = np.zeros((self.n_sensors, ))
         self.sensor_obst_reldy = np.zeros((self.n_sensors, ))
-        self.sensor_obst_distances = np.ones((self.n_sensors, ))*self.config["lidar_range"]
+        self.sensor_obst_distances = np.ones((self.n_sensors, ))*self.config["sensor_range"]
         self.sensor_path_arclengths = np.zeros((self.n_sensors, ))
         if self.np_random is None:
             self.seed()
@@ -481,7 +486,7 @@ class BaseShipScenario(gym.Env):
         min_distance = 0
         while min_distance <= 0:
             obst_displacement_dist = np.random.normal(0, displacement_dist_std)
-            obst_arclength = (0.1 + 0.8*self.np_random.rand())*self.path.s_max
+            obst_arclength = (0.1 + 0.8*self.np_random.rand())*self.path.length
             obst_position = self.path(obst_arclength)
             obst_displacement_angle = geom.princip(self.path.get_direction(obst_arclength) - np.pi/2)
             obst_position += obst_displacement_dist*np.array([
@@ -513,7 +518,7 @@ class BaseShipScenario(gym.Env):
         init_pos[0] += 50*(self.np_random.rand()-0.5)
         init_pos[1] += 50*(self.np_random.rand()-0.5)
         init_angle = geom.princip(init_angle + 2*np.pi*(self.np_random.rand()-0.5))
-        self.vessel = AUV2D(self.config["t_step_size"], np.hstack([init_pos, init_angle]), width=4)
+        self.vessel = Vessel(self.config["t_step_size"], np.hstack([init_pos, init_angle]), width=4)
         prog = 0
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
@@ -542,15 +547,16 @@ class BaseShipScenario(gym.Env):
         obs[3] = np.clip(self.heading_error_la/np.pi, -1, 1)
         obs[4] = np.clip(self.heading_error/np.pi, -1, 1)
         obs[5] = np.clip(self.cross_track_error*20/self.path.length, -1, 1)
-        obs[6] = np.log10(self.config["reward_lambda"])
-        obs[7] = np.clip(self.goal_heading_error/np.pi, -1, 1)
-        obs[8] = np.clip(self.vessel.heading/np.pi, -1, 1)
-        obs[9] = np.clip(self.vessel.crab_angle/np.pi, -1, 1)
+        obs[6] = np.clip(self.goal_heading_error/np.pi, -1, 1)
+        obs[7] = np.clip(self.vessel.heading/np.pi, -1, 1)
+        obs[8] = np.clip(self.vessel.crab_angle/np.pi, -1, 1)
+        obs[9] = np.log10(self.config["reward_lambda"])
+        obs[10] = self.config["reward_eta"]
 
         # Initializing obstacle detection-related values to the previous ones
         # in case they are not intended to be recalculated (for performance reasons)
         if (self.past_obs is not None):
-            obs[self.nstates:] = self.past_obs[-1, self.nstates:]
+            obs[self.n_states:] = self.past_obs[-1, self.n_states:]
 
         # Loading nearby obstacles so that the rest can be ignored
         # when calculating the sensor interception points (for performance reasons)
@@ -564,7 +570,7 @@ class BaseShipScenario(gym.Env):
             self.nearby_obstacles = []
             for obst in self.obstacles:
                 obst_dist = float(vessel_center.distance(obst.boundary)) - self.vessel.width
-                if (obst_dist < self.config["lidar_range"]):
+                if (obst_dist < self.config["sensor_range"]):
                     self.nearby_obstacles.append((obst_dist, obst))    
                 self.nearby_obstacles = sorted(self.nearby_obstacles, key=lambda x: x[0])
             if self.verbose:
@@ -589,7 +595,7 @@ class BaseShipScenario(gym.Env):
                     collision = True
             if collision:
                 for isector in range(self.n_sectors):
-                    obs[self.lidar_obs_index + isector] = 1
+                    obs[self.n_states + isector] = 1
 
             else:
                 sector_lines = [None for isensor in range(self.n_sensors)]
@@ -599,14 +605,14 @@ class BaseShipScenario(gym.Env):
 
                 for obst_dist, obst in self.nearby_obstacles:
                     if self.config["observe_obstacle_fun"](self.sensor_updates,  obst.last_obs_distance):
-                        obst.last_obs_distance = self.config["lidar_range"]
+                        obst.last_obs_distance = self.config["sensor_range"]
                         obst.last_obs_linestring = []
 
                 # Iterating over all sensors
                 for isensor in range(self.n_sensors):
                     isector = self.config["sector_partition_fun"](self, isensor)
                     isensor_internal = isensor - self.sector_start_indeces[isector]
-                    if self.config["lidar_rotation"] and (self.sensor_updates + 1) % (int(self.n_sectors/2) + 1) != abs(int(self.n_sectors/2)-isector):
+                    if self.config["sensor_rotation"] and (self.sensor_updates + 1) % (int(self.n_sectors/2) + 1) != abs(int(self.n_sectors/2)-isector):
                         continue
                     self.sector_active[isector] = 1
                     if not sector_processed[isector]:
@@ -615,21 +621,21 @@ class BaseShipScenario(gym.Env):
                     sensor_angle = self.sensor_angles[isensor]
                     global_sensor_angle = geom.princip(sensor_angle+self.vessel.heading)
                     self.sensor_obst_intercepts[isensor] = (
-                        self.vessel.position[0] + np.cos(global_sensor_angle)*self.config["lidar_range"],
-                        self.vessel.position[1] + np.sin(global_sensor_angle)*self.config["lidar_range"],
+                        self.vessel.position[0] + np.cos(global_sensor_angle)*self.config["sensor_range"],
+                        self.vessel.position[1] + np.sin(global_sensor_angle)*self.config["sensor_range"],
                     )
                     sector_lines[isensor] = shapely.geometry.LineString([(
                             self.vessel.position[0], 
                             self.vessel.position[1],
                         ),(
-                            self.vessel.position[0] + np.cos(global_sensor_angle)*self.config["lidar_range"],
-                            self.vessel.position[1] + np.sin(global_sensor_angle)*self.config["lidar_range"],
+                            self.vessel.position[0] + np.cos(global_sensor_angle)*self.config["sensor_range"],
+                            self.vessel.position[1] + np.sin(global_sensor_angle)*self.config["sensor_range"],
                         )
                     ])
                     self.sensor_obst_closenesses[isensor] = 0                
                     self.sensor_obst_reldx[isensor] = 0
                     self.sensor_obst_reldy[isensor] = 0
-                    self.sensor_obst_distances[isensor] = self.config["lidar_range"]
+                    self.sensor_obst_distances[isensor] = self.config["sensor_range"]
 
                     # Iterating over all nearby obstacles
                     for obst_dist, obst in self.nearby_obstacles:
@@ -653,7 +659,6 @@ class BaseShipScenario(gym.Env):
 
                         if not obst_intersect.is_empty:
                             self.sector_empty[isector] = 0
-                            obst.observed = True
                             try:
                                 # Retrieving a list of intersection points
                                 obst_intersections = [obst_intersect] if type(obst_intersect) in (shapely.geometry.Point, shapely.geometry.LineString) else list(obst_intersect.geoms)
@@ -676,7 +681,7 @@ class BaseShipScenario(gym.Env):
                                     obst.last_obst_distance = distance
 
                                 # Calculating closeless (scaled inverse distance)
-                                closeness = 1 - np.clip(distance/self.config["lidar_range"], 0, 1)
+                                closeness = 1 - np.clip(distance/self.config["sensor_range"], 0, 1)
 
                                 # Updating sensor reading if the obstacle reading is closer than the existing one
                                 if (closeness > self.sensor_obst_closenesses[isensor]):
@@ -712,7 +717,7 @@ class BaseShipScenario(gym.Env):
                 for isector in range(self.n_sectors):
 
                     # Testing conditions to ignore sector (and keep old value)
-                    if self.config["lidar_rotation"] and (self.sensor_updates + 1) % (int(self.n_sectors/2) + 1) != abs(int(self.n_sectors/2)-isector):
+                    if self.config["sensor_rotation"] and (self.sensor_updates + 1) % (int(self.n_sectors/2) + 1) != abs(int(self.n_sectors/2)-isector):
                         continue
 
                     measurements = sector_measurements[isector]
@@ -726,20 +731,20 @@ class BaseShipScenario(gym.Env):
                     )
 
                     # Calculating feasible closeness
-                    if self.config["lidar_range_log_transform"]:
-                        feasible_closeness = 1 - np.clip(np.log(1 + feasible_distance)/np.log(1 + self.config["lidar_range"]), 0, 1)
+                    if self.config["sensor_log_transform"]:
+                        feasible_closeness = 1 - np.clip(np.log(1 + feasible_distance)/np.log(1 + self.config["sensor_range"]), 0, 1)
                     else:
-                        feasible_closeness = 1 - np.clip(feasible_distance/self.config["lidar_range"], 0, 1)
+                        feasible_closeness = 1 - np.clip(feasible_distance/self.config["sensor_range"], 0, 1)
 
                     # Setting observation vector value
-                    obs[self.lidar_obs_index + isector] = feasible_closeness
+                    obs[self.n_states + isector] = feasible_closeness
                     self.sector_closeness[isector] = feasible_closeness
 
                     if self.detect_movement:
                         if critical_sensor_index is None:
                             critical_sensor_index = 0
-                        obs[self.lidar_obs_index + self.n_sectors + isector] = self.sensor_obst_reldx[self.sector_start_indeces[isector] + critical_sensor_index]
-                        obs[self.lidar_obs_index + self.n_sectors*2 + isector] = self.sensor_obst_reldy[self.sector_start_indeces[isector] + critical_sensor_index]
+                        obs[self.n_states + self.n_sectors + isector] = self.sensor_obst_reldx[self.sector_start_indeces[isector] + critical_sensor_index]
+                        obs[self.n_states + self.n_sectors*2 + isector] = self.sensor_obst_reldy[self.sector_start_indeces[isector] + critical_sensor_index]
                     
                     self.sector_last_heartbeat[isector] = self.t_step
 
@@ -747,10 +752,10 @@ class BaseShipScenario(gym.Env):
     
     def save(self, filepath):
         self.vessel._state = np.array(self.vessel._state)
-        self.path.init_waypoints = np.array(self.path.init_waypoints)
+        self.path.waypoints = np.array(self.path.waypoints)
         environment_data = {
             'vessel_state': self.vessel._state.tolist(),
-            'path': self.path.init_waypoints.tolist(),
+            'path': self.path.waypoints.tolist(),
             'obstacles': []
         }
         for obst in self.obstacles:
@@ -770,7 +775,7 @@ class BaseShipScenario(gym.Env):
         with open(filepath, 'rb') as f:
             environment_data = pickle.load(f)
         self.vessel.reset(environment_data['vessel_state'][:3])
-        self.path = ParamCurve(np.array(environment_data['path']))
+        self.path = Path(np.array(environment_data['path']))
         self.obstacles = []
         for obst_data in environment_data['obstacles']:
             obst = CircularObstacle(np.array(obst_data['position']), obst_data['radius'])

@@ -29,7 +29,7 @@ def odesolver45(f, y, h):
     q = y + h*(16.0*s1/135.0+6656.0*s3/12825.0+28561.0*s4/56430.0-9.0*s5/50.0+2.0*s6/55.0)
     return w, q
 
-class AUV2D():
+class Vessel():
     """
     Creates an environment with a vessel, goal and obstacles.
 
@@ -76,7 +76,22 @@ class AUV2D():
             0 <= propeller_input <= 1 and -1 <= rudder_position <= 1.
         """
         self.input = np.array([self._thrust_surge(action[0]), self._moment_steer(action[1])])
-        self._sim()
+        
+        if (self.adaptive_step_size):
+            self.t_step = 1
+            err = np.inf
+            while err > np.pi/1800:
+                try:
+                    w, q = odesolver45(self._state_dot, self._state, self.t_step)
+                    err = abs(w[2]-q[2])
+                except OverflowError:
+                    pass
+                self.t_step*=0.9
+        else:
+            w, q = odesolver45(self._state_dot, self._state, self.t_step)
+        
+        self._state = q
+        self._state[2] = geom.princip(self._state[2])
 
         self.prev_states = np.vstack([self.prev_states,self._state])
         self.prev_inputs = np.vstack([self.prev_inputs,self.input])
@@ -112,27 +127,6 @@ class AUV2D():
         )
         state_dot = np.concatenate([eta_dot, nu_dot])
         return state_dot
-
-    def _sim(self):
-        # k_1 = self._state_dot(self._state)
-        # k_2 = self._state_dot(self._state + k_1*self.t_step)
-        # self._state += self.t_step*(k_1+k_2)/2
-
-        if (self.adaptive_step_size):
-            self.t_step = 1
-            err = np.inf
-            while err > np.pi/1800:
-                try:
-                    w, q = odesolver45(self._state_dot, self._state, self.t_step)
-                    err = abs(w[2]-q[2])
-                except OverflowError:
-                    pass
-                self.t_step*=0.9
-        else:
-            w, q = odesolver45(self._state_dot, self._state, self.t_step)
-        
-        self._state = q
-        self._state[2] = geom.princip(self._state[2])
 
     def teleport_back(self, timesteps):
         self._state = self.prev_states[max(-len(self.prev_states), -(timesteps+1))]
@@ -233,46 +227,3 @@ class AUV2D():
     def _moment_steer(self, steer):
         steer = np.clip(steer, -1, 1)
         return steer*const.MOMENT_MAX_AUV
-
-class AUVPerfectFollower(AUV2D):
-    def step(self, action):
-        a = action[0]
-        b = action[1]
-        c = action[2]
-        dt = action[3]
-
-        def curve(t):
-            return (
-                t*a*np.sin(c*t),
-                t*b,
-                0
-            )
-
-        def dcurve(t):
-            return (
-                t*a*c*np.cos(c*t)+a*np.sin(c*t),
-                b,
-                0
-            )
-
-        N_LINSPACE = 1000
-        S = np.linspace(0, 20, N_LINSPACE)
-        psi = self._state[2]
-
-        self.planned_path = np.transpose(curve(S))
-        self.planned_path = geom.Rzyx(0, 0, psi-np.pi/2).dot(self.planned_path)
-        self.planned_path[0] += self._state[0]
-        self.planned_path[1] += self._state[1]
-        self.planned_path = self.planned_path[:2]
-
-        planned_path_d = np.transpose(dcurve(S))
-        planned_path_d = geom.Rzyx(0, 0, psi).dot(planned_path_d)
-        
-        n_dt = int(dt/20*N_LINSPACE)
-        pos = np.array([self.planned_path[0][n_dt], self.planned_path[1][n_dt]])
-        der = np.array([planned_path_d[0][n_dt], planned_path_d[1][n_dt]])
-        
-        path_angle = np.arctan2(der[1], der[0])
-        self._state[0] = pos[0]
-        self._state[1] = pos[1]
-        self._state[2] = geom.princip(path_angle - np.pi/2)

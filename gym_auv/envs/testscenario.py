@@ -1,24 +1,24 @@
 import numpy as np
 
 import gym_auv.utils.geomutils as geom
-from gym_auv.objects.auv import AUV2D
-from gym_auv.objects.path import RandomCurveThroughOrigin, ParamCurve
+from gym_auv.objects.vessel import Vessel
+from gym_auv.objects.path import RandomCurveThroughOrigin, Path
 from gym_auv.objects.obstacles import CircularObstacle, VesselObstacle
-from gym_auv.environment import BaseShipScenario
+from gym_auv.environment import Environment
 
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 TERRAIN_DATA_PATH = './resources/terrain.npy'
 
-class TestScenario1(BaseShipScenario):
+class TestScenario1(Environment):
     def generate(self):
-        self.path = ParamCurve([[0, 1100], [0, 1100]])
+        self.path = Path([[0, 1100], [0, 1100]])
 
         init_pos = self.path(0)
         init_angle = self.path.get_direction(0)
 
-        self.vessel = AUV2D(self.config["t_step_size"], np.hstack([init_pos, init_angle]))
+        self.vessel = Vessel(self.config["t_step_size"], np.hstack([init_pos, init_angle]))
         prog = self.path.get_closest_arclength(self.vessel.position)
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
@@ -30,7 +30,7 @@ class TestScenario1(BaseShipScenario):
             obst_position = self.path(obst_arclength)
             self.obstacles.append(CircularObstacle(obst_position, obst_radius))
 
-class TestScenario2(BaseShipScenario):
+class TestScenario2(Environment):
     def generate(self):
 
         waypoint_array = []
@@ -40,12 +40,12 @@ class TestScenario2(BaseShipScenario):
             waypoint_array.append([x, y])
 
         waypoints = np.vstack(waypoint_array).T
-        self.path = ParamCurve(waypoints)
+        self.path = Path(waypoints)
 
         init_pos = self.path(0)
         init_angle = self.path.get_direction(0)
 
-        self.vessel = AUV2D(self.config["t_step_size"], np.hstack([init_pos, init_angle]))
+        self.vessel = Vessel(self.config["t_step_size"], np.hstack([init_pos, init_angle]))
         prog = self.path.get_closest_arclength(self.vessel.position)
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
@@ -69,15 +69,15 @@ class TestScenario2(BaseShipScenario):
             self.obstacles.append(CircularObstacle(obst_position + obst_displacement, obst_radius))
             self.obstacles.append(CircularObstacle(obst_position - obst_displacement, obst_radius))
 
-class TestScenario3(BaseShipScenario):
+class TestScenario3(Environment):
     def generate(self):
         waypoints = np.vstack([[0, 0], [0, 500]]).T
-        self.path = ParamCurve(waypoints)
+        self.path = Path(waypoints)
 
         init_pos = self.path(0)
         init_angle = self.path.get_direction(0)
 
-        self.vessel = AUV2D(self.config["t_step_size"], np.hstack([init_pos, init_angle]))
+        self.vessel = Vessel(self.config["t_step_size"], np.hstack([init_pos, init_angle]))
         prog = self.path.get_closest_arclength(self.vessel.position)
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
@@ -90,15 +90,15 @@ class TestScenario3(BaseShipScenario):
             obst_position = np.array([np.cos(angle)*N_dist, np.sin(angle)*N_dist])
             self.obstacles.append(CircularObstacle(obst_position, obst_radius))
 
-class TestScenario4(BaseShipScenario):
+class TestScenario4(Environment):
     def generate(self):
         waypoints = np.vstack([[0, 0], [0, 500]]).T
-        self.path = ParamCurve(waypoints)
+        self.path = Path(waypoints)
 
         init_pos = self.path(0)
         init_angle = self.path.get_direction(0)
 
-        self.vessel = AUV2D(self.config["t_step_size"], np.hstack([init_pos, init_angle]))
+        self.vessel = Vessel(self.config["t_step_size"], np.hstack([init_pos, init_angle]))
         prog = self.path.get_closest_arclength(self.vessel.position)
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
@@ -113,18 +113,18 @@ class TestScenario4(BaseShipScenario):
             obst_position = np.array([np.cos(angle)*N_dist, np.sin(angle)*N_dist])
             self.obstacles.append(CircularObstacle(obst_position, obst_radius))
 
-class EmptyScenario(BaseShipScenario):
+class EmptyScenario(Environment):
     def __init__(self, *args, **kwargs):
         super().__init__(detect_moving=True, *args, **kwargs)
 
     def generate(self):
         waypoints = np.vstack([[25, 10], [25, 40]]).T
-        self.path = ParamCurve(waypoints)
+        self.path = Path(waypoints)
 
         init_pos = self.path(0)
         init_angle = self.path.get_direction(0)
 
-        self.vessel = AUV2D(self.config["t_step_size"], np.hstack([init_pos, init_angle]), width=self.config["vessel_width"])
+        self.vessel = Vessel(self.config["t_step_size"], np.hstack([init_pos, init_angle]), width=self.config["vessel_width"])
         prog = self.path.get_closest_arclength(self.vessel.position)
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
@@ -133,14 +133,14 @@ class EmptyScenario(BaseShipScenario):
             self.all_terrain = np.zeros((50, 50), dtype=float)
             self.viewer3d.create_world(self.all_terrain, 0, 0, 50, 50)
 
-class DebugScenario(BaseShipScenario):
+class DebugScenario(Environment):
 
     def __init__(self, *args, **kwargs):
         super().__init__(detect_moving=True, *args, **kwargs)
 
     def generate(self):
         waypoints = np.vstack([[250, 100], [250, 300]]).T
-        self.path = ParamCurve(waypoints)
+        self.path = Path(waypoints)
 
         init_pos = self.path(0)
         init_angle = self.path.get_direction(0)

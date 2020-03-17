@@ -157,7 +157,7 @@ def sectorize(position):
     return (x, 0, z)
 
 
-class Viewer(object):
+class Viewer3D(object):
     def __init__(self, width, height, autocamera=False):
         self.autocamera = autocamera
 
@@ -206,7 +206,7 @@ class Viewer(object):
         self.sector = None
 
     def create_path(self, path):
-        for p in path.path_points:
+        for p in path.points:
             self.add_element((p[1], 0, p[0]), 2*[1.0, 1.0, 1.0, 1.0], 4*[0.1,], Element.PLANE)
 
     def create_world(self, terrain, xlow, ylow, xhigh, yhigh):
@@ -665,7 +665,7 @@ def setup():
     setup_fog()
 
 def init_env_viewer(env, autocamera=False):
-    env.viewer3d = Viewer(WINDOW_W, WINDOW_H, autocamera=autocamera)
+    env.viewer3d = Viewer3D(WINDOW_W, WINDOW_H, autocamera=autocamera)
     setup()
 
 def save_boatmodel(width, env):

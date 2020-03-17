@@ -2,10 +2,10 @@ import numpy as np
 import pandas as pd
 
 import gym_auv.utils.geomutils as geom
-from gym_auv.objects.auv import AUV2D
-from gym_auv.objects.path import RandomCurveThroughOrigin, ParamCurve
+from gym_auv.objects.vessel import Vessel
+from gym_auv.objects.path import RandomCurveThroughOrigin, Path
 from gym_auv.objects.obstacles import PolygonObstacle, VesselObstacle
-from gym_auv.environment import BaseShipScenario
+from gym_auv.environment import Environment
 import shapely.geometry, shapely.errors
 
 import os 
@@ -17,7 +17,7 @@ VESSEL_DATA_PATH = './resources/vessel_data_local.csv'
 TERRAIN_DATA_PATH = './resources/terrain.npy'
 INCLUDED_VESSELS = None
 
-class RealWorldEnv(BaseShipScenario):
+class RealWorldEnv(Environment):
 
     def __init__(self, *args, **kw):
         self.last_scenario_load_coordinates = None
@@ -70,7 +70,7 @@ class RealWorldEnv(BaseShipScenario):
         init_pos = self.path(0)
         init_angle = self.path.get_direction(0)
 
-        self.vessel = AUV2D(self.config["t_step_size"], np.hstack([init_pos, init_angle]))
+        self.vessel = Vessel(self.config["t_step_size"], np.hstack([init_pos, init_angle]))
         prog = self.path.get_closest_arclength(self.vessel.position)
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
@@ -111,12 +111,10 @@ class RealWorldEnv(BaseShipScenario):
                 for obstacle in self.all_obstacles:
                     obst_dist = float(vessel_center.distance(obstacle.boundary)) - self.vessel.width
                     if obst_dist <= VIEW_DISTANCE_3D:
-                        obstacle.within_range = True
                         self.obstacles.append(obstacle)
                         if not obstacle.static:
                             self.vessel_obstacles.append(obstacle)
                     else:
-                        obstacle.within_range = False
                         if not obstacle.static:
                             obstacle.update(UPDATE_WAIT*self.config["t_step_size"])
 
@@ -152,8 +150,8 @@ class Sorbuoya(RealWorldEnv):
         super().__init__(*args, **kw)
 
     def generate(self):
-        #self.path = ParamCurve([[-50, 1750], [250, 1200]])
-        self.path = ParamCurve([[650, 1750], [450, 1200]])
+        #self.path = Path([[-50, 1750], [250, 1200]])
+        self.path = Path([[650, 1750], [450, 1200]])
         self.obstacle_perimeters = np.load('./resources/obstacles_sorbuoya.npy')
         self.all_terrain = np.load(TERRAIN_DATA_PATH)[0000:2000, 10000:12000]/7.5
         super().generate()
@@ -165,8 +163,8 @@ class Trondheimsfjorden(RealWorldEnv):
         super().__init__(*args, **kw)
 
     def generate(self):
-        #self.path = ParamCurve([[520, 1070, 4080, 5473, 10170, 12220], [3330, 5740, 7110, 4560, 7360, 11390]], smooth=False) #South-west -> north-east
-        self.path = ParamCurve([[4177-self.x0, 4137-self.x0, 3217-self.x0], [6700-self.y0, 7075-self.y0, 6840-self.y0]], smooth=False)
+        #self.path = Path([[520, 1070, 4080, 5473, 10170, 12220], [3330, 5740, 7110, 4560, 7360, 11390]], smooth=False) #South-west -> north-east
+        self.path = Path([[4177-self.x0, 4137-self.x0, 3217-self.x0], [6700-self.y0, 7075-self.y0, 6840-self.y0]], smooth=False)
         self.obstacle_perimeters = np.load('./resources/obstacles_entrance.npy')
         self.all_terrain = np.load(TERRAIN_DATA_PATH)[3121:4521, 5890:7390]/7.5
         super().generate()
@@ -178,7 +176,7 @@ class Trondheim(RealWorldEnv):
         super().__init__(*args, **kw)
 
     def generate(self):
-        self.path = ParamCurve([[1900, 1000], [2500, 500]])
+        self.path = Path([[1900, 1000], [2500, 500]])
         self.obstacle_perimeters = np.load('./resources/obstacles_trondheim.npy')
         self.all_terrain = np.load(TERRAIN_DATA_PATH)[5000:8000, 1900:4900]/7.5
         super().generate()

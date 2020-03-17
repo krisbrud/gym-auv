@@ -62,7 +62,7 @@ def get_display(spec):
         raise error.Error('Invalid display specification: {}. (Must be a string like :0 or None.)'.format(spec))
 
 
-class Viewer(object):
+class Viewer2D(object):
     def __init__(self, width, height, display=None):
         display = get_display(display)
 
@@ -406,7 +406,7 @@ class Image(Geom):
 
 
 def _render_path(env):
-    env.viewer2d.draw_polyline(env.path.path_points, linewidth=3, color=(0.3, 1.0, 0.3))
+    env.viewer2d.draw_polyline(env.path.points, linewidth=3, color=(0.3, 1.0, 0.3))
 
 def _render_vessel(env):
     env.viewer2d.draw_polyline(env.vessel.path_taken, linewidth=3, color=(0.8, 0, 0))  # previous positions
@@ -436,8 +436,8 @@ def _render_sensors(env):
         p0 = env.vessel.position
         if (env.sensor_obst_intercepts[isensor] is None):
             p1 = (
-                p0[0] + np.cos(sensor_angle+env.vessel.heading)*env.config["lidar_range"],
-                p0[1] + np.sin(sensor_angle+env.vessel.heading)*env.config["lidar_range"]
+                p0[0] + np.cos(sensor_angle+env.vessel.heading)*env.config["sensor_range"],
+                p0[1] + np.sin(sensor_angle+env.vessel.heading)*env.config["sensor_range"]
             )
         else:
             p1 = env.sensor_obst_intercepts[isensor]
@@ -445,7 +445,7 @@ def _render_sensors(env):
         closeness = env.past_obs[-1, env.lidar_obs_index + isector]
         redness = 0.5 + 0.5*max(0, closeness)
         greenness = 1 - max(0, closeness)
-        blueness = 0.5 if abs(isector - int(np.floor(env.config["n_sectors"]/2) + 1))  % 2 == 0 and not env.config["lidar_rotation"] else 1
+        blueness = 0.5 if abs(isector - int(np.floor(env.config["n_sectors"]/2) + 1))  % 2 == 0 and not env.config["sensor_rotation"] else 1
         alpha = 0.5 if env.sector_active[isector] else 0.2
         
         env.viewer2d.draw_line(p0, p1, color=(redness, greenness, blueness, alpha))
@@ -580,6 +580,8 @@ def _render_indicators(env, W, H):
     env.viewer2d.episode_text_field.draw()
     env.viewer2d.lambda_text_field.text = "{:<40}{:2.2f}".format('Log10 Lambda:', np.log10(env.config["reward_lambda"]))
     env.viewer2d.lambda_text_field.draw()
+    env.viewer2d.eta_text_field.text = "{:<40}{:2.2f}".format('Eta:', env.config["reward_eta"])
+    env.viewer2d.eta_text_field.draw()
     env.viewer2d.pos_text_field.text = "{:<40}{:2.2f},{:2.2f}".format('Position:', env.vessel.x, env.vessel.y)
     env.viewer2d.pos_text_field.draw()
 
@@ -655,7 +657,7 @@ def render_env(env, mode):
     return arr
 
 def init_env_viewer(env):
-    env.viewer2d = Viewer(WINDOW_W, WINDOW_H)
+    env.viewer2d = Viewer2D(WINDOW_W, WINDOW_H)
     env.viewer2d.reward_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 20.00, anchor_x='left', anchor_y='center',
                                             color=(0, 0, 0, 255))
@@ -695,8 +697,11 @@ def init_env_viewer(env):
     env.viewer2d.lambda_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 260.00, anchor_x='left', anchor_y='center',
                                             color=(0, 0, 0, 255))
-    env.viewer2d.pos_text_field = pyglet.text.Label('0000', font_size=10,
+    env.viewer2d.eta_text_field = pyglet.text.Label('0000', font_size=10,
                                             x=20, y=WINDOW_H - 280.00, anchor_x='left', anchor_y='center',
+                                            color=(0, 0, 0, 255))
+    env.viewer2d.pos_text_field = pyglet.text.Label('0000', font_size=10,
+                                            x=20, y=WINDOW_H - 300.00, anchor_x='left', anchor_y='center',
                                             color=(0, 0, 0, 255))
 
     print('Initialized 2D viewer')

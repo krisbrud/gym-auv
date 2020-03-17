@@ -7,6 +7,10 @@ def sample_lambda(scale):
     y = np.power(10, log)
     return y
 
+def sample_eta():
+    y = np.random.gamma(shape=1.9, scale=0.6)
+    return y
+
 def observe_obstacle_fun(t, dist):
     return t % (int(0.0025*dist**1.7) + 1) == 0
 
@@ -21,14 +25,17 @@ def sector_partition_fun(env, isensor):
     return int(np.floor(sigma(isensor) - sigma(0)))
 
 DEFAULT_CONFIG = {
+    # ---- META ---- #
+    "stochastic_params": ["reward_lambda", "reward_eta"],
+
     # ---- REWARD ---- #
     "reward_lambda": partial(sample_lambda, 2),     # Function that returns new (random) lambda value
     "reward_gamma_theta": 10,                       # Reward parameter for obstacle angle
     "reward_gamma_x": 0.005,                        # Reward parameter for obstacle distance
     "reward_gamma_y_e": 0.05,                       # Reward parameter for cross-track error
-    "reward_speed": 0.2,                            # Reward parameter for speed
+    "reward_eta": sample_eta,                       # Reward parameter for speed
     "penalty_yawrate": 0.5,                         # Penalty parameter for yaw rate
-    "penalty_torque_change": 0.0,                   # Penalty parameter for applied torque
+    "penalty_torque_change": 1.0,                   # Penalty parameter for applied torque
     "cruise_speed": 2,                              # Ideal vessel speed [m/s]
 
     # ---- EPISODE ---- #
@@ -50,24 +57,24 @@ DEFAULT_CONFIG = {
     "sensor_interval_obstacles": 2,                 # Interval for simulating rangefinder sensors
     "update_interval_path": 1,                      # Interval for updating path following-related variables
     "sensor_interval_load_obstacles": 100,          # Interval for loading nearby obstacles
-    "n_sensors_per_sector": 26,                      # Number of rangefinder sensors within each sector
-    "n_sectors": 9,                                # Number of sensor sectors
+    "n_sensors_per_sector": 26,                     # Number of rangefinder sensors within each sector
+    "n_sectors": 9,                                 # Number of sensor sectors
     "sector_partition_fun": sector_partition_fun,   # Function that returns corresponding sector for a given sensor index
-    "lidar_rotation": False,                        # Whether to activate the sectors in a rotating pattern (for performance reasons)
-    "lidar_range": 150,                             # Range of rangefinder sensors [m]
-    "lidar_range_log_transform": True,              # Whether to use a log. transform when calculating closeness                 #
+    "sensor_rotation": False,                       # Whether to activate the sectors in a rotating pattern (for performance reasons)
+    "sensor_range": 150,                            # Range of rangefinder sensors [m]
+    "sensor_log_transform": True,                   # Whether to use a log. transform when calculating closeness                 #
     "observe_obstacle_fun": observe_obstacle_fun,   # Function that outputs whether an obstacle should be observed (True),
                                                     # or if a virtual obstacle based on the latest reading should be used (False).
                                                     # This represents a trade-off between sensor accuracy and computation speed.
                                                     # With real-world terrain, using virtual obstacles is critical for performance.
     
     # ---- RENDERING ---- #
-    "show_indicators": False,                       # Whether to show debug information on screen during 2d rendering.
+    "show_indicators": True,                        # Whether to show debug information on screen during 2d rendering.
     'autocamera3d': False                           # Whether to let the camera automatically rotate during 3d rendering
 }
 
 MOVING_CONFIG = DEFAULT_CONFIG.copy()
-MOVING_CONFIG['reward_lambda'] = 0.5# partial(sample_lambda, 0.2)
+MOVING_CONFIG['reward_lambda'] = partial(sample_lambda, 0.2)
 MOVING_CONFIG['min_reward'] = -1000
 MOVING_CONFIG['t_step_size'] = 1.0 #0.3
 MOVING_CONFIG['observe_obstacle_fun'] = return_true_fun
@@ -79,7 +86,7 @@ DEBUG_CONFIG['min_goal_distance'] = 0.1
 
 REALWORLD_CONFIG = DEFAULT_CONFIG.copy()
 REALWORLD_CONFIG['t_step_size'] = 1.0#0.2#0.1
-#REALWORLD_CONFIG["lidar_range"] = 500
+#REALWORLD_CONFIG["sensor_range"] = 500
 #REALWORLD_CONFIG['look_ahead_distance'] = 1500
 
 

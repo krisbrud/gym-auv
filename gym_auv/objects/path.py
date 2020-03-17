@@ -8,9 +8,9 @@ from scipy import interpolate
 
 import gym_auv.utils.geomutils as geom
 
-class ParamCurve():
+class Path():
     def __init__(self, waypoints, smooth=True):
-        self.init_waypoints = waypoints.copy()
+        self.waypoints = waypoints.copy()
         forloop_range = 3 if smooth else 1
         for _ in range(forloop_range):
             arclengths = arc_len(waypoints)
@@ -19,25 +19,23 @@ class ParamCurve():
             path_dderivatives = path_derivatives.derivative()
             waypoints = path_coords(np.linspace(arclengths[0], arclengths[-1], 1000))
 
-        self.path_coords = path_coords
-        self.path_derivatives = path_derivatives
-        self.path_dderivatives = path_dderivatives
+        self._path_coords = path_coords
+        self._path_derivatives = path_derivatives
+        self._path_dderivatives = path_dderivatives
 
-        self.s_max = arclengths[-1]
-        self.length = self.s_max
-        self.S = np.linspace(0, self.length, 10*self.length)
-        self.path_points = np.transpose(self.path_coords(self.S))
-        self.line = shapely.geometry.LineString(self.path_points)
+        self.length = arclengths[-1]
+        S = np.linspace(0, self.length, 10*self.length)
+        self.points = np.transpose(self._path_coords(S))
+        self._linestring = shapely.geometry.LineString(self.points)
+        self.start = path_coords(0)
+        self.end = path_coords(self.length)
 
     def __call__(self, arclength):
-        return self.path_coords(arclength)
+        return self._path_coords(arclength)
 
     def get_direction(self, arclength):
-        derivative = self.path_derivatives(arclength)
+        derivative = self._path_derivatives(arclength)
         return np.arctan2(derivative[1], derivative[0])
-
-    def get_endpoint(self):
-        return self(self.s_max)
 
     def get_closest_arclength(self, position, x0=None):
         if x0 is not None:
@@ -46,18 +44,18 @@ class ParamCurve():
             d = minimize(
                     fun=lambda w: linalg.norm(self(w) - position),
                     x0=x0,
-                    jac=lambda w: -2*(x - self(w)[0])*self.path_derivatives(w)[0] -2*(y - self(w)[1])*self.path_derivatives(w)[1],
-                    hess=lambda w: 2*(-(x - self(w)[0])*self.path_dderivatives(w)[0] -(y - self(w)[1])*self.path_dderivatives(w)[1] + self.path_derivatives(w)[0]**2*self.path_derivatives(w)[1]**2),
+                    jac=lambda w: -2*(x - self(w)[0])*self._path_derivatives(w)[0] -2*(y - self(w)[1])*self._path_derivatives(w)[1],
+                    hess=lambda w: 2*(-(x - self(w)[0])*self._path_dderivatives(w)[0] -(y - self(w)[1])*self._path_dderivatives(w)[1] + self._path_derivatives(w)[0]**2*self._path_derivatives(w)[1]**2),
                     method='Newton-CG' 
                 ).x[0]
             d = np.clip(d, 0, self.length)
         else:
-            d = self.line.project(shapely.geometry.Point(position))
+            d = self._linestring.project(shapely.geometry.Point(position))
         return d
 
     def get_closest_point(self, position, x0=None):
         d = self.get_closest_arclength(position, x0)
-        p = self.line.interpolate(d)
+        p = self._linestring.interpolate(d)
         closest_point = list(p.coords)[0]
         return closest_point, d
 
@@ -77,7 +75,7 @@ class ParamCurve():
         z = self(s)
         ax.plot(-z[1, :], z[0, :], *opts)
 
-class RandomCurveThroughOrigin(ParamCurve):
+class RandomCurveThroughOrigin(Path):
     def __init__(self, rng, nwaypoints, length=400):
         angle_init = 2*np.pi*(rng.rand() - 0.5)
         start = np.array([0.5*length*np.cos(angle_init), 0.5*length*np.sin(angle_init)])
