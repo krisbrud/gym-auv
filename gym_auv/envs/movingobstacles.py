@@ -4,13 +4,13 @@ import gym_auv.utils.geomutils as geom
 from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.path import RandomCurveThroughOrigin, Path
 from gym_auv.objects.obstacles import PolygonObstacle, VesselObstacle, CircularObstacle
-from gym_auv.environment import Environment
+from gym_auv.environment import ASV_Scenario
 import shapely.geometry, shapely.errors
 
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-class MovingObstacles(Environment):
+class MovingObstacles(ASV_Scenario):
 
     def __init__(self, env_config, render_mode, test_mode):
         super().__init__(env_config, test_mode, render_mode, detect_moving=True)

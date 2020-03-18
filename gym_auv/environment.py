@@ -20,8 +20,9 @@ import gym_auv.rendering.render2d as render2d
 import gym_auv.rendering.render3d as render3d
 
 
-class Environment(gym.Env):
-    """Creates an environment with a vessel and a path.
+class ASV_Scenario(gym.Env):
+    """
+    Creates an environment with a vessel and a path.
     """
 
     metadata = {
@@ -61,20 +62,34 @@ class Environment(gym.Env):
         self.viewer2d = None
         self.viewer3d = None
         self.config = dict(env_config).copy()
-        self.n_states = Environment.N_STATES
+        self.n_states = ASV_Scenario.N_STATES
         self.n_sectors = self.config["n_sectors"]
         self.n_sensors = self.config["n_sensors_per_sector"]*self.config["n_sectors"]
         self.sensor_angle = 2*np.pi/(self.n_sensors)
         self.sensor_angles = [-np.pi + (i + 1)*self.sensor_angle for i in range(self.n_sensors)]
+        self.sector_angles = []
         self.n_sensors_per_sector = [0]*self.config["n_sectors"]
         self.sector_start_indeces = [0]*self.config["n_sectors"]
+        
+        # Calculating sensor partitioning
         last_isector = -1
+        tmp_sector_angle_sum = 0
+        tmp_sector_sensor_count = 0
         for isensor in range(self.n_sensors):
             isector = self.config["sector_partition_fun"](self, isensor)
-            if isector != last_isector:
+            angle = self.sensor_angles[isensor]
+            if isector == last_isector:
+                tmp_sector_angle_sum += angle
+                tmp_sector_sensor_count += 1
+            else:
+                if last_isector > -1:
+                    self.sector_angles.append(tmp_sector_angle_sum/tmp_sector_sensor_count)
                 last_isector = isector
                 self.sector_start_indeces[isector] = isensor
+                tmp_sector_angle_sum = angle
+                tmp_sector_sensor_count = 1
             self.n_sensors_per_sector[isector] += 1
+        self.sector_angles.append(tmp_sector_angle_sum/tmp_sector_sensor_count)
 
         # Setting dimension of observation vector
         self.n_observations = self.n_states
@@ -86,12 +101,8 @@ class Environment(gym.Env):
         self.sensor_obst_intercepts_hist = []
         self.sensor_obst_intercepts_transformed_hist = None
         self.sensor_obst_intercepts = [None for isensor in range(self.n_sensors)]
-        self.sector_active = [0 for isector in range(self.n_sectors)]
-        self.sector_empty = [0 for isector in range(self.n_sectors)]
-        self.sector_clear = [0 for isector in range(self.n_sectors)]
-        self.sector_closeness = [0.0 for isector in range(self.n_sectors)]
-        self.sector_last_heartbeat = [0 for isector in range(self.n_sectors)]
         self.sector_obst_distances = np.ones((self.n_sectors, ))*self.config["sensor_range"]
+        self.sector_obst_feasible_distances = np.zeros((self.n_sectors, ))
         self.sensor_obst_closenesses = np.zeros((self.n_sensors, ))
         self.sector_obst_speed_x = np.zeros((self.n_sectors, ))
         self.sector_obst_speed_y = np.zeros((self.n_sectors, ))
@@ -233,8 +244,9 @@ class Environment(gym.Env):
             self.past_actions = np.vstack([self.past_actions, action])
 
         # Receiving agent's reward as well as whether the episode is done or not
-        done, reward, info = self._get_reward(collision)
+        reward, info = self._get_reward(collision)
         info['collision'] = collision
+        done = False
         self.past_rewards = np.append(self.past_rewards, reward)
         self.past_path_rewards = np.append(self.past_path_rewards, info['path_reward'])
         self.past_closeness_rewards = np.append(self.past_closeness_rewards, info['closeness_reward'])
@@ -250,7 +262,7 @@ class Environment(gym.Env):
             if closest_point_distance > self.config["max_distance"] and not self.test_mode:
                 done = True
 
-        # Incrementing counters
+        # Incrementing environment counters
         self.t_step += 1
         self.total_t_steps += 1
 
@@ -268,7 +280,6 @@ class Environment(gym.Env):
                 # Teleporting vesesl back in time
                 reward = self.config["min_cumulative_reward"]*(1-self.config["reward_lambda"])
                 self.vessel.teleport_back(200)
-
         dist_to_endpoint = linalg.norm(self.vessel.position - self.path.end)
         if abs(self.path_prog_hist[-1] - self.path.length) < self.config["min_goal_progress"] or dist_to_endpoint < self.config["min_goal_distance"]:
             done = True
@@ -283,32 +294,31 @@ class Environment(gym.Env):
 
         Returns
         -------
-        done : bool
-            If True the episode is ended.
         reward : float
             The reward for performing action at his timestep.
         info : dict
             Dictionary with extra information.
         """
-        done = False
         reward = 0
-        info = {'path_reward': None, 'closeness_reward': None}
+        info = {'path_reward': None, 'closeness_reward': None, 'living_penalty': None}
 
         # Calculating reward
-        if not done:
-            path_reward = self.get_path_reward()
-            info['path_reward'] = path_reward
+        path_reward = self.get_path_reward()
+        info['path_reward'] = path_reward
 
-            closeness_reward = self.get_closeness_reward(collision=collision)
-            info['closeness_reward'] = closeness_reward
+        closeness_reward = self.get_closeness_reward(collision=collision)
+        info['closeness_reward'] = closeness_reward
+        
+        living_penalty = self.config["reward_lambda"]*(2*self.config["neutral_speed"]+1) + self.config["reward_eta"]*self.config["neutral_speed"]
+        info['living_penalty'] = living_penalty
 
-            # Calculating total reward
-            reward = self.config["reward_lambda"]*path_reward + \
-                (1-self.config["reward_lambda"])*closeness_reward - \
-                self.living_penalty + \
-                self.config["reward_eta"]*self.vessel.speed/self.vessel.max_speed - \
-                self.config["penalty_yawrate"]*abs(self.vessel.yawrate) - \
-                self.config["penalty_torque_change"]*abs(self.vessel.smoothed_torque_change)
+        # Calculating total reward
+        reward = self.config["reward_lambda"]*path_reward + \
+            (1-self.config["reward_lambda"])*closeness_reward - \
+            living_penalty + \
+            self.config["reward_eta"]*self.vessel.speed/self.vessel.max_speed - \
+            self.config["penalty_yawrate"]*abs(self.vessel.yawrate) - \
+            self.config["penalty_torque_change"]*abs(self.vessel.smoothed_torque_change)
 
         # Capping reward so that it will not lead to a cumulative reward less than the minimum
         reward = max(self.config["min_cumulative_reward"] - self.cumulative_reward, reward)
@@ -317,7 +327,7 @@ class Environment(gym.Env):
         if reward < 0:
             reward *= 2 
 
-        return done, reward, info
+        return reward, info
 
     def get_path_reward(self):
         cross_track_performance = np.exp(-self.config["reward_gamma_y_e"]*np.abs(self.cross_track_error))
@@ -326,19 +336,20 @@ class Environment(gym.Env):
 
     def get_closeness_reward(self, collision=False):
         if collision:
-            return -1/self.config["reward_gamma_x"]
-        closeness_reward_num = 0
-        closeness_reward_den = 0
+            return -1
+        closeness_penalty_num = 0
+        closeness_penalty_den = 0
         if self.n_sensors > 0:
-            for isensor in range(self.n_sensors):
-                sensor_angle = self.sensor_angles[isensor]
-                sensor_distance = self.sensor_obst_distances[isensor]
-                sensor_weight = 1 / (1 + np.abs(self.config["reward_gamma_theta"]*sensor_angle))
-                sensor_raw_penalty = 1/(self.config["reward_gamma_x"]*(max(sensor_distance, 1))**2)
-                sensor_reward = sensor_weight*sensor_raw_penalty
-                closeness_reward_num += sensor_reward
-                closeness_reward_den += sensor_weight
-            closeness_reward = -closeness_reward_num/closeness_reward_den
+            for isector in range(self.n_sectors):
+                angle = self.sector_angles[isector]
+                x = self.sector_obst_feasible_distances[isector]
+                weight = 1 / (1 + np.abs(self.config["reward_gamma_theta"]*angle))
+                raw_penalty = (self.config["sensor_range"]/max(x, 1))**self.config["reward_gamma_x"] - 1
+                weighted_penalty = weight*raw_penalty
+                closeness_penalty_num += weighted_penalty
+                closeness_penalty_den += weight
+
+            closeness_reward = -closeness_penalty_num/closeness_penalty_den
         else:
             closeness_reward = 0
         return closeness_reward
@@ -384,7 +395,6 @@ class Environment(gym.Env):
                 self.config[param] = self.input_config[param]()
             except TypeError as e:
                 raise e
-                pass
 
         # Resetting all internal variables
         self.vessel = None
@@ -415,8 +425,6 @@ class Environment(gym.Env):
         self.look_ahead_point = None
         self.look_ahead_arclength = None
         self.reached_goal = False
-        living_penalty_alpha = 0.1
-        self.living_penalty = self.config["reward_lambda"]*(2*living_penalty_alpha+1) + self.config["reward_eta"]*living_penalty_alpha
         self.heading_error_la = 0
         self.heading_error = 0
         self.goal_heading_error = 0
@@ -431,12 +439,8 @@ class Environment(gym.Env):
         self.sensor_obst_intercepts_hist = []
         self.sensor_obst_intercepts_transformed_hist = []
         self.sensor_obst_intercepts = [None for isensor in range(self.n_sensors)]
-        self.sector_active = [0 for isector in range(self.n_sectors)]
-        self.sector_empty = [0 for isector in range(self.n_sectors)]
-        self.sector_clear = [0 for isector in range(self.n_sectors)]
-        self.sector_closeness = [0.0 for isector in range(self.n_sectors)]
-        self.sector_last_heartbeat = [0 for isector in range(self.n_sectors)]
         self.sector_obst_distances = np.ones((self.n_sectors, ))*self.config["sensor_range"]
+        self.sector_obst_feasible_distances = np.zeros((self.n_sectors, ))
         self.sensor_obst_closenesses = np.zeros((self.n_sensors, ))
         self.sector_obst_speed_x = np.zeros((self.n_sectors, ))
         self.sector_obst_speed_y = np.zeros((self.n_sectors, ))
@@ -478,6 +482,10 @@ class Environment(gym.Env):
         return [seed]
 
     def render(self, mode='human'):
+        """
+        Render the environment.
+        """
+
         if self.render_mode == '2d' or self.render_mode == 'both':
             image_arr = render2d.render_env(self, mode)
         if self.render_mode == '3d' or self.render_mode == 'both':
@@ -590,6 +598,7 @@ class Environment(gym.Env):
             self.sector_obst_speed_x = np.zeros((self.n_sectors, ))
             self.sector_obst_speed_y = np.zeros((self.n_sectors, ))
             self.sector_obst_distances = np.ones((self.n_sectors, ))*self.config["sensor_range"]
+            self.sector_obst_feasible_distances = np.zeros((self.n_sectors, ))
 
             vessel_center = shapely.geometry.Point(
                 self.vessel.position[0], 
@@ -608,9 +617,7 @@ class Environment(gym.Env):
 
             else:
                 sector_lines = [None for isensor in range(self.n_sensors)]
-                sector_processed = [False for isector in range(self.n_sectors)]
                 sector_measurement_arrs = [np.zeros((self.n_sensors_per_sector[isector],)) for isector in range(self.n_sectors)]
-                self.sector_active = [0 for isector in range(self.n_sectors)]
 
                 # Resetting virtual obstacles
                 for obst_dist, obst in self.nearby_obstacles:
@@ -624,9 +631,6 @@ class Environment(gym.Env):
                     isensor_internal = isensor - self.sector_start_indeces[isector]
                     if self.config["sensor_rotation"] and (self.sensor_updates + 1) % (int(self.n_sectors/2) + 1) != abs(int(self.n_sectors/2)-isector):
                         continue
-                    self.sector_active[isector] = 1
-                    if not sector_processed[isector]:
-                        self.sector_empty[isector] = 1
 
                     sensor_angle = self.sensor_angles[isensor]
                     global_sensor_angle = geom.princip(sensor_angle+self.vessel.heading)
@@ -667,7 +671,6 @@ class Environment(gym.Env):
                             continue
 
                         if not obst_intersect.is_empty:
-                            self.sector_empty[isector] = 0
                             try:
                                 # Retrieving a list of intersection points
                                 obst_intersections = [obst_intersect] if type(obst_intersect) in (shapely.geometry.Point, shapely.geometry.LineString) else list(obst_intersect.geoms)
@@ -740,6 +743,7 @@ class Environment(gym.Env):
                         theta=self.sensor_angle, 
                         N_sensors=self.n_sensors_per_sector[isector]
                     )
+                    self.sector_obst_feasible_distances[isector] = feasible_distance
 
                     # Calculating feasible closeness
                     if self.config["sensor_log_transform"]:
@@ -749,20 +753,17 @@ class Environment(gym.Env):
 
                     # Setting observation vector value
                     obs[self.n_states + isector] = feasible_closeness
-                    self.sector_closeness[isector] = feasible_closeness
 
                     if self.detect_movement:
                         if critical_sensor_index is None:
                             critical_sensor_index = 0
                         obs[self.n_states + self.n_sectors + isector] = self.sector_obst_speed_x[isector]
                         obs[self.n_states + self.n_sectors*2 + isector] = self.sector_obst_speed_y[isector]
-                    
-                    self.sector_last_heartbeat[isector] = self.t_step
 
         return (obs, collision)
     
     def _sample_sensor(self, isensor):
-        pass
+        raise NotImplementedError
 
     def save(self, filepath):
         self.vessel._state = np.array(self.vessel._state)

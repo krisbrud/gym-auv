@@ -4,14 +4,14 @@ import gym_auv.utils.geomutils as geom
 from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.path import RandomCurveThroughOrigin, Path
 from gym_auv.objects.obstacles import CircularObstacle, VesselObstacle
-from gym_auv.environment import Environment
+from gym_auv.environment import ASV_Scenario
 
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 TERRAIN_DATA_PATH = './resources/terrain.npy'
 
-class TestScenario1(Environment):
+class TestScenario1(ASV_Scenario):
     def generate(self):
         self.path = Path([[0, 1100], [0, 1100]])
 
@@ -30,7 +30,7 @@ class TestScenario1(Environment):
             obst_position = self.path(obst_arclength)
             self.obstacles.append(CircularObstacle(obst_position, obst_radius))
 
-class TestScenario2(Environment):
+class TestScenario2(ASV_Scenario):
     def generate(self):
 
         waypoint_array = []
@@ -69,7 +69,7 @@ class TestScenario2(Environment):
             self.obstacles.append(CircularObstacle(obst_position + obst_displacement, obst_radius))
             self.obstacles.append(CircularObstacle(obst_position - obst_displacement, obst_radius))
 
-class TestScenario3(Environment):
+class TestScenario3(ASV_Scenario):
     def generate(self):
         waypoints = np.vstack([[0, 0], [0, 500]]).T
         self.path = Path(waypoints)
@@ -90,7 +90,7 @@ class TestScenario3(Environment):
             obst_position = np.array([np.cos(angle)*N_dist, np.sin(angle)*N_dist])
             self.obstacles.append(CircularObstacle(obst_position, obst_radius))
 
-class TestScenario4(Environment):
+class TestScenario4(ASV_Scenario):
     def generate(self):
         waypoints = np.vstack([[0, 0], [0, 500]]).T
         self.path = Path(waypoints)
@@ -113,9 +113,7 @@ class TestScenario4(Environment):
             obst_position = np.array([np.cos(angle)*N_dist, np.sin(angle)*N_dist])
             self.obstacles.append(CircularObstacle(obst_position, obst_radius))
 
-class EmptyScenario(Environment):
-    def __init__(self, *args, **kwargs):
-        super().__init__(detect_moving=True, *args, **kwargs)
+class EmptyScenario(ASV_Scenario):
 
     def generate(self):
         waypoints = np.vstack([[25, 10], [25, 40]]).T
@@ -133,11 +131,7 @@ class EmptyScenario(Environment):
             self.all_terrain = np.zeros((50, 50), dtype=float)
             self.viewer3d.create_world(self.all_terrain, 0, 0, 50, 50)
 
-class DebugScenario(Environment):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(detect_moving=True, *args, **kwargs)
-
+class DebugScenario(ASV_Scenario):
     def generate(self):
         waypoints = np.vstack([[250, 100], [250, 300]]).T
         self.path = Path(waypoints)
@@ -145,7 +139,7 @@ class DebugScenario(Environment):
         init_pos = self.path(0)
         init_angle = self.path.get_direction(0)
 
-        self.vessel = AUV2D(self.config["t_step_size"], np.hstack([init_pos, init_angle]), width=self.config["vessel_width"])
+        self.vessel = Vessel(self.config["t_step_size"], np.hstack([init_pos, init_angle]), width=self.config["vessel_width"])
         prog = self.path.get_closest_arclength(self.vessel.position)
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
@@ -157,7 +151,7 @@ class DebugScenario(Environment):
             other_vessel_trajectory = []
             trajectory_shift = np.random.random()*2*np.pi
             trajectory_radius = np.random.random()*40 + 30
-            trajectory_speed = np.random.random()*0.01 + 0.01
+            trajectory_speed = np.random.random()*0.003 + 0.003
             for i in range(10000):
                 #other_vessel_trajectory.append((10*i, (250, 400-10*i)))
                 other_vessel_trajectory.append((1*i, (
@@ -172,7 +166,7 @@ class DebugScenario(Environment):
         for vessel_idx in range(5):
             other_vessel_trajectory = []
             trajectory_start = np.random.random()*200 + 150
-            trajectory_speed = np.random.random()*0.1 + 0.1
+            trajectory_speed = np.random.random()*0.03 + 0.03
             trajectory_shift = 10*np.random.random()
             for i in range(10000):
                 other_vessel_trajectory.append((i, (245 + 2.5*vessel_idx + trajectory_shift, trajectory_start-10*trajectory_speed*i)))

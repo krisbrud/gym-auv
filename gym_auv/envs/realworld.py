@@ -5,7 +5,7 @@ import gym_auv.utils.geomutils as geom
 from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.path import RandomCurveThroughOrigin, Path
 from gym_auv.objects.obstacles import PolygonObstacle, VesselObstacle
-from gym_auv.environment import Environment
+from gym_auv.environment import ASV_Scenario
 import shapely.geometry, shapely.errors
 
 import os 
@@ -17,7 +17,7 @@ VESSEL_DATA_PATH = './resources/vessel_data_local.csv'
 TERRAIN_DATA_PATH = './resources/terrain.npy'
 INCLUDED_VESSELS = None
 
-class RealWorldEnv(Environment):
+class RealWorldEnv(ASV_Scenario):
 
     def __init__(self, *args, **kw):
         self.last_scenario_load_coordinates = None
@@ -63,7 +63,7 @@ class RealWorldEnv(Environment):
         
         #print('Completed traffic preprocessing')
 
-        super().__init__(*args, **kw, detect_moving=True)
+        super().__init__(*args, **kw)
 
     def generate(self):
 
