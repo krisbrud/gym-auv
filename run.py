@@ -427,11 +427,11 @@ def main(args):
                 if (save_criteria):
                     _self.save(agent_filepath)
 
-            if (report_env.last_episode is not None and len(report_env.history) > 0 and report_criteria):
+            if report_env.last_episode is not None and len(report_env.history) > 0 and report_criteria:
                 try:
                     gym_auv.reporting.plot_last_episode(report_env, fig_dir=scenario_folder, fig_prefix=args.env + '_ep_{}'.format(report_env.episode))
                     gym_auv.reporting.report(report_env, report_dir=figure_folder)
-                    vec_env.env_method('save', os.path.join(scenario_folder, '_ep_{}'.format(report_env.episode)))
+                    #vec_env.env_method('save', os.path.join(scenario_folder, '_ep_{}'.format(report_env.episode)))
                 except OSError as e:
                     print("Ignoring reporting OSError:")
                     print(repr(e))
