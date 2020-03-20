@@ -179,7 +179,7 @@ def play_scenario(env, recorded_env, args, agent=None):
                 if done or restart: break
             
             env.reset()
-            gym_auv.reporting.report(env, report_dir='./logs/play_results/')
+            gym_auv.reporting.report(env, report_dir='../logs/play_results/')
 
 
     except KeyboardInterrupt:
@@ -644,7 +644,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--video-dir',
         help='Dir for output video.',
-        default='./logs/videos/'
+        default='../logs/videos/'
     )
     parser.add_argument(
         '--video-name',
