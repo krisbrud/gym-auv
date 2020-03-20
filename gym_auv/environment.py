@@ -206,6 +206,8 @@ class ASV_Scenario(gym.Env):
 
         self._save_latest_step()
 
+        self.t_step += 1
+
         return obs, reward, done, info
 
     def _update(self):

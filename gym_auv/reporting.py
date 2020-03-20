@@ -30,9 +30,7 @@ def report(env, report_dir):
 
         relevant_history = env.history[-min(100, len(env.history)):]
 
-        print(relevant_history)
-
-        collisions = np.array([obj['collisions'] for obj in relevant_history])
+        collisions = np.array([obj['collision'] for obj in relevant_history])
         no_collisions = collisions == 0
         cross_track_errors = np.array([obj['cross_track_error'] for obj in relevant_history])
         progresses = np.array([obj['progress'] for obj in relevant_history])
@@ -62,7 +60,7 @@ def report(env, report_dir):
         plt.rc('ytick', labelsize=8)
         plt.rc('axes', labelsize=8)
 
-        collisions = np.array([obj['collisions'] for obj in env.history])
+        collisions = np.array([obj['collision'] for obj in env.history])
         smoothed_collisions = gaussian_filter1d(collisions.astype(float), sigma=100)
         plt.axis('scaled')
         fig = plt.figure()
@@ -117,15 +115,12 @@ def report(env, report_dir):
         plt.close(fig)
 
         timesteps = np.array([obj['timesteps'] for obj in env.history])
-        timesteps_baselines = np.array([obj['timesteps_baseline'] for obj in env.history])
         smoothed_timesteps = gaussian_filter1d(timesteps.astype(float), sigma=100)
         plt.axis('scaled')
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1)
         ax.plot(timesteps, color='blue', linewidth=0.5, alpha=0.2)
-        ax.plot(timesteps_baselines, color='red', linewidth=0.5, alpha=0.2)
         ax.plot(smoothed_timesteps, color='blue', linewidth=1, alpha=0.4)
-        ax.hlines(timesteps_baselines.mean(), 0, env.episode-2, color='red', linestyles='dashed', linewidth=1, label='Baseline')
         ax.set_ylabel(r"Timesteps")
         ax.set_xlabel(r"Episode")
         ax.legend()
