@@ -29,11 +29,12 @@ def report(env, report_dir):
         os.makedirs(report_dir, exist_ok=True)
 
         relevant_history = env.history[-min(100, len(env.history)):]
+
+        print(relevant_history)
+
         collisions = np.array([obj['collisions'] for obj in relevant_history])
         no_collisions = collisions == 0
         cross_track_errors = np.array([obj['cross_track_error'] for obj in relevant_history])
-        steers = np.array([obj['steer'] for obj in relevant_history])
-        surges = np.array([obj['surge'] for obj in relevant_history])
         progresses = np.array([obj['progress'] for obj in relevant_history])
         reached_goals = np.array([obj['reached_goal'] for obj in relevant_history])
         rewards = np.array([obj['reward'] for obj in relevant_history])
@@ -51,9 +52,7 @@ def report(env, report_dir):
             f.write('{:<30}{:<30.2%}\n'.format('No collisions', no_collisions.mean()))
             f.write('{:<30}{:<30.2%}\n'.format('Success', success.mean()))
             f.write('{:<30}{:<30.2f}\n'.format('Avg. Cross-Track Error', cross_track_errors.mean()))
-            f.write('{:<30}{:<30.2f}\n'.format('Avg. Timesteps', timesteps.mean()))
-            f.write('{:<30}{:<30.2f}\n'.format('Avg. Steer', steers.mean()))
-            f.write('{:<30}{:<30.2f}\n'.format('Avg. Surge', surges.mean()))
+            f.write('{:<30}{:<30.2f}\n'.format('Avg. Timesteps', timesteps.mean()))\
 
         plt.style.use('ggplot')
         plt.rc('font', family='serif')
@@ -75,35 +74,6 @@ def report(env, report_dir):
         ax.set_xlabel(r"Episode")
         ax.legend()
         fig.savefig(os.path.join(report_dir, 'collisions.pdf'), format='pdf')
-        plt.close(fig)
-        
-        steers = np.array([obj['steer'] for obj in env.history])
-        smoothed_steers = gaussian_filter1d(steers.astype(float), sigma=100)
-        plt.axis('scaled')
-        fig = plt.figure()
-        ax = fig.add_subplot(1, 1, 1)
-        ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{}°'.format(y))) 
-        ax.plot(steers, color='blue', linewidth=0.5, alpha=0.2, label='Steer')
-        ax.plot(smoothed_steers, color='blue', linewidth=1, alpha=0.4)
-        ax.set_title('Steer')
-        ax.set_ylabel(r"Avg. Steer")
-        ax.set_xlabel(r"Episode")
-        ax.legend()
-        fig.savefig(os.path.join(report_dir, 'steer.pdf'), format='pdf')
-        plt.close(fig)
-
-        surges = np.array([obj['surge'] for obj in env.history])
-        smoothed_surges = gaussian_filter1d(surges.astype(float), sigma=100)
-        plt.axis('scaled')
-        fig = plt.figure()
-        ax = fig.add_subplot(1, 1, 1)
-        ax.plot(surges, color='blue', linewidth=0.5, alpha=0.2, label='Surge')
-        ax.plot(smoothed_surges, color='blue', linewidth=1, alpha=0.4)
-        ax.set_title('Surge')
-        ax.set_ylabel(r"Avg. Surge")
-        ax.set_xlabel(r"Episode")
-        ax.legend()
-        fig.savefig(os.path.join(report_dir, 'surge.pdf'), format='pdf')
         plt.close(fig)
 
         cross_track_errors = np.array([obj['cross_track_error'] for obj in env.history])
@@ -162,18 +132,6 @@ def report(env, report_dir):
         fig.savefig(os.path.join(report_dir, 'timesteps.pdf'), format='pdf')
         plt.close(fig)
 
-        distance = np.linspace(0, env.config["sensor_range"], 100)
-        resolution = env.sensor_angle*distance
-        plt.axis('scaled')
-        fig = plt.figure()
-        ax = fig.add_subplot(1, 1, 1)
-        ax.plot(distance, resolution, color='blue', linewidth=1, alpha=1)
-        ax.set_ylabel(r"Resolution [m]")
-        ax.set_xlabel(r"Distance [m]")
-        ax.legend()
-        fig.savefig(os.path.join(report_dir, 'lidar_resolution.pdf'), format='pdf')
-        plt.close(fig)
-
         plt.clf()
 
     except PermissionError as e:
@@ -206,7 +164,6 @@ def test_report(fig_dir):
             'surge': 10 + 3*np.random.normal(0, 2),
             'steer': np.random.normal(0, 25),
         })
-    env.measurement_history = np.array([])
 
     t = np.linspace(-400, 400, 1000)
     a = np.random.normal(0, 1)

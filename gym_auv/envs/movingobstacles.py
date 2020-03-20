@@ -1,6 +1,7 @@
 import numpy as np
 
 import gym_auv.utils.geomutils as geom
+import gym_auv.utils.helpers as helpers
 from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.path import RandomCurveThroughOrigin, Path
 from gym_auv.objects.obstacles import PolygonObstacle, VesselObstacle, CircularObstacle
@@ -12,21 +13,18 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 class MovingObstacles(ASV_Scenario):
 
-    def __init__(self, env_config, render_mode, test_mode):
-        super().__init__(env_config, test_mode, render_mode, detect_moving=True)
-
-    def generate(self):
+    def _generate(self):
         # Initializing path
-        nwaypoints = int(np.floor(4*self.np_random.rand() + 2))
-        self.path = RandomCurveThroughOrigin(self.np_random, nwaypoints, length=800)
+        nwaypoints = int(np.floor(4*self.rng.rand() + 2))
+        self.path = RandomCurveThroughOrigin(nwaypoints, length=800)
 
         # Initializing vessel
         init_pos = self.path(0)
         init_angle = self.path.get_direction(0)
-        init_pos[0] += 50*(self.np_random.rand()-0.5)
-        init_pos[1] += 50*(self.np_random.rand()-0.5)
-        init_angle = geom.princip(init_angle + 2*np.pi*(self.np_random.rand()-0.5))
-        self.vessel = Vessel(self.config["t_step_size"], np.hstack([init_pos, init_angle]), width=self.config["vessel_width"], adaptive_step_size=self.config["adaptive_step_size"])
+        init_pos[0] += 50*(self.rng.rand()-0.5)
+        init_pos[1] += 50*(self.rng.rand()-0.5)
+        init_angle = geom.princip(init_angle + 2*np.pi*(self.rng.rand()-0.5))
+        self.vessel = Vessel(self.config, np.hstack([init_pos, init_angle]), width=self.config["vessel_width"])
         prog = 0
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
@@ -37,9 +35,9 @@ class MovingObstacles(ASV_Scenario):
         for _ in range(100):
             other_vessel_trajectory = []
 
-            obst_position, obst_radius = self._generate_obstacle(obst_radius_mean=10, displacement_dist_std=500)
-            obst_direction = np.random.random()*2*np.pi
-            obst_speed = np.random.random()*1
+            obst_position, obst_radius = helpers.generate_obstacle(self.rng, self.path, self.vessel, obst_radius_mean=10, displacement_dist_std=500)
+            obst_direction = self.rng.rand()*2*np.pi
+            obst_speed = self.rng.rand()*1
 
             for i in range(10000):
                 other_vessel_trajectory.append((i, (
@@ -52,8 +50,8 @@ class MovingObstacles(ASV_Scenario):
 
         # Adding static obstacles
         for _ in range(25):
-            obstacle = CircularObstacle(*self._generate_obstacle())
+            obstacle = CircularObstacle(*helpers.generate_obstacle(self.rng, self.path, self.vessel))
             self.obstacles.append(obstacle)
 
-        self.update()
+        self._update()
 

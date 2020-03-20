@@ -76,8 +76,8 @@ class Path():
         ax.plot(-z[1, :], z[0, :], *opts)
 
 class RandomCurveThroughOrigin(Path):
-    def __init__(self, rng, nwaypoints, length=400):
-        angle_init = 2*np.pi*(rng.rand() - 0.5)
+    def __init__(self, nwaypoints, length=400):
+        angle_init = 2*np.pi*(np.random.random() - 0.5)
         start = np.array([0.5*length*np.cos(angle_init), 0.5*length*np.sin(angle_init)])
         end = -np.array(start)
         waypoints = np.vstack([start, end])
@@ -85,11 +85,11 @@ class RandomCurveThroughOrigin(Path):
             newpoint1 = ((nwaypoints // 2 - waypoint)
                          * start / (nwaypoints // 2 + 1)
                          + length / (nwaypoints // 2 + 1)
-                         * (rng.rand()-0.5))
+                         * (np.random.random()-0.5))
             newpoint2 = ((nwaypoints // 2 - waypoint)
                          * end / (nwaypoints // 2 + 1)
                          + length / (nwaypoints // 2 + 1)
-                         * (rng.rand()-0.5))
+                         * (np.random.random()-0.5))
             waypoints = np.vstack([waypoints[:waypoint+1, :],
                                    newpoint1,
                                    np.array([0, 0]),

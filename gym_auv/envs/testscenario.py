@@ -12,13 +12,13 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 TERRAIN_DATA_PATH = './resources/terrain.npy'
 
 class TestScenario1(ASV_Scenario):
-    def generate(self):
+    def _generate(self):
         self.path = Path([[0, 1100], [0, 1100]])
 
         init_pos = self.path(0)
         init_angle = self.path.get_direction(0)
 
-        self.vessel = Vessel(self.config["t_step_size"], np.hstack([init_pos, init_angle]))
+        self.vessel = Vessel(self.config, np.hstack([init_pos, init_angle]))
         prog = self.path.get_closest_arclength(self.vessel.position)
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
@@ -31,7 +31,7 @@ class TestScenario1(ASV_Scenario):
             self.obstacles.append(CircularObstacle(obst_position, obst_radius))
 
 class TestScenario2(ASV_Scenario):
-    def generate(self):
+    def _generate(self):
 
         waypoint_array = []
         for t in range(500):
@@ -45,7 +45,7 @@ class TestScenario2(ASV_Scenario):
         init_pos = self.path(0)
         init_angle = self.path.get_direction(0)
 
-        self.vessel = Vessel(self.config["t_step_size"], np.hstack([init_pos, init_angle]))
+        self.vessel = Vessel(self.config, np.hstack([init_pos, init_angle]))
         prog = self.path.get_closest_arclength(self.vessel.position)
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
@@ -70,14 +70,14 @@ class TestScenario2(ASV_Scenario):
             self.obstacles.append(CircularObstacle(obst_position - obst_displacement, obst_radius))
 
 class TestScenario3(ASV_Scenario):
-    def generate(self):
+    def _generate(self):
         waypoints = np.vstack([[0, 0], [0, 500]]).T
         self.path = Path(waypoints)
 
         init_pos = self.path(0)
         init_angle = self.path.get_direction(0)
 
-        self.vessel = Vessel(self.config["t_step_size"], np.hstack([init_pos, init_angle]))
+        self.vessel = Vessel(self.config, np.hstack([init_pos, init_angle]))
         prog = self.path.get_closest_arclength(self.vessel.position)
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
@@ -91,14 +91,14 @@ class TestScenario3(ASV_Scenario):
             self.obstacles.append(CircularObstacle(obst_position, obst_radius))
 
 class TestScenario4(ASV_Scenario):
-    def generate(self):
+    def _generate(self):
         waypoints = np.vstack([[0, 0], [0, 500]]).T
         self.path = Path(waypoints)
 
         init_pos = self.path(0)
         init_angle = self.path.get_direction(0)
 
-        self.vessel = Vessel(self.config["t_step_size"], np.hstack([init_pos, init_angle]))
+        self.vessel = Vessel(self.config, np.hstack([init_pos, init_angle]))
         prog = self.path.get_closest_arclength(self.vessel.position)
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
@@ -115,14 +115,14 @@ class TestScenario4(ASV_Scenario):
 
 class EmptyScenario(ASV_Scenario):
 
-    def generate(self):
+    def _generate(self):
         waypoints = np.vstack([[25, 10], [25, 40]]).T
         self.path = Path(waypoints)
 
         init_pos = self.path(0)
         init_angle = self.path.get_direction(0)
 
-        self.vessel = Vessel(self.config["t_step_size"], np.hstack([init_pos, init_angle]), width=self.config["vessel_width"])
+        self.vessel = Vessel(self.config, np.hstack([init_pos, init_angle]), width=self.config["vessel_width"])
         prog = self.path.get_closest_arclength(self.vessel.position)
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
@@ -132,14 +132,14 @@ class EmptyScenario(ASV_Scenario):
             self.viewer3d.create_world(self.all_terrain, 0, 0, 50, 50)
 
 class DebugScenario(ASV_Scenario):
-    def generate(self):
+    def _generate(self):
         waypoints = np.vstack([[250, 100], [250, 300]]).T
         self.path = Path(waypoints)
 
         init_pos = self.path(0)
         init_angle = self.path.get_direction(0)
 
-        self.vessel = Vessel(self.config["t_step_size"], np.hstack([init_pos, init_angle]), width=self.config["vessel_width"])
+        self.vessel = Vessel(self.config, np.hstack([init_pos, init_angle]), width=self.config["vessel_width"])
         prog = self.path.get_closest_arclength(self.vessel.position)
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
@@ -149,9 +149,9 @@ class DebugScenario(ASV_Scenario):
 
         for vessel_idx in range(5):
             other_vessel_trajectory = []
-            trajectory_shift = np.random.random()*2*np.pi
-            trajectory_radius = np.random.random()*40 + 30
-            trajectory_speed = np.random.random()*0.003 + 0.003
+            trajectory_shift = self.rng.rand()()*2*np.pi
+            trajectory_radius = self.rng.rand()()*40 + 30
+            trajectory_speed = self.rng.rand()()*0.003 + 0.003
             for i in range(10000):
                 #other_vessel_trajectory.append((10*i, (250, 400-10*i)))
                 other_vessel_trajectory.append((1*i, (
@@ -165,9 +165,9 @@ class DebugScenario(ASV_Scenario):
 
         for vessel_idx in range(5):
             other_vessel_trajectory = []
-            trajectory_start = np.random.random()*200 + 150
-            trajectory_speed = np.random.random()*0.03 + 0.03
-            trajectory_shift = 10*np.random.random()
+            trajectory_start = self.rng.rand()()*200 + 150
+            trajectory_speed = self.rng.rand()()*0.03 + 0.03
+            trajectory_shift = 10*self.rng.rand()()
             for i in range(10000):
                 other_vessel_trajectory.append((i, (245 + 2.5*vessel_idx + trajectory_shift, trajectory_start-10*trajectory_speed*i)))
             other_vessel_obstacle = VesselObstacle(width=6, trajectory=other_vessel_trajectory)

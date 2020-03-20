@@ -47,36 +47,3 @@ def to_homogeneous(x):
 
 def to_cartesian(x):
     return np.array([x[0], x[1]])
-
-def feasibility_pooling(x, W, theta, N_sensors):
-    sort_idx = np.argsort(x, axis=None)
-    for idx in sort_idx:
-        surviving = x > x[idx] + W
-        d = x[idx]*theta
-        opening_width = 0
-        opening_span = 0
-        opening_start = -theta*(N_sensors-1)/2
-        found_opening = False
-        for isensor, lidar_surviving in enumerate(surviving):
-            if (lidar_surviving):
-                opening_width += d
-                opening_span += theta
-                if (opening_width > W):
-                    opening_center = opening_start + opening_span/2
-                    if (abs(opening_center) < theta*(N_sensors-1)/4):
-                        found_opening = True
-            else:
-                opening_width += 0.5*d
-                opening_span += 0.5*theta
-                if (opening_width > W):
-                    opening_center = opening_start + opening_span/2
-                    if (abs(opening_center) < theta*(N_sensors-1)/4):
-                        found_opening = True
-                opening_width = 0
-                opening_span = 0
-                opening_start = -theta*(N_sensors-1)/2 + isensor*theta
-
-        if (not found_opening): 
-            return (max(0, x[idx]), idx)
-
-    return (max(0, np.max(x)), N_sensors//2)

@@ -20,6 +20,7 @@ from pyglet.gl import *
 from pyglet.graphics import TextureGroup
 from pyglet.window import key, mouse
 import gym_auv.utils.geomutils as geom
+from gym_auv.objects.obstacles import *
 
 # Size of sectors used to ease block loading.
 MAX_RENDER_DISTANCE = 1000.0
@@ -36,7 +37,8 @@ WINDOW_H = 1080 # 600
 
 counter_3d = 0
 
-BOAT_MODEL_PATH = './resources/boat.obj'
+BOAT_MODEL_PATH = '../resources/boat.obj'
+TEXTURE_PATH = '../resources/textures.png'
 
 class Element:
     BLOCK = 1
@@ -84,26 +86,6 @@ def tex_coords(top, bottom, side):
     result.extend(side * 4)
     return result
 
-def get_neighbours(x, y, matrix, include_diag=False):
-    ans = set()
-    for dx in (-1, 0, 1):
-        for dy in (-1, 0, 1):
-            if dx == 0 and dy == 0:
-                continue
-
-            if not include_diag:
-                if abs(dx) == 1 and abs(dy) == 1:
-                    continue
-            
-            p = (x + dx, y + dy)
-
-            if p[0] >= 0 and p[0] < matrix.shape[0] and p[1] >= 0 and p[1] < matrix.shape[1]:
-                ans.add(p)
-
-    return ans
-
-TEXTURE_PATH = './resources/textures.png'
-
 DIRT_GRASS = tex_coords((1, 0), (0, 1), (0, 0))
 DIRT = tex_coords((0, 1), (0, 1), (0, 1))
 GRASS = tex_coords((1, 0), (1, 0), (1, 0))
@@ -121,6 +103,24 @@ FACES = [
     ( 0, 0, 1),
     ( 0, 0,-1),
 ]
+
+def get_neighbours(x, y, matrix, include_diag=False):
+    ans = set()
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            if dx == 0 and dy == 0:
+                continue
+
+            if not include_diag:
+                if abs(dx) == 1 and abs(dy) == 1:
+                    continue
+            
+            p = (x + dx, y + dy)
+
+            if p[0] >= 0 and p[0] < matrix.shape[0] and p[1] >= 0 and p[1] < matrix.shape[1]:
+                ans.add(p)
+
+    return ans
 
 def normalize(position):
     """ Accepts `position` of arbitrary precision and returns the block
@@ -453,7 +453,7 @@ class Viewer3D(object):
         """
         # x, y, z = self.position
         # xrot, yrot = self.rotation
-        self.label.text = 'Lg. λ: {:.2f}'.format(np.log10(env.config["reward_lambda"]))
+        self.label.text = 'Lg. λ: {:.2f}'.format(np.log10(env.rewarder.params["lambda"]))
         # self.label.text = '(%.2f, %.2f, %.2f) (%.2f, %.2f) %d / %d : %d'  % (
         #     z, x, y, xrot, yrot,
         #     len(self._shown), len(self.world), counter_3d)
@@ -582,7 +582,8 @@ def render_env(env, mode, dt):
     glColor3d(1, 1, 1)
     
     # render other vessels
-    for obsvessel in env.vessel_obstacles:
+    vessel_obstacles = (obst for obst in env.obstacles if not obst.static)
+    for obsvessel in vessel_obstacles:
         glTranslatef(obsvessel.position[1], -1, obsvessel.position[0])
         glRotatef(-90, 1, 0, 0)
         glRotatef(90 + obsvessel.heading*180/np.pi, 0, 0, 1)
@@ -682,7 +683,7 @@ def save_boatmodel(width, env):
         material.vertices = tuple((x*boat_scale for x in material.vertices))
     return boat_scale
     
-def init_boat(env):
+def init_boat_model(env):
     if env.vessel.width not in env.viewer3d.boat_models:
         boat_scale = save_boatmodel(env.vessel.width, env)
         #print('Initialized 3D vessel model, scale factor is {:.4f}'.format(boat_scale))

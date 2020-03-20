@@ -3,13 +3,24 @@ import shapely.geometry
 import shapely.affinity
 import gym_auv.utils.geomutils as geom
 
-class BaseObstacle():
+class Obstacle():
     def __init__(self):
-        self.valid = True
         self.last_distance = 0
         self.virtual_boundary = []
+        self.boundary = None
+        self.static = None
 
-class CircularObstacle(BaseObstacle):
+    @property
+    def valid(self):
+        return self.boundary.is_valid
+
+    def update(self, dt):
+        pass
+
+    def _calculate_boundary(self):
+        pass
+
+class CircularObstacle(Obstacle):
     def __init__(self, position, radius, color=(0.6, 0, 0)):
         super().__init__()
         self.color = color
@@ -20,13 +31,12 @@ class CircularObstacle(BaseObstacle):
         self.static = True
         self.radius = radius
         self.position = position.flatten()
-        self.boundary = None
-        self.calculate_boundary()
+        self._calculate_boundary()
 
-    def calculate_boundary(self):
-        self.boundary = shapely.geometry.Point(*self.position).buffer(self.radius).boundary
+    def _calculate_boundary(self):
+        self.boundary = shapely.geometry.Point(*self.position).buffer(self.radius).boundary.simplify(0.3, preserve_topology=False)
 
-class PolygonObstacle(BaseObstacle):
+class PolygonObstacle(Obstacle):
     def __init__(self, points, color=(0.6, 0, 0)):
         super().__init__()
         self.static = True
@@ -34,7 +44,7 @@ class PolygonObstacle(BaseObstacle):
         self.points = points
         self.boundary = shapely.geometry.Polygon(points)
 
-class VesselObstacle(BaseObstacle):
+class VesselObstacle(Obstacle):
     def __init__(self, width, trajectory, name=''):
         super().__init__()
         self.static = False
@@ -90,9 +100,9 @@ class VesselObstacle(BaseObstacle):
 
         #print('OBS', self.position, self.heading)
 
-        self.calculate_boundary()
+        self._calculate_boundary()
 
-    def calculate_boundary(self):
+    def _calculate_boundary(self):
         ship_angle = self.heading# float(geom.princip(self.heading))
 
         boundary_temp = shapely.geometry.Polygon(self.points)
