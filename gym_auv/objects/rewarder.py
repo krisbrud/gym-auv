@@ -47,7 +47,7 @@ class ColavRewarder(BaseRewarder):
   
     def reset(self, vessel):
         super().reset(vessel)
-        self.params['lambda'] =  _sample_lambda(scale=2)
+        self.params['lambda'] =  _sample_lambda(scale=0.2)
         self.params['eta'] = _sample_eta()
     
     def calculate(self):
