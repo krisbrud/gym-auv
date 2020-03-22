@@ -113,8 +113,8 @@ class Vessel():
         'surge_velocity',
         'sway_velocity',
         'yaw_rate',
-        'look_ahead_course_error',
-        'course_error',
+        'look_ahead_heading_error',
+        'heading_error',
         'cross_track_error'
     ]
 
@@ -352,36 +352,39 @@ class Vessel():
         )[1]
 
         # Calculating tangential path direction at look-ahead point
-        look_ahead_path_direction = path.get_direction(vessel_arclength + self.config["look_ahead_distance"]*path.length) 
-        look_ahead_course_error = float(geom.princip(look_ahead_path_direction - self.course))
+        target_arclength = vessel_arclength + self.config["look_ahead_distance"]
+        look_ahead_path_direction = path.get_direction(target_arclength) 
+        look_ahead_heading_error = float(geom.princip(look_ahead_path_direction - self.heading))
 
         # Calculating vector difference between look-ahead point and vessel position
-        target_vector = path(vessel_arclength) - self.position
+        target_vector = path(target_arclength) - self.position
 
         # Calculating heading error
         target_heading = np.arctan2(target_vector[1], target_vector[0])
-        course_error = float(geom.princip(target_heading - self.course))
+        heading_error = float(geom.princip(target_heading - self.heading))
+
+        # Calculating path progress
+        progress = vessel_arclength/path.length
 
         # Concatenating states
         self.last_navi_state_dict = {
             'surge_velocity': self.velocity[0],
             'sway_velocity': self.velocity[1],
             'yaw_rate': self.yawrate,
-            'look_ahead_course_error': look_ahead_course_error,
-            'course_error': course_error,
-            'cross_track_error': cross_track_error/path.length,
+            'look_ahead_heading_error': look_ahead_heading_error,
+            'heading_error': heading_error,
+            'cross_track_error': cross_track_error/100,
             'target_heading': target_heading,
             'look_ahead_path_direction': look_ahead_path_direction,
-            'path_direction': path_direction
+            'path_direction': path_direction,
+            'vessel_arclength': vessel_arclength,
+            'target_arclength': target_arclength
         }
         navigation_states = np.array([self.last_navi_state_dict[state] for state in Vessel.NAVIGATION_STATES])
 
         # Deciding if vessel has reached the goal
         goal_distance = linalg.norm(path.end - self.position)
         reached_goal = goal_distance <= self.config["min_goal_distance"]
-        
-        # Calculating path progress
-        progress = vessel_arclength/path.length
 
         return (navigation_states, reached_goal, progress)
 

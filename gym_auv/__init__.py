@@ -25,7 +25,7 @@ DEFAULT_CONFIG = {
 
     # ---- VESSEL ---- #
     "vessel_width": 4.0,                            # Width of vessel [m]
-    "look_ahead_distance": 0.1,                     # Path look-ahead distance for vessel as percentage of path length
+    "look_ahead_distance": 100,                     # Path look-ahead distance for vessel [m]
     "sensor_interval_load_obstacles": 25,           # Interval for loading nearby obstacles
     "n_sensors_per_sector": 29,                     # Number of rangefinder sensors within each sector
     "n_sectors": 9,                                 # Number of sensor sectors

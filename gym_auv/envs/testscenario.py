@@ -116,7 +116,7 @@ class TestScenario4(ASV_Scenario):
 class EmptyScenario(ASV_Scenario):
 
     def _generate(self):
-        waypoints = np.vstack([[25, 10], [25, 40]]).T
+        waypoints = np.vstack([[25, 10], [25, 200]]).T
         self.path = Path(waypoints)
 
         init_pos = self.path(0)

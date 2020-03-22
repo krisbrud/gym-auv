@@ -16,7 +16,7 @@ class MovingObstacles(ASV_Scenario):
     def _generate(self):
         # Initializing path
         nwaypoints = int(np.floor(4*self.rng.rand() + 2))
-        self.path = RandomCurveThroughOrigin(nwaypoints, length=800)
+        self.path = RandomCurveThroughOrigin(self.rng, nwaypoints, length=800)
 
         # Initializing vessel
         init_pos = self.path(0)

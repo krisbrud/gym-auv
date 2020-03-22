@@ -437,10 +437,10 @@ def _render_sensors(env):
         env.viewer2d.draw_line(p0, p1, color=(redness, greenness, blueness, alpha))
 
 def _render_progress(env):
-    progress_point = env.path(env.max_path_prog).flatten()
-    env.viewer2d.draw_circle(origin=progress_point, radius=1, res=30, color=(0.8, 0.3, 0.3))
+    ref_point = env.path(env.vessel.last_navi_state_dict['vessel_arclength']).flatten()
+    env.viewer2d.draw_circle(origin=ref_point, radius=1, res=30, color=(0.8, 0.3, 0.3))
     
-    target_point = env.path(env.target_arclength).flatten()
+    target_point = env.path(env.vessel.last_navi_state_dict['target_arclength']).flatten()
     env.viewer2d.draw_circle(origin=target_point, radius=1, res=30, color=(0.3, 0.8, 0.3))
 
 def _render_obstacles(env):
@@ -547,8 +547,8 @@ def render_env(env, mode):
         _render_vessel(env)
         _render_tiles(env, win)
         _render_obstacles(env)
-            # if env.path is not None:
-            #     _render_progress(env)
+        if env.path is not None:
+            _render_progress(env)
         #_render_interceptions(env)
 
         # Visualise path error (DEBUGGING)

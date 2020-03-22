@@ -52,7 +52,7 @@ class ASV_Scenario(gym.Env):
         self.rewarder = ColavRewarder()
 
         # Declaring attributes
-        self.obstacles = None
+        self.obstacles = []
         self.vessel = None
         self.path = None
         
