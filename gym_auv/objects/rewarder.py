@@ -27,11 +27,23 @@ class BaseRewarder:
         Returns
         -------
         reward : float
-            The reward for performing action at his timestep.
+            The reward for performing action at this timestep.
         info : dict
             Dictionary with extra information.
         """
         raise NotImplementedError
+
+    def insight(self):
+        """
+        Returns a numpy array with reward parameters for the agent
+        to have an insight into its reward function
+
+        Returns
+        -------
+        insight : np.array
+            The reward insight array at this timestep.
+        """
+        return np.array([])
 
 class ColavRewarder(BaseRewarder):
     def __init__(self):
@@ -48,7 +60,7 @@ class ColavRewarder(BaseRewarder):
     def reset(self, vessel):
         super().reset(vessel)
         self.params['lambda'] =  _sample_lambda(scale=0.2)
-        self.params['eta'] = _sample_eta()
+        #self.params['eta'] = _sample_eta()
     
     def calculate(self):
         nav_states = self.vessel.last_navi_state_dict
@@ -82,17 +94,22 @@ class ColavRewarder(BaseRewarder):
             closeness_reward = 0
 
         # Calculating living penalty
-        living_penalty = self.params['lambda']*(2*self.params["neutral_speed"]+1) + self.params["eta"]*self.params["neutral_speed"]
+        living_penalty = self.params['lambda']*(2*self.params["neutral_speed"]+1) #+ self.params["eta"]*self.params["neutral_speed"]
         
         # Calculating total reward
         reward = self.params['lambda']*path_reward + \
             (1-self.params['lambda'])*closeness_reward - \
-            living_penalty + \
-            self.params["eta"]*self.vessel.speed/self.vessel.max_speed - \
-            self.params["penalty_yawrate"]*abs(self.vessel.yawrate) - \
-            self.params["penalty_torque_change"]*abs(self.vessel.smoothed_torque_change)
+            living_penalty
+            #self.params["eta"]*self.vessel.speed/self.vessel.max_speed - \
+            #self.params["penalty_yawrate"]*abs(self.vessel.yawrate) - \
+            #self.params["penalty_torque_change"]*abs(self.vessel.smoothed_torque_change)
 
         if reward < 0:
             reward *= self.params['negative_multiplier']
 
         return reward
+
+    def insight(self):
+        return np.array([
+            np.log10(self.params['lambda'])
+        ])

@@ -144,10 +144,11 @@ class ASV_Scenario(gym.Env):
         raise NotImplementedError
 
     def observe(self):
+        reward_insight = self.rewarder.insight()
         navigation_states, reached_goal, progress = self.vessel.navigate(self.path)
         sector_closenesses, sector_velocities, collision = self.vessel.perceive(self.obstacles)
 
-        obs = np.concatenate([navigation_states, sector_closenesses, sector_velocities])
+        obs = np.concatenate([reward_insight, navigation_states, sector_closenesses, sector_velocities])
         return (obs, collision, reached_goal, progress) 
 
     def step(self, action):
