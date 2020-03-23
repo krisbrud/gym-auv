@@ -18,6 +18,7 @@ DEFAULT_CONFIG = {
     "min_cumulative_reward": -2000,                 # Minimum cumulative reward received before episode ends
     "max_timesteps": 10000,                         # Maximum amount of timesteps before episode ends
     "min_goal_distance": 5,                         # Minimum aboslute distance to the goal position before episode ends
+    "min_path_progress": 0.99,                      # Minimum path progress before scenario is considered successful and the episode ended
     
     # ---- SIMULATION ---- #
     "t_step_size": 1.0,                             # Length of simulation timestep [s]

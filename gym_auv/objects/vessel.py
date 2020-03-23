@@ -418,7 +418,7 @@ class Vessel():
 
         # Deciding if vessel has reached the goal
         goal_distance = linalg.norm(path.end - self.position)
-        reached_goal = goal_distance <= self.config["min_goal_distance"]
+        reached_goal = goal_distance <= self.config["min_goal_distance"] or progress >= self.config["min_path_progress"]
         self._reached_goal = reached_goal
 
         return navigation_states

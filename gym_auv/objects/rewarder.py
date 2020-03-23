@@ -56,7 +56,7 @@ class ColavRewarder(BaseRewarder):
         self.params['cruise_speed'] = 0.1
         self.params['neutral_speed'] = 0.1
         self.params['negative_multiplier'] = 2.0
-        self.params['collision'] = -2000.0
+        self.params['collision'] = -10000.0
         self.params['lambda'] =  _sample_lambda(scale=0.2)
         self.params['eta'] = _sample_eta()
     
@@ -67,7 +67,8 @@ class ColavRewarder(BaseRewarder):
         collision = latest_data['collision']
 
         if collision:
-            return self.params["collision"]*(1-self.params["lambda"])   
+            reward = self.params["collision"]*(1-self.params["lambda"])
+            return reward
          
         reward = 0
 
