@@ -2,16 +2,15 @@
 This module implements an AUV that is simulated in the horizontal plane.
 """
 import numpy as np
-from numba import jit
 import numpy.linalg as linalg
 from itertools import islice, chain, repeat
 import shapely.geometry, shapely.errors, shapely.strtree, shapely.ops, shapely.prepared
 
 import gym_auv.utils.constants as const
 import gym_auv.utils.geomutils as geom
-from gym_auv.objects.obstacles import *
+from gym_auv.objects.path import Path
 
-def odesolver45(f, y, h):
+def _odesolver45(f, y, h):
     """Calculate the next step of an IVP of a time-invariant ODE with a RHS
     described by f, with an order 4 approx. and an order 5 approx.
     Parameters:
@@ -42,7 +41,6 @@ def _standardize_intersect(intersect):
     else:
         return list(intersect.geoms)
 
-@jit(nopython=True)
 def _feasibility_pooling(x, width, theta):
     N_sensors = x.shape[0]
     sort_idx = np.argsort(x)
@@ -105,11 +103,8 @@ def _simulate_sensor(sensor_angle, p0_point, sensor_range, obstacles):
     return (measured_distance, obst_speed_vec_rel)
 
 class Vessel():
-    """
-    Creates an environment with a vessel, goal and obstacles.
-    """
 
-    NAVIGATION_STATES = [
+    NAVIGATION_FEATURES = [
         'surge_velocity',
         'sway_velocity',
         'yaw_rate',
@@ -118,198 +113,235 @@ class Vessel():
         'cross_track_error'
     ]
 
-    def __init__(self, config, init_pos, width=4):
+    def __init__(self, config:dict, init_state:np.ndarray, width:float=4) -> None:
         """
-        The __init__ method declares all class atributes.
+        Initializes and resets the vessel.
 
         Parameters
         ----------
-        init_pos : np.array
-            The initial position of the veHssel [x, y, psi], where
+        config : dict
+            Dictionary containing the configuration parameters for
+            the vessel
+        init_state : np.ndarray
+            The initial attitude of the veHssel [x, y, psi], where
             psi is the initial heading of the AUV.
         width : float
-            The maximum distance from the center of the AUV to its edge
-            in meters. Defaults to 2.
+            The distance from the center of the AUV to its edge
+            in meters.
         """
         
         self.config = config
-        self.width = width
 
-        # Initializing attributes
-        self.n_sectors = self.config["n_sectors"]
-        self.n_sensors = self.config["n_sensors_per_sector"]*self.config["n_sectors"]
-        self.sensor_range = self.config["sensor_range"]
-        self.d_sensor_angle = 2*np.pi/(self.n_sensors)
-        self.sensor_angles = np.array([-np.pi + (i + 1)*self.d_sensor_angle for i in range(self.n_sensors)])
-        self.sector_angles = []
-        self.n_sensors_per_sector = [0]*self.n_sectors
-        self.sector_start_indeces = [0]*self.n_sectors
-        self.sector_end_indeces = [0]*self.n_sectors
-        self.sensor_internal_indeces = []
+        # Initializing private attributes
+        self._width = width
+        self._n_sectors = self.config["n_sectors"]
+        self._n_sensors = self.config["n_sensors_per_sector"]*self.config["n_sectors"]
+        self._d_sensor_angle = 2*np.pi/(self._n_sensors)
+        self._sensor_angles = np.array([-np.pi + (i + 1)*self._d_sensor_angle for i in range(self._n_sensors)])
+        self._sector_angles = []
+        self._n_sensors_per_sector = [0]*self._n_sectors
+        self._sector_start_indeces = [0]*self._n_sectors
+        self._sector_end_indeces = [0]*self._n_sectors
+        self._sensor_internal_indeces = []
         self._sensor_interval = max(1, int(1/self.config["sensor_frequency"]))
 
         # Calculating sensor partitioning
         last_isector = -1
         tmp_sector_angle_sum = 0
         tmp_sector_sensor_count = 0
-        for isensor in range(self.n_sensors):
+        for isensor in range(self._n_sensors):
             isector = self.config["sector_partition_fun"](self, isensor)
-            angle = self.sensor_angles[isensor]
+            angle = self._sensor_angles[isensor]
             if isector == last_isector:
                 tmp_sector_angle_sum += angle
                 tmp_sector_sensor_count += 1
             else:
                 if last_isector > -1:
-                    self.sector_angles.append(tmp_sector_angle_sum/tmp_sector_sensor_count)
+                    self._sector_angles.append(tmp_sector_angle_sum/tmp_sector_sensor_count)
                 last_isector = isector
-                self.sector_start_indeces[isector] = isensor
+                self._sector_start_indeces[isector] = isensor
                 tmp_sector_angle_sum = angle
                 tmp_sector_sensor_count = 1
-            self.n_sensors_per_sector[isector] += 1
-        self.sector_angles.append(tmp_sector_angle_sum/tmp_sector_sensor_count)
-        self.sector_angles = np.array(self.sector_angles)
+            self._n_sensors_per_sector[isector] += 1
+        self._sector_angles.append(tmp_sector_angle_sum/tmp_sector_sensor_count)
+        self._sector_angles = np.array(self._sector_angles)
 
-        for isensor in range(self.n_sensors):
+        for isensor in range(self._n_sensors):
             isector = self.config["sector_partition_fun"](self, isensor)
-            isensor_internal = isensor - self.sector_start_indeces[isector]
-            self.sensor_internal_indeces.append(isensor_internal)
+            isensor_internal = isensor - self._sector_start_indeces[isector]
+            self._sensor_internal_indeces.append(isensor_internal)
 
-        for isector in range(self.n_sectors):
-            self.sector_end_indeces[isector] = self.sector_start_indeces[isector] + self.n_sensors_per_sector[isector]
+        for isector in range(self._n_sectors):
+            self._sector_end_indeces[isector] = self._sector_start_indeces[isector] + self._n_sensors_per_sector[isector]
 
         # Calculating feasible closeness
         if self.config["sensor_log_transform"]:
-            self._get_closeness = lambda x: 1 - np.clip(np.log(1 + x)/np.log(1 + self.sensor_range), 0, 1)
+            self._get_closeness = lambda x: 1 - np.clip(np.log(1 + x)/np.log(1 + self.config["sensor_range"]), 0, 1)
         else:
-            self._get_closeness = lambda x: 1 - np.clip(x/self.sensor_range, 0, 1)
+            self._get_closeness = lambda x: 1 - np.clip(x/self.config["sensor_range"], 0, 1)
 
         # Initializing vessel to initial position
-        self.reset(init_pos)
+        self.reset(init_state)
 
-    def reset(self, init_pos, init_speed=None):
-        if init_speed is None:
-            init_speed = [0, 0, 0]
-        init_pos = np.array(init_pos, dtype=np.float64)
+    @property
+    def width(self) -> float:
+        """Width of vessel in meters."""
+        return self._width
+
+    @property
+    def position(self) -> np.ndarray:
+        """Returns an array holding the position of the AUV in cartesian
+        coordinates."""
+        return self._state[0:2]
+
+    @property
+    def path_taken(self) -> np.ndarray:
+        """Returns an array holding the path of the AUV in cartesian
+        coordinates."""
+        return self._prev_states[:, 0:2]
+
+    @property
+    def heading(self) -> float:
+        """Returns the heading of the AUV with respect to true north."""
+        return self._state[2]
+
+    @property
+    def velocity(self) -> np.ndarray:
+        """Returns the surge and sway velocity of the AUV."""
+        return self._state[3:5]
+
+    @property
+    def speed(self) -> float:
+        """Returns the speed of the AUV."""
+        return linalg.norm(self.velocity)
+
+    @property
+    def yaw_rate(self) -> float:
+        """Returns the rate of rotation about the z-axis."""
+        return self._state[5]
+
+    @property
+    def max_speed(self) -> float:
+        """Returns the maximum speed of the AUV."""
+        return const.MAX_SPEED
+
+    @property
+    def course(self) -> float:
+        """Returns the course angle of the AUV with respect to true north."""
+        crab_angle = np.arctan2(self.velocity[1], self.velocity[0])
+        return self.heading + crab_angle
+
+    @property
+    def sensor_angles(self) -> np.ndarray:
+        """Array containg the angles each sensor ray relative to the vessel heading."""
+        return self._sensor_angles
+
+    @property
+    def sector_angles(self) -> np.ndarray:
+        """Array containg the angles of the center line of each sensor sector relative to the vessel heading."""
+        return self._sector_angles
+
+    def reset(self, init_state:np.ndarray) -> None:
+        """
+        Resets the vessel to the specified initial state.
+
+        Parameters
+        ----------
+        init_state : np.ndarray
+            The initial attitude of the veHssel [x, y, psi], where
+            psi is the initial heading of the AUV.
+        """
+        init_speed = [0, 0, 0]
+        init_state = np.array(init_state, dtype=np.float64)
         init_speed = np.array(init_speed, dtype=np.float64)
-        self._state = np.hstack([init_pos, init_speed])
-        self.prev_states = np.vstack([self._state])
-        self.input = [0, 0]
-        self.prev_inputs =np.vstack([self.input])
-        self.smoothed_torque_change = 0
-        self.smoothed_torque = 0
-        self.last_sensor_dist_measurements = np.ones((self.n_sensors,))*self.sensor_range
-        self.last_sensor_speed_measurements = np.zeros((self.n_sensors,2))
-        self.last_sector_dist_measurements = np.zeros((self.n_sectors,))
-        self.last_sector_feasible_dists = np.zeros((self.n_sectors,))
-        self.last_navi_state_dict = dict((state, 0) for state in Vessel.NAVIGATION_STATES)
-
-        self.sensor_endpoint = [None for isensor in range(self.n_sensors)]
+        self._state = np.hstack([init_state, init_speed])
+        self._prev_states = np.vstack([self._state])
+        self._input = [0, 0]
+        self._prev_inputs =np.vstack([self._input])
+        self._last_sensor_dist_measurements = np.ones((self._n_sensors,))*self.config["sensor_range"]
+        self._last_sensor_speed_measurements = np.zeros((self._n_sensors,2))
+        self._last_sector_dist_measurements = np.zeros((self._n_sectors,))
+        self._last_sector_feasible_dists = np.zeros((self._n_sectors,))
+        self._last_navi_state_dict = dict((state, 0) for state in Vessel.NAVIGATION_FEATURES)
+        self._collision = False
+        self._progress = 0
+        self._reached_goal = False
 
         self._step_counter = 0
         self._perceive_counter = 0
         self._nearby_obstacles = []
 
-    def step(self, action):
+    def step(self, action:list) -> None:
         """
-        Steps the vessel one step forward
+        Simulates the vessel one step forward after applying the given action.
 
         Parameters
         ----------
-        action : np.array
-            [propeller_input, rudder_position], where
-            0 <= propeller_input <= 1 and -1 <= rudder_position <= 1.
+        action : np.ndarray[thrust_input, torque_input]
         """
-        self.input = np.array([self._thrust_surge(action[0]), self._moment_steer(action[1])])
-        w, q = odesolver45(self._state_dot, self._state, self.config["t_step_size"])
+        self._input = np.array([self._thrust_surge(action[0]), self._moment_steer(action[1])])
+        w, q = _odesolver45(self._state_dot, self._state, self.config["t_step_size"])
         
         self._state = q
         self._state[2] = geom.princip(self._state[2])
 
-        self.prev_states = np.vstack([self.prev_states,self._state])
-        self.prev_inputs = np.vstack([self.prev_inputs,self.input])
-
-        torque_change = self.input[1] - self.prev_inputs[-2, 1] if len(self.prev_inputs) > 1 else self.input[1]
-        self.smoothed_torque_change = 0.9*self.smoothed_torque_change + 0.1*abs(torque_change)
-        self.smoothed_torque = 0.9*self.smoothed_torque + 0.1*abs(self.input[1])
+        self._prev_states = np.vstack([self._prev_states,self._state])
+        self._prev_inputs = np.vstack([self._prev_inputs,self._input])
 
         self._step_counter += 1
 
-    def _state_dot(self, state):
-        psi = state[2]
-        nu = state[3:]
-
-        tau = np.array([self.input[0], 0, self.input[1]])
-
-        eta_dot = geom.Rzyx(0, 0, geom.princip(psi)).dot(nu)
-        nu_dot = const.M_inv.dot(
-            tau
-            #- const.D.dot(nu)
-            - const.N(nu).dot(nu)
-        )
-        state_dot = np.concatenate([eta_dot, nu_dot])
-        return state_dot
-
-    def _thrust_surge(self, surge):
-        surge = np.clip(surge, 0, 1)
-        return surge*const.THRUST_MAX_AUV
-
-    def _moment_steer(self, steer):
-        steer = np.clip(steer, -1, 1)
-        return steer*const.MOMENT_MAX_AUV
-
-    def perceive(self, obstacles):
+    def perceive(self, obstacles:list) -> (np.ndarray, np.ndarray):
         """
-        Calculates and returns the sensor-based observation array of the environment, 
-        as well as whether the vessel has collided.
+        Simulates the sensor suite and returns observation arrays of the environment.
         
         Returns
         -------
-        obs : np.array
-        collision : bool
-        (sector_closenesses, sector_velocities, collision, sector_feasible_distances)
+        sector_closenesses : np.ndarray
+        sector_velocities : np.ndarray
         """
 
         # Initializing variables
+        sensor_range = self.config["sensor_range"]
         p0_point = shapely.geometry.Point(*self.position)
 
         # Loading nearby obstacles, i.e. obstacles within the vessel's detection range
         if self._step_counter % self.config["sensor_interval_load_obstacles"] == 0:
             self._nearby_obstacles = list(filter(
-                lambda obst: float(p0_point.distance(obst.boundary)) - self.width < self.sensor_range, obstacles
+                lambda obst: float(p0_point.distance(obst.boundary)) - self._width < sensor_range, obstacles
             ))
 
         if not self._nearby_obstacles:
-            self.last_sensor_dist_measurements = np.ones((self.n_sensors,))*self.sensor_range
-            sector_feasible_distances = np.ones((self.n_sectors,))*self.sensor_range
-            sector_closenesses = np.zeros((self.n_sectors,))
-            sector_velocities = np.zeros((2*self.n_sectors,))
+            self._last_sensor_dist_measurements = np.ones((self._n_sensors,))*sensor_range
+            sector_feasible_distances = np.ones((self._n_sectors,))*sensor_range
+            sector_closenesses = np.zeros((self._n_sectors,))
+            sector_velocities = np.zeros((2*self._n_sectors,))
             collision = False
 
         else:
             # Simulating all sensors using _simulate_sensor subroutine
-            sensor_angles_ned = self.sensor_angles + self.heading
+            sensor_angles_ned = self._sensor_angles + self.heading
             activate_sensor = lambda i: (i % self._sensor_interval) == (self._perceive_counter % self._sensor_interval)
-            sensor_sim_args = (p0_point, self.sensor_range, self._nearby_obstacles)
+            sensor_sim_args = (p0_point, sensor_range, self._nearby_obstacles)
             sensor_output_arrs = list(map(
                 lambda i: _simulate_sensor(sensor_angles_ned[i], *sensor_sim_args) if activate_sensor(i) else (
-                    self.last_sensor_dist_measurements[i],
-                    self.last_sensor_speed_measurements[i]
+                    self._last_sensor_dist_measurements[i],
+                    self._last_sensor_speed_measurements[i]
                 ), 
-                range(self.n_sensors)
+                range(self._n_sensors)
             ))
             sensor_dist_measurements, sensor_speed_measurements = zip(*sensor_output_arrs)
             sensor_dist_measurements = np.array(sensor_dist_measurements)
             sensor_speed_measurements = np.array(sensor_speed_measurements)
-            self.last_sensor_dist_measurements = sensor_dist_measurements
-            self.last_sensor_speed_measurements = sensor_speed_measurements
+            self._last_sensor_dist_measurements = sensor_dist_measurements
+            self._last_sensor_speed_measurements = sensor_speed_measurements
 
             # Partitioning sensor readings into sectors
-            sector_dist_measurements = np.split(sensor_dist_measurements, self.sector_start_indeces[1:])
-            sector_speed_measurements = np.split(sensor_speed_measurements, self.sector_start_indeces[1:], axis=0)
+            sector_dist_measurements = np.split(sensor_dist_measurements, self._sector_start_indeces[1:])
+            sector_speed_measurements = np.split(sensor_speed_measurements, self._sector_start_indeces[1:], axis=0)
 
             # Performing feasibility pooling
             sector_feasible_distances = np.array(list(
-                map(lambda x: _feasibility_pooling(x, self.width, self.d_sensor_angle), sector_dist_measurements)
+                map(lambda x: _feasibility_pooling(x, self._width, self._d_sensor_angle), sector_dist_measurements)
             ))
 
             # Calculating feasible closeness
@@ -318,28 +350,29 @@ class Vessel():
             # Retrieving obstacle speed for closest obstacle within each sector
             closest_obst_sensor_indeces = list(map(np.argmin, sector_dist_measurements))
             sector_velocities = np.concatenate(
-                [sector_speed_measurements[i][closest_obst_sensor_indeces[i]] for i in range(self.n_sectors)]
+                [sector_speed_measurements[i][closest_obst_sensor_indeces[i]] for i in range(self._n_sectors)]
             )
 
             # Testing if vessel has collided
             collision = any(
-                float(p0_point.distance(obst.boundary)) - self.width <= 0 for obst in self._nearby_obstacles
+                float(p0_point.distance(obst.boundary)) - self._width <= 0 for obst in self._nearby_obstacles
             )
 
-        self.last_sector_dist_measurements = sector_closenesses
-        self.last_sector_feasible_dists = sector_feasible_distances
+        self._last_sector_dist_measurements = sector_closenesses
+        self._last_sector_feasible_dists = sector_feasible_distances
+        self._collision = collision
         self._perceive_counter += 1
 
-        return (sector_closenesses, sector_velocities, collision)
+        return (sector_closenesses, sector_velocities)
 
-    def navigate(self, path):
+    def navigate(self, path:Path) -> np.ndarray:
         """
         Calculates and returns navigation states representing the vessel's attitude
         with respect to the desired path.
         
         Returns
         -------
-        states : np.array
+        navigation_states : np.ndarray
         """
 
         # Calculating path arclength at reference point, i.e. the point closest to the vessel
@@ -365,12 +398,13 @@ class Vessel():
 
         # Calculating path progress
         progress = vessel_arclength/path.length
+        self._progress = progress
 
         # Concatenating states
-        self.last_navi_state_dict = {
+        self._last_navi_state_dict = {
             'surge_velocity': self.velocity[0],
             'sway_velocity': self.velocity[1],
-            'yaw_rate': self.yawrate,
+            'yaw_rate': self.yaw_rate,
             'look_ahead_heading_error': look_ahead_heading_error,
             'heading_error': heading_error,
             'cross_track_error': cross_track_error/100,
@@ -380,99 +414,47 @@ class Vessel():
             'vessel_arclength': vessel_arclength,
             'target_arclength': target_arclength
         }
-        navigation_states = np.array([self.last_navi_state_dict[state] for state in Vessel.NAVIGATION_STATES])
+        navigation_states = np.array([self._last_navi_state_dict[state] for state in Vessel.NAVIGATION_FEATURES])
 
         # Deciding if vessel has reached the goal
         goal_distance = linalg.norm(path.end - self.position)
         reached_goal = goal_distance <= self.config["min_goal_distance"]
+        self._reached_goal = reached_goal
 
-        return (navigation_states, reached_goal, progress)
+        return navigation_states
 
-    @property
-    def position(self):
-        """
-        Returns an array holding the position of the AUV in cartesian
-        coordinates.
-        """
-        return self._state[0:2]
+    def req_latest_data(self) -> dict:
+        """Returns dictionary containing the most recent perception and navigation
+        states."""
+        return {
+            'distance_measurements': self._last_sensor_dist_measurements,
+            'speed_measurements': self._last_sensor_speed_measurements,
+            'feasible_distances': self._last_sector_feasible_dists,
+            'navigation': self._last_navi_state_dict,
+            'collision' : self._collision,
+            'progress': self._progress,
+            'reached_goal': self._reached_goal
+        }
 
-    @property
-    def x(self):
-        return self.position[0]
+    def _state_dot(self, state):
+        psi = state[2]
+        nu = state[3:]
 
-    @property
-    def y(self):
-        return self.position[1]
+        tau = np.array([self._input[0], 0, self._input[1]])
 
-    @property
-    def init_position(self):
-        """
-        Returns an array holding the path of the AUV in cartesian
-        coordinates.
-        """
-        return self.prev_states[-1, 0:2]
+        eta_dot = geom.Rzyx(0, 0, geom.princip(psi)).dot(nu)
+        nu_dot = const.M_inv.dot(
+            tau
+            #- const.D.dot(nu)
+            - const.N(nu).dot(nu)
+        )
+        state_dot = np.concatenate([eta_dot, nu_dot])
+        return state_dot
 
-    @property
-    def path_taken(self):
-        """
-        Returns an array holding the path of the AUV in cartesian
-        coordinates.
-        """
-        return self.prev_states[:, 0:2]
+    def _thrust_surge(self, surge):
+        surge = np.clip(surge, 0, 1)
+        return surge*const.THRUST_MAX_AUV
 
-    @property
-    def heading(self):
-        """
-        Returns the heading of the AUV wrt true north.
-        """
-        return self._state[2]
-
-    @property
-    def heading_history(self):
-        """
-        Returns the heading of the AUV wrt true north.
-        """
-        return self.prev_states[:, 2]
-
-    @property
-    def heading_change(self):
-        """
-        Returns the change of heading of the AUV wrt true north.
-        """
-        return geom.princip(self.prev_states[-1, 2] - self.prev_states[-2, 2]) if len(self.prev_states) >= 2 else self.heading
-
-    @property
-    def velocity(self):
-        """
-        Returns the surge and sway velocity of the AUV.
-        """
-        return self._state[3:5]
-
-    @property
-    def speed(self):
-        """
-        Returns the surge and sway velocity of the AUV.
-        """
-        return linalg.norm(self.velocity)
-
-    @property
-    def yawrate(self):
-        """
-        Returns the rate of rotation about the z-axis.
-        """
-        return self._state[5]
-
-    @property
-    def max_speed(self):
-        """
-        Returns the max speed of the AUV.
-        """
-        return const.MAX_SPEED
-
-    @property
-    def crab_angle(self):
-        return np.arctan2(self.velocity[1], self.velocity[0])
-
-    @property
-    def course(self):
-        return self.heading + self.crab_angle
+    def _moment_steer(self, steer):
+        steer = np.clip(steer, -1, 1)
+        return steer*const.MOMENT_MAX_AUV

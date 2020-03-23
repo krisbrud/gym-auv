@@ -5,13 +5,13 @@ import gym_auv.utils.helpers as helpers
 from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.path import RandomCurveThroughOrigin, Path
 from gym_auv.objects.obstacles import PolygonObstacle, VesselObstacle, CircularObstacle
-from gym_auv.environment import ASV_Scenario
+from gym_auv.environment import BaseEnvironment
 import shapely.geometry, shapely.errors
 
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-class MovingObstacles(ASV_Scenario):
+class MovingObstacles(BaseEnvironment):
 
     def _generate(self):
         # Initializing path
@@ -19,12 +19,12 @@ class MovingObstacles(ASV_Scenario):
         self.path = RandomCurveThroughOrigin(self.rng, nwaypoints, length=800)
 
         # Initializing vessel
-        init_pos = self.path(0)
+        init_state = self.path(0)
         init_angle = self.path.get_direction(0)
-        init_pos[0] += 50*(self.rng.rand()-0.5)
-        init_pos[1] += 50*(self.rng.rand()-0.5)
+        init_state[0] += 50*(self.rng.rand()-0.5)
+        init_state[1] += 50*(self.rng.rand()-0.5)
         init_angle = geom.princip(init_angle + 2*np.pi*(self.rng.rand()-0.5))
-        self.vessel = Vessel(self.config, np.hstack([init_pos, init_angle]), width=self.config["vessel_width"])
+        self.vessel = Vessel(self.config, np.hstack([init_state, init_angle]), width=self.config["vessel_width"])
         prog = 0
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog

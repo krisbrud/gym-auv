@@ -7,11 +7,10 @@ from gym_auv.objects.rewarder import *
 
 import gym_auv.rendering.render2d as render2d
 import gym_auv.rendering.render3d as render3d
+from abc import ABC, abstractmethod
 
-class ASV_Scenario(gym.Env):
-    """
-    Creates an environment with a vessel and a path.
-    """
+class BaseEnvironment(gym.Env, ABC):
+    """Creates an environment with a vessel and a path."""
 
     metadata = {
         'render.modes': ['human', 'rgb_array', 'state_pixels'],
@@ -19,8 +18,7 @@ class ASV_Scenario(gym.Env):
     }
 
     def __init__(self, env_config, test_mode=False, render_mode='2d', verbose=False):
-        """
-        The __init__ method declares all class atributes and calls
+        """The __init__ method declares all class atributes and calls
         the self.reset() to intialize them properly.
 
         Parameters
@@ -43,13 +41,14 @@ class ASV_Scenario(gym.Env):
         self.config = env_config
         
         # Setting dimension of observation vector
-        self.n_observations = len(Vessel.NAVIGATION_STATES) + 3*self.config["n_sectors"]
+        self.n_observations = len(Vessel.NAVIGATION_FEATURES) + 3*self.config["n_sectors"]
 
         self.episode = 0
         self.total_t_steps = 0
         self.t_step = 0
+        self.cumulative_reward = 0
         self.history = []
-        self.rewarder = ColavRewarder()
+        self.rewarder = None
 
         # Declaring attributes
         self.obstacles = []
@@ -59,26 +58,25 @@ class ASV_Scenario(gym.Env):
         self.reached_goal = None
         self.collision = None
         self.progress = None
-        self.cumulative_reward = None
         self.last_reward = None
         self.last_episode = None
         self.rng = None
         self._tmp_storage = None
 
-        self.action_space = gym.spaces.Box(
+        self._action_space = gym.spaces.Box(
             low=np.array([-1, -1]),
             high=np.array([1, 1]),
             dtype=np.float32
         )
-        self.observation_space = gym.spaces.Box(
+        self._observation_space = gym.spaces.Box(
             low=np.array([-1]*self.n_observations),
             high=np.array([1]*self.n_observations),
             dtype=np.float32
         )
 
         # Initializing rendering
-        self.viewer2d = None
-        self.viewer3d = None
+        self._viewer2d = None
+        self._viewer3d = None
         if self.render_mode == '2d' or self.render_mode == 'both':
             render2d.init_env_viewer(self)
         if self.render_mode == '3d' or self.render_mode == 'both':
@@ -86,15 +84,26 @@ class ASV_Scenario(gym.Env):
 
         self.reset()
 
+    @property
+    def action_space(self) -> gym.spaces.Box:
+        """Array defining the shape and bounds of the agent's action."""
+        return self._action_space
+
+    @property
+    def observation_space(self) -> gym.spaces.Box:
+        """Array defining the shape and bounds of the agent's observations."""
+        return self._observation_space
+
     def reset(self):
-        """
-        Resets the environment by reseeding and calling self._generate.
+        """Reset the environment's state. Returns observation.
 
         Returns
         -------
-        obs : np.array
+        obs : np.ndarray
             The initial observation of the environment.
         """
+
+        if self.verbose: print('Resetting environment... Last reward was {:.2f}'.format(self.cumulative_reward))
 
         # Seeding
         if self.rng is None:
@@ -122,15 +131,15 @@ class ASV_Scenario(gym.Env):
         if self.verbose:    print('Generated scenario')
 
         # Resetting rewarder instance
-        self.rewarder.reset(self.vessel)
+        self.rewarder = ColavRewarder(self.vessel)
 
         # Initializing 3d viewer
         if self.render_mode == '3d':
             render3d.init_boat_model(self)
-            self.viewer3d.create_path(self.path)
+            self._viewer3d.create_path(self.path)
 
         # Getting initial observation vector
-        obs = self.observe()[0]
+        obs = self.observe()
         if self.verbose:    print('Calculated initial observation')
 
         # Resetting temporary data storage
@@ -140,29 +149,33 @@ class ASV_Scenario(gym.Env):
 
         return obs
 
-    def _generate(self):
-        raise NotImplementedError
+    def observe(self) -> np.ndarray:
+        """Returns the array of observations at the current time-step.
 
-    def observe(self):
+        Returns
+        -------
+        obs : np.ndarray
+            The observation of the environment.
+        """
         reward_insight = self.rewarder.insight()
-        navigation_states, reached_goal, progress = self.vessel.navigate(self.path)
-        sector_closenesses, sector_velocities, collision = self.vessel.perceive(self.obstacles)
+        navigation_states = self.vessel.navigate(self.path)
+        sector_closenesses, sector_velocities = self.vessel.perceive(self.obstacles)
 
         obs = np.concatenate([reward_insight, navigation_states, sector_closenesses, sector_velocities])
-        return (obs, collision, reached_goal, progress) 
+        return obs
 
-    def step(self, action):
+    def step(self, action:list) -> (np.ndarray, float, bool, dict):
         """
-        Simulates the environment for one timestep when action
-        is performed.
+        Steps the environment by one timestep. Returns observation, reward, done, info.
 
         Parameters
         ----------
-        action : np.array
+        action : np.ndarray
             [thrust_input, torque_input].
+
         Returns
         -------
-        obs : np.array
+        obs : np.ndarray
             Observation of the environment after action is performed.
         reward : double
             The reward for performing action at his timestep.
@@ -182,10 +195,11 @@ class ASV_Scenario(gym.Env):
         self.vessel.step(action)
 
         # Getting observation vector
-        obs, collision, reached_goal, progress = self.observe()
-        self.collision = collision
-        self.reached_goal = reached_goal
-        self.progress = progress
+        obs = self.observe()
+        vessel_data = self.vessel.req_latest_data()
+        self.collision = vessel_data['collision']
+        self.reached_goal = vessel_data['reached_goal']
+        self.progress = vessel_data['progress']
 
         # Receiving agent's reward
         reward = self.rewarder.calculate()
@@ -193,39 +207,48 @@ class ASV_Scenario(gym.Env):
         self.cumulative_reward += reward
 
         info = {}
-        info['collision'] = collision
-        info['reached_goal'] = reached_goal
-        info['progress'] = progress
+        info['collision'] = self.collision
+        info['reached_goal'] = self.reached_goal
+        info['progress'] = self.progress
 
         # Testing criteria for ending the episode
-        done = any([
-            collision,
-            reached_goal,
-            self.t_step > self.config["max_timesteps"],
-            self.cumulative_reward < self.config["min_cumulative_reward"]
-        ])
+        done = self._isdone()
 
         self._save_latest_step()
 
         self.t_step += 1
 
-        return obs, reward, done, info
+        return (obs, reward, done, info)
 
-    def _update(self):
-        dt = self.config["t_step_size"]
-        [obst.update(dt) for obst in self.obstacles if not obst.static]
+    def _isdone(self) -> bool:
+        return any([
+            self.collision,
+            self.reached_goal,
+            self.t_step > self.config["max_timesteps"],
+            self.cumulative_reward < self.config["min_cumulative_reward"]
+        ])
+
+    def _update(self) -> None:
+        """Updates the environment at each time-step. Can be customized in sub-classes."""
+        [obst.update(dt=self.config["t_step_size"]) for obst in self.obstacles if not obst.static]
+
+    @abstractmethod
+    def _generate(self) -> None:    
+        """Create new, stochastically genereated scenario. 
+        To be implemented in extensions of BaseEnvironment. Must set the
+        'vessel', 'path' and 'obstacles' attributes.
+        """
 
     def close(self):
-        if self.viewer2d is not None:
-            self.viewer2d.close()
-        if self.viewer3d is not None:
-            self.viewer3d.close()
+        """Closes the environment. To be called after usage."""
+        if self._viewer2d is not None:
+            self._viewer2d.close()
+        if self._viewer3d is not None:
+            self._viewer3d.close()
 
     def render(self, mode='human'):
-        """
-        Render the environment.
-        """
-
+        """Render one frame of the environment. 
+        The default mode will do something human friendly, such as pop up a window."""
         if self.render_mode == '2d' or self.render_mode == 'both':
             image_arr = render2d.render_env(self, mode)
         if self.render_mode == '3d' or self.render_mode == 'both':
@@ -233,11 +256,13 @@ class ASV_Scenario(gym.Env):
         return image_arr
 
     def seed(self, seed=None):
+        """Reseeds the random number generator used in the environment"""
         self.rng, seed = seeding.np_random(seed)
         return [seed]
 
     def _save_latest_step(self):
-        self._tmp_storage['cross_track_error'].append(abs(self.vessel.last_navi_state_dict['cross_track_error']))
+        latest_data = self.vessel.req_latest_data()
+        self._tmp_storage['cross_track_error'].append(abs(latest_data['navigation']['cross_track_error']))
 
     def _save_latest_episode(self):
         self.last_episode = {

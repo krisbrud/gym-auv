@@ -5,7 +5,7 @@ import gym_auv.utils.geomutils as geom
 from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.path import RandomCurveThroughOrigin, Path
 from gym_auv.objects.obstacles import PolygonObstacle, VesselObstacle
-from gym_auv.environment import ASV_Scenario
+from gym_auv.environment import BaseEnvironment
 import shapely.geometry, shapely.errors
 
 import os 
@@ -17,7 +17,7 @@ VESSEL_DATA_PATH = '../resources/vessel_data_local.csv'
 TERRAIN_DATA_PATH = '../resources/terrain.npy'
 INCLUDED_VESSELS = None
 
-class RealWorldEnv(ASV_Scenario):
+class RealWorldEnv(BaseEnvironment):
 
     def __init__(self, *args, **kw):
         self.last_scenario_load_coordinates = None
@@ -67,10 +67,10 @@ class RealWorldEnv(ASV_Scenario):
 
     def _generate(self):
 
-        init_pos = self.path(0)
+        init_state = self.path(0)
         init_angle = self.path.get_direction(0)
 
-        self.vessel = Vessel(self.config, np.hstack([init_pos, init_angle]))
+        self.vessel = Vessel(self.config, np.hstack([init_state, init_angle]))
         prog = self.path.get_closest_arclength(self.vessel.position)
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
@@ -80,7 +80,7 @@ class RealWorldEnv(ASV_Scenario):
         for obstacle_perimeter in self.obstacle_perimeters:
             if len(obstacle_perimeter) > 3:
                 obstacle = PolygonObstacle(obstacle_perimeter)
-                if obstacle.valid:
+                if obstacle.boundary.is_valid:
                     self.all_obstacles.append(obstacle)
 
         for vessel_width, vessel_trajectory, vessel_name in self.other_vessels:
@@ -127,13 +127,13 @@ class RealWorldEnv(ASV_Scenario):
                 if self.render_mode == '3d':
                     if self.verbose:
                         print('Loading nearby 3D terrain...')
-                    x = int(self.vessel.x)
-                    y = int(self.vessel.y)
+                    x = int(self.vessel.position[0])
+                    y = int(self.vessel.position[1])
                     xlow = max(0, x-VIEW_DISTANCE_3D)
                     xhigh = min(self.all_terrain.shape[0], x+VIEW_DISTANCE_3D)
                     ylow = max(0, y-VIEW_DISTANCE_3D)
                     yhigh = min(self.all_terrain.shape[1], y+VIEW_DISTANCE_3D)
-                    self.viewer3d.create_world(self.all_terrain, xlow, ylow, xhigh, yhigh)
+                    self._viewer3d.create_world(self.all_terrain, xlow, ylow, xhigh, yhigh)
                     if self.verbose:
                         print('Loaded nearby 3D terrain ({}-{}, {}-{})'.format(xlow, xhigh, ylow, yhigh))
 

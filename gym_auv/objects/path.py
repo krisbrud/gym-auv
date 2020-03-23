@@ -8,72 +8,79 @@ from scipy import interpolate
 
 import gym_auv.utils.geomutils as geom
 
+def _arc_len(coords):
+    diff = np.diff(coords, axis=1)
+    delta_arc = np.sqrt(np.sum(diff ** 2, axis=0))
+    return np.concatenate([[0], np.cumsum(delta_arc)])
+
 class Path():
-    def __init__(self, waypoints, smooth=True):
-        self.waypoints = waypoints.copy()
-        forloop_range = 3 if smooth else 1
-        for _ in range(forloop_range):
-            arclengths = arc_len(waypoints)
-            path_coords = interpolate.pchip(x=arclengths, y=waypoints, axis=1)
+    def __init__(self, waypoints:list, smooth:bool=True) -> None:
+        """Initializes path based on specified waypoints."""
+
+        for _ in range((3 if smooth else 1)):
+            self._arclengths = _arc_len(waypoints)
+            path_coords = interpolate.pchip(x=self._arclengths, y=waypoints, axis=1)
             path_derivatives = path_coords.derivative()
             path_dderivatives = path_derivatives.derivative()
-            waypoints = path_coords(np.linspace(arclengths[0], arclengths[-1], 1000))
+            waypoints = path_coords(np.linspace(self._arclengths[0], self._arclengths[-1], 1000))
 
+        self._waypoints = waypoints.copy()
         self._path_coords = path_coords
         self._path_derivatives = path_derivatives
         self._path_dderivatives = path_dderivatives
 
-        self.length = arclengths[-1]
         S = np.linspace(0, self.length, 10*self.length)
-        self.points = np.transpose(self._path_coords(S))
-        self._linestring = shapely.geometry.LineString(self.points)
-        self.start = path_coords(0)
-        self.end = path_coords(self.length)
+        self._points = np.transpose(self._path_coords(S))
+        self._linestring = shapely.geometry.LineString(self._points)
 
-    def __call__(self, arclength):
+    @property
+    def length(self) -> float:
+        """Length of path in meters."""
+        return self._arclengths[-1]
+
+    @property
+    def start(self) -> np.ndarray:
+        """Coordinates of the path's starting point."""
+        return self._path_coords(0)
+
+    @property
+    def end(self) -> np.ndarray:
+        """Coordinates of the path's end point."""
+        return self._path_coords(self.length)
+
+    def __call__(self, arclength:float) -> np.ndarray:
+        """
+        Returns the (x,y) point corresponding to the
+        specified arclength.
+        
+        Returns
+        -------
+        point : np.array
+        """
         return self._path_coords(arclength)
 
-    def get_direction(self, arclength):
+    def get_direction(self, arclength:float) -> float:
+        """
+        Returns the direction in radians with respect to the
+        positive x-axis.
+        
+        Returns
+        -------
+        direction : float
+        """
         derivative = self._path_derivatives(arclength)
         return np.arctan2(derivative[1], derivative[0])
 
-    def get_closest_arclength(self, position, x0=None):
-        if x0 is not None:
-            x = position[0]
-            y = position[1]
-            d = minimize(
-                    fun=lambda w: linalg.norm(self(w) - position),
-                    x0=x0,
-                    jac=lambda w: -2*(x - self(w)[0])*self._path_derivatives(w)[0] -2*(y - self(w)[1])*self._path_derivatives(w)[1],
-                    hess=lambda w: 2*(-(x - self(w)[0])*self._path_dderivatives(w)[0] -(y - self(w)[1])*self._path_dderivatives(w)[1] + self._path_derivatives(w)[0]**2*self._path_derivatives(w)[1]**2),
-                    method='Newton-CG' 
-                ).x[0]
-            d = np.clip(d, 0, self.length)
-        else:
-            d = self._linestring.project(shapely.geometry.Point(position))
-        return d
-
-    def get_closest_point(self, position, x0=None):
-        d = self.get_closest_arclength(position, x0)
-        p = self._linestring.interpolate(d)
-        closest_point = list(p.coords)[0]
-        return closest_point, d
-
-    def get_closest_point_distance(self, position, x0=None):
-        closest_point, closest_arclength = self.get_closest_point(position, x0=x0)
-        closest_point_distance =  linalg.norm(closest_point - position)
-        return closest_point_distance, closest_point, closest_arclength
-
-    def __reversed__(self):
-        curve = deepcopy(self)
-        path_coords = curve.path_coords
-        curve.path_coords = lambda s: path_coords(curve.length-s)
-        return curve
-
-    def plot(self, ax, s, *opts):
-        s = np.array(s)
-        z = self(s)
-        ax.plot(-z[1, :], z[0, :], *opts)
+    def get_closest_arclength(self, position:np.ndarray) -> float:  
+        """
+        Returns the arc length value corresponding to the point 
+        on the path which is closest to the specified position.
+        
+        Returns
+        -------
+        point : np.array
+        """
+        return self._linestring.project(shapely.geometry.Point(position))
 
 class RandomCurveThroughOrigin(Path):
     def __init__(self, rng, nwaypoints, length=400):
@@ -96,9 +103,3 @@ class RandomCurveThroughOrigin(Path):
                                    newpoint2,
                                    waypoints[-1*waypoint-1:, :]])
         super().__init__(np.transpose(waypoints))
-
-
-def arc_len(coords):
-    diff = np.diff(coords, axis=1)
-    delta_arc = np.sqrt(np.sum(diff ** 2, axis=0))
-    return np.concatenate([[0], np.cumsum(delta_arc)])

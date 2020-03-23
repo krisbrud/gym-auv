@@ -141,8 +141,6 @@ def test_report(fig_dir):
     env.history = []
     env.episode = 1001
     env.config = gym_auv.DEFAULT_CONFIG
-    env.n_sensors = env.config["n_sensors_per_sector"]*env.config["n_sectors"]
-    env.sensor_angle = (4*np.pi/3)/(env.n_sensors + 1)
     for episode in range(1000):
         env.path = Struct()
         env.path.length = np.random.poisson(1000)
@@ -410,7 +408,7 @@ def plot_scenario(env, fig_dir, fig_postfix='', show=True):
 
     # ax.plot(path[0, :], path[1, :], dashes=[6, 2], color='black', linewidth=1.5)
     # if isinstance(env, RealWorldEnv):
-    #     for x, y in zip(*env.path.waypoints):
+    #     for x, y in zip(*env.path._waypoints):
     #         waypoint_marker = plt.Circle(
     #             (x, y),
     #             (axis_max - axis_min)/150,

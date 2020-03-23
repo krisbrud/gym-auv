@@ -2,27 +2,50 @@ import numpy as np
 import shapely.geometry
 import shapely.affinity
 import gym_auv.utils.geomutils as geom
+from abc import ABC, abstractmethod
 
-class Obstacle():
-    def __init__(self):
-        self.last_distance = 0
-        self.virtual_boundary = []
-        self.boundary = None
-        self.static = None
+class BaseObstacle(ABC):
+    def __init__(self, *args, **kwargs) -> None:
+        """Initializes obstacle instance by calling private setup method implemented by
+         subclasses of BaseObstacle and calculating obstacle boundary."""
+        self._setup(*args, **kwargs)
+        self._boundary = self._calculate_boundary()
 
     @property
-    def valid(self):
-        return self.boundary.is_valid
+    def boundary(self) -> shapely.geometry.Polygon:
+        """shapely.geometry.Polygon object used for simulating the 
+        sensors' detection of the obstacle instance."""
+        return self._boundary
 
-    def update(self, dt):
-        pass
+    def update(self, dt:float) -> None:
+        """Updates the obstacle according to its dynamic behavior, e.g. 
+        a ship model and recalculates the boundary."""
+        has_changed = self._update(dt)
+        if has_changed:
+            self._boundary = self._calculate_boundary()
 
-    def _calculate_boundary(self):
-        pass
+    @abstractmethod
+    def _calculate_boundary(self) -> shapely.geometry.Polygon:
+        """Returns a shapely.geometry.Polygon instance representing the obstacle
+        given its current state."""
 
-class CircularObstacle(Obstacle):
-    def __init__(self, position, radius, color=(0.6, 0, 0)):
-        super().__init__()
+    @abstractmethod
+    def _setup(self, *args, **kwargs) -> None:
+        """Initializes the obstacle given the constructor parameters provided to
+        the specific BaseObstacle extension."""
+
+    def _update(self, _dt:float) -> bool:
+        """Performs the specific update routine associated with the obstacle.
+        Returns a boolean flag representing whether something changed or not.
+
+        Returns
+        -------
+        has_changed : bool
+        """
+        return False
+
+class CircularObstacle(BaseObstacle):
+    def _setup(self, position, radius, color=(0.6, 0, 0)):
         self.color = color
         if not isinstance(position, np.ndarray):
             position = np.array(position)
@@ -31,22 +54,21 @@ class CircularObstacle(Obstacle):
         self.static = True
         self.radius = radius
         self.position = position.flatten()
-        self._calculate_boundary()
 
     def _calculate_boundary(self):
-        self.boundary = shapely.geometry.Point(*self.position).buffer(self.radius).boundary.simplify(0.3, preserve_topology=False)
+        return shapely.geometry.Point(*self.position).buffer(self.radius).boundary.simplify(0.3, preserve_topology=False)
 
-class PolygonObstacle(Obstacle):
-    def __init__(self, points, color=(0.6, 0, 0)):
-        super().__init__()
+class PolygonObstacle(BaseObstacle):
+    def _setup(self, points, color=(0.6, 0, 0)):
         self.static = True
         self.color = color
         self.points = points
-        self.boundary = shapely.geometry.Polygon(points)
 
-class VesselObstacle(Obstacle):
-    def __init__(self, width, trajectory, name=''):
-        super().__init__()
+    def _calculate_boundary(self):
+        return shapely.geometry.Polygon(self.points)
+
+class VesselObstacle(BaseObstacle):
+    def _setup(self, width, trajectory, name=''):
         self.static = False
         self.width = width
         self.trajectory = trajectory
@@ -80,7 +102,7 @@ class VesselObstacle(Obstacle):
 
         self.update(dt=0.1)
 
-    def update(self, dt):
+    def _update(self, dt):
         self.waypoint_counter += dt
 
         index = int(np.floor(self.waypoint_counter))
@@ -98,9 +120,7 @@ class VesselObstacle(Obstacle):
         self.heading = np.arctan2(self.dy, self.dx)
         self.position = self.position + np.array([self.dx, self.dy])
 
-        #print('OBS', self.position, self.heading)
-
-        self._calculate_boundary()
+        return True
 
     def _calculate_boundary(self):
         ship_angle = self.heading# float(geom.princip(self.heading))
@@ -109,7 +129,7 @@ class VesselObstacle(Obstacle):
         boundary_temp = shapely.affinity.rotate(boundary_temp, ship_angle, use_radians=True, origin='centroid')
         boundary_temp = shapely.affinity.translate(boundary_temp, xoff=self.position[0], yoff=self.position[1])
 
-        self.boundary = boundary_temp
+        return boundary_temp
 
 
         

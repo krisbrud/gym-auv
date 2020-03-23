@@ -117,7 +117,7 @@ def play_scenario(env, recorded_env, args, agent=None):
         if k == key.NUM_4 and key_input[6] != 0: key_input[6] = 0
         if k == key.NUM_3 and key_input[6] != 0: key_input[6] = 0
 
-    viewer = env.viewer2d if args.render in {'both', '2d'} else env.viewer3d
+    viewer = env._viewer2d if args.render in {'both', '2d'} else env._viewer3d
     viewer.window.on_key_press = key_press
     viewer.window.on_key_release = key_release
 
@@ -154,15 +154,15 @@ def play_scenario(env, recorded_env, args, agent=None):
                     except KeyError:
                         pass
                     if args.render in {'3d', 'both'}:
-                        env.viewer3d.camera_height += 0.15*key_input[3]
-                        env.viewer3d.camera_height = max(0, env.viewer3d.camera_height)
-                        env.viewer3d.camera_distance += 0.3*key_input[4]
-                        env.viewer3d.camera_distance = max(1, env.viewer3d.camera_distance)
-                        env.viewer3d.camera_angle += 0.3*key_input[5]
+                        env._viewer3d.camera_height += 0.15*key_input[3]
+                        env._viewer3d.camera_height = max(0, env._viewer3d.camera_height)
+                        env._viewer3d.camera_distance += 0.3*key_input[4]
+                        env._viewer3d.camera_distance = max(1, env._viewer3d.camera_distance)
+                        env._viewer3d.camera_angle += 0.3*key_input[5]
 
                     elif args.render == '2d':
-                        env.viewer2d.camera_zoom += 0.1*key_input[4]
-                        env.viewer2d.camera_zoom = max(0, env.viewer2d.camera_zoom)
+                        env._viewer2d.camera_zoom += 0.1*key_input[4]
+                        env._viewer2d.camera_zoom = max(0, env._viewer2d.camera_zoom)
 
                 if autopilot and agent is not None:
                     if obs is None:
@@ -204,12 +204,12 @@ def main(args):
         'acktr': ACKTR
     }[args.algo.lower()]
 
-    if (args.mode == 'play'):
+    if args.mode == 'play':
         agent = model.load(args.agent) if args.agent is not None else None
         envconfig_play = envconfig.copy()
         envconfig_play['show_indicators'] = True
         #envconfig_play['autocamera3d'] = False
-        env = create_env(env_id, envconfig_play, test_mode=True, render_mode=args.render, pilot=args.pilot, verbose=args.verbose)
+        env = create_env(env_id, envconfig_play, test_mode=True, render_mode=args.render, pilot=args.pilot, verbose=True)
         print('Created environment instance')
 
         if args.scenario:
