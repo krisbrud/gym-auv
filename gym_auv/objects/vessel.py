@@ -385,7 +385,7 @@ class Vessel():
         )[1]
 
         # Calculating tangential path direction at look-ahead point
-        target_arclength = vessel_arclength + self.config["look_ahead_distance"]
+        target_arclength = min(path.length, vessel_arclength + self.config["look_ahead_distance"])
         look_ahead_path_direction = path.get_direction(target_arclength) 
         look_ahead_heading_error = float(geom.princip(look_ahead_path_direction - self.heading))
 
