@@ -48,15 +48,15 @@ class BaseRewarder(ABC):
 class ColavRewarder(BaseRewarder):
     def __init__(self, vessel):
         super().__init__(vessel)
-        self.params['gamma_theta'] = 5
+        self.params['gamma_theta'] = 5.0
         self.params['gamma_x'] = 0.5
-        self.params['gamma_y_e'] = 0.05
+        self.params['gamma_y_e'] = 1.0
         self.params['penalty_yawrate'] = 1.0
-        self.params['penalty_torque_change'] = 2
+        self.params['penalty_torque_change'] = 2.0
         self.params['cruise_speed'] = 0.1
         self.params['neutral_speed'] = 0.1
-        self.params['negative_multiplier'] = 2
-        self.params['collision'] = -2000
+        self.params['negative_multiplier'] = 2.0
+        self.params['collision'] = -2000.0
         self.params['lambda'] =  _sample_lambda(scale=0.2)
         self.params['eta'] = _sample_eta()
     
