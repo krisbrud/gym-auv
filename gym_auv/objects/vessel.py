@@ -8,6 +8,7 @@ import shapely.geometry, shapely.errors, shapely.strtree, shapely.ops, shapely.p
 
 import gym_auv.utils.constants as const
 import gym_auv.utils.geomutils as geom
+from gym_auv.objects.obstacles import LineObstacle
 from gym_auv.objects.path import Path
 
 def _odesolver45(f, y, h):
@@ -96,11 +97,13 @@ def _simulate_sensor(sensor_angle, p0_point, sensor_range, obstacles):
             obst_speed_vec_rel = geom.to_cartesian(obst_speed_rel_homogenous)
         else:
             obst_speed_vec_rel = (0, 0)
+        ray_blocked = True
     else:
         measured_distance = sensor_range
         obst_speed_vec_rel = (0, 0)
+        ray_blocked = False
 
-    return (measured_distance, obst_speed_vec_rel)
+    return (measured_distance, obst_speed_vec_rel, ray_blocked)
 
 class Vessel():
 
@@ -134,6 +137,7 @@ class Vessel():
 
         # Initializing private attributes
         self._width = width
+        self._feasibility_width = width*self.config["feasibility_width_multiplier"]
         self._n_sectors = self.config["n_sectors"]
         self._n_sensors = self.config["n_sensors_per_sector"]*self.config["n_sectors"]
         self._d_sensor_angle = 2*np.pi/(self._n_sensors)
@@ -144,6 +148,8 @@ class Vessel():
         self._sector_end_indeces = [0]*self._n_sectors
         self._sensor_internal_indeces = []
         self._sensor_interval = max(1, int(1/self.config["sensor_frequency"]))
+        self._observe_interval = max(1, int(1/self.config["observe_frequency"]))
+        self._virtual_environment = None
 
         # Calculating sensor partitioning
         last_isector = -1
@@ -184,6 +190,11 @@ class Vessel():
         self.reset(init_state)
 
     @property
+    def n_sensors(self) -> int:
+        """Number of sensors."""
+        return self._n_sensors
+
+    @property
     def width(self) -> float:
         """Width of vessel in meters."""
         return self._width
@@ -199,6 +210,11 @@ class Vessel():
         """Returns an array holding the path of the AUV in cartesian
         coordinates."""
         return self._prev_states[:, 0:2]
+    
+    @property
+    def heading_taken(self) -> np.ndarray:
+        """Returns an array holding the heading of the AUV for all timesteps."""
+        return self._prev_states[:, 2]
 
     @property
     def heading(self) -> float:
@@ -223,7 +239,7 @@ class Vessel():
     @property
     def max_speed(self) -> float:
         """Returns the maximum speed of the AUV."""
-        return const.MAX_SPEED
+        return 2
 
     @property
     def course(self) -> float:
@@ -263,6 +279,7 @@ class Vessel():
         self._last_sector_dist_measurements = np.zeros((self._n_sectors,))
         self._last_sector_feasible_dists = np.zeros((self._n_sectors,))
         self._last_navi_state_dict = dict((state, 0) for state in Vessel.NAVIGATION_FEATURES)
+        self._virtual_environment = None
         self._collision = False
         self._progress = 0
         self._reached_goal = False
@@ -318,22 +335,46 @@ class Vessel():
             collision = False
 
         else:
+            should_observe = (self._perceive_counter % self._observe_interval == 0) or self._virtual_environment is None
+            if should_observe:
+                geom_targets = self._nearby_obstacles
+            else:
+                geom_targets = self._virtual_environment
+
             # Simulating all sensors using _simulate_sensor subroutine
             sensor_angles_ned = self._sensor_angles + self.heading
             activate_sensor = lambda i: (i % self._sensor_interval) == (self._perceive_counter % self._sensor_interval)
-            sensor_sim_args = (p0_point, sensor_range, self._nearby_obstacles)
+            sensor_sim_args = (p0_point, sensor_range, geom_targets)
             sensor_output_arrs = list(map(
                 lambda i: _simulate_sensor(sensor_angles_ned[i], *sensor_sim_args) if activate_sensor(i) else (
                     self._last_sensor_dist_measurements[i],
-                    self._last_sensor_speed_measurements[i]
+                    self._last_sensor_speed_measurements[i],
+                    True
                 ), 
                 range(self._n_sensors)
             ))
-            sensor_dist_measurements, sensor_speed_measurements = zip(*sensor_output_arrs)
+            sensor_dist_measurements, sensor_speed_measurements, sensor_blocked_arr = zip(*sensor_output_arrs)
             sensor_dist_measurements = np.array(sensor_dist_measurements)
             sensor_speed_measurements = np.array(sensor_speed_measurements)
             self._last_sensor_dist_measurements = sensor_dist_measurements
             self._last_sensor_speed_measurements = sensor_speed_measurements
+
+            # Setting virtual obstacle
+            if should_observe:
+                line_segments = []
+                tmp = []
+                for i in range(self.n_sensors):
+                    if sensor_blocked_arr[i]:
+                        point = (
+                            self.position[0] + np.cos(sensor_angles_ned[i])*sensor_dist_measurements[i],
+                            self.position[1] + np.sin(sensor_angles_ned[i])*sensor_dist_measurements[i]
+                        )
+                        tmp.append(point)
+                    elif len(tmp) > 1:
+                        line_segments.append(tuple(tmp))
+                        tmp = []
+
+                self._virtual_environment = list(map(LineObstacle, line_segments))
 
             # Partitioning sensor readings into sectors
             sector_dist_measurements = np.split(sensor_dist_measurements, self._sector_start_indeces[1:])
@@ -341,7 +382,7 @@ class Vessel():
 
             # Performing feasibility pooling
             sector_feasible_distances = np.array(list(
-                map(lambda x: _feasibility_pooling(x, self._width, self._d_sensor_angle), sector_dist_measurements)
+                map(lambda x: _feasibility_pooling(x, self._feasibility_width, self._d_sensor_angle), sector_dist_measurements)
             ))
 
             # Calculating feasible closeness
@@ -354,9 +395,7 @@ class Vessel():
             )
 
             # Testing if vessel has collided
-            collision = any(
-                float(p0_point.distance(obst.boundary)) - self._width <= 0 for obst in self._nearby_obstacles
-            )
+            collision = np.any(sensor_dist_measurements < self.width)
 
         self._last_sector_dist_measurements = sector_closenesses
         self._last_sector_feasible_dists = sector_feasible_distances
@@ -453,8 +492,8 @@ class Vessel():
 
     def _thrust_surge(self, surge):
         surge = np.clip(surge, 0, 1)
-        return surge*const.THRUST_MAX_AUV
+        return surge*self.config['thrust_max_auv']
 
     def _moment_steer(self, steer):
         steer = np.clip(steer, -1, 1)
-        return steer*const.MOMENT_MAX_AUV
+        return steer*self.config['moment_max_auv']

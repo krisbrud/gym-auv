@@ -41,7 +41,7 @@ class BaseEnvironment(gym.Env, ABC):
         self.config = env_config
         
         # Setting dimension of observation vector
-        self.n_observations = len(Vessel.NAVIGATION_FEATURES) + 3*self.config["n_sectors"]
+        self.n_observations = len(Vessel.NAVIGATION_FEATURES) + 3*self.config["n_sectors"] + ColavRewarder.N_INSIGHTS
 
         self.episode = 0
         self.total_t_steps = 0
@@ -111,7 +111,7 @@ class BaseEnvironment(gym.Env, ABC):
 
         # Saving information about episode
         if self.t_step:
-           self._save_latest_episode()
+           self.save_latest_episode()
 
         # Incrementing counters
         self.episode += 1
@@ -159,7 +159,10 @@ class BaseEnvironment(gym.Env, ABC):
         """
         reward_insight = self.rewarder.insight()
         navigation_states = self.vessel.navigate(self.path)
-        sector_closenesses, sector_velocities = self.vessel.perceive(self.obstacles)
+        if bool(self.config["sensing"]):
+            sector_closenesses, sector_velocities = self.vessel.perceive(self.obstacles)
+        else:
+            sector_closenesses, sector_velocities = [], []
 
         obs = np.concatenate([reward_insight, navigation_states, sector_closenesses, sector_velocities])
         return obs
@@ -264,7 +267,7 @@ class BaseEnvironment(gym.Env, ABC):
         latest_data = self.vessel.req_latest_data()
         self._tmp_storage['cross_track_error'].append(abs(latest_data['navigation']['cross_track_error']))
 
-    def _save_latest_episode(self):
+    def save_latest_episode(self):
         self.last_episode = {
             'path': self.path(np.linspace(0, self.path.length, 1000)) if self.path is not None else None,
             'path_taken': self.vessel.path_taken,

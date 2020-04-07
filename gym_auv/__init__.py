@@ -23,16 +23,21 @@ DEFAULT_CONFIG = {
     # ---- SIMULATION ---- #
     "t_step_size": 1.0,                             # Length of simulation timestep [s]
     "sensor_frequency": 1.0,                        # Sensor execution frequency (0.0 = never execute, 1.0 = always execute)
+    "observe_frequency": 1.0,                       # Frequency of using actual obstacles instead of virtual ones for detection
 
     # ---- VESSEL ---- #
-    "vessel_width": 4.0,                            # Width of vessel [m]
-    "look_ahead_distance": 100,                     # Path look-ahead distance for vessel [m]
+    'thrust_max_auv': 2.0,                          # Maximum thrust of the AUV [N]
+    'moment_max_auv': 0.15,                         # maximum moment applied to the AUV [Nm]
+    "vessel_width": 1.255,                          # Width of vessel [m]
+    "feasibility_width_multiplier": 5.0,            # Multiplier for vessel width in feasibility pooling algorithm 
+    "look_ahead_distance": 300,                     # Path look-ahead distance for vessel [m]
+    "sensing": True,                                # Whether rangerfinder sensors for perception should be activated
     "sensor_interval_load_obstacles": 25,           # Interval for loading nearby obstacles
-    "n_sensors_per_sector": 29,                     # Number of rangefinder sensors within each sector
+    "n_sensors_per_sector": 20,                     # Number of rangefinder sensors within each sector
     "n_sectors": 9,                                 # Number of sensor sectors
     "sector_partition_fun": sector_partition_fun,   # Function that returns corresponding sector for a given sensor index
     "sensor_rotation": False,                       # Whether to activate the sectors in a rotating pattern (for performance reasons)
-    "sensor_range": 150.0,                            # Range of rangefinder sensors [m]
+    "sensor_range": 150.0,                          # Range of rangefinder sensors [m]
     "sensor_log_transform": True,                   # Whether to use a log. transform when calculating closeness                 #
     "observe_obstacle_fun": observe_obstacle_fun,   # Function that outputs whether an obstacle should be observed (True),
                                                     # or if a virtual obstacle based on the latest reading should be used (False).
@@ -41,18 +46,19 @@ DEFAULT_CONFIG = {
     
     # ---- RENDERING ---- #
     "show_indicators": True,                        # Whether to show debug information on screen during 2d rendering.
-    'autocamera3d': False                           # Whether to let the camera automatically rotate during 3d rendering
+    "autocamera3d": True                            # Whether to let the camera automatically rotate during 3d rendering
 }
 
 MOVING_CONFIG = DEFAULT_CONFIG.copy()
-MOVING_CONFIG['observe_obstacle_fun'] = return_true_fun
+MOVING_CONFIG["observe_obstacle_fun"] = return_true_fun
 
 DEBUG_CONFIG = DEFAULT_CONFIG.copy()
-DEBUG_CONFIG['t_step_size'] = 0.5
-DEBUG_CONFIG['min_goal_distance'] = 0.1
+DEBUG_CONFIG["t_step_size"] = 0.5
+DEBUG_CONFIG["min_goal_distance"] = 0.1
 
 REALWORLD_CONFIG = DEFAULT_CONFIG.copy()
-REALWORLD_CONFIG['t_step_size'] = 1.0
+REALWORLD_CONFIG["t_step_size"] = 0.2
+#REALWORLD_CONFIG["observe_frequency"] = 0.1
 
 SCENARIOS = {
     'TestScenario1-v0': {   

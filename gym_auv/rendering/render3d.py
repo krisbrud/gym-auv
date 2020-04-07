@@ -20,24 +20,34 @@ from pyglet.gl import *
 from pyglet.graphics import TextureGroup
 from pyglet.window import key, mouse
 import gym_auv.utils.geomutils as geom
+import gym_auv.envs.realworld
 from gym_auv.objects.obstacles import *
 
 # Size of sectors used to ease block loading.
-MAX_RENDER_DISTANCE = 1000.0
+VIEW_DISTANCE_3D = 1500 #1000#0
+MAX_RENDER_DISTANCE = max(1000, VIEW_DISTANCE_3D*2)
 PAD = 50
 SECTOR_SIZE = 25
 FOG_DISTANCE = 1000
 TICKS_PER_SEC = 1 
-CAMERA_ROTATION_SPEED = 0.02
+CAMERA_ROTATION_SPEED = 0.003
 SKY_COLOR = (109/255, 173/255, 255/255, 1)
 ENABLE_LIGHT = True
+X_SHIFT = -170
 
-WINDOW_W = 1920 # 720
-WINDOW_H = 1080 # 600
+platform = pyglet.window.get_platform()
+display = platform.get_default_display()      
+screen = display.get_default_screen()
+screen_width = screen.width
+screen_height = screen.height
+
+WINDOW_W = screen_width# 1920 # 720
+WINDOW_H = screen_height# 1080 # 600
 
 counter_3d = 0
 
-BOAT_MODEL_PATH = '../resources/boat.obj'
+VESSEL_MODEL_PATH = '../resources/shipmodels/vessel/boat.obj'
+TUGBOAT_MODEL_PATH = '../resources/shipmodels/tugboat/12218_tugboat_v1_L2.obj'
 TEXTURE_PATH = '../resources/textures.png'
 
 class Element:
@@ -170,14 +180,11 @@ class Viewer3D(object):
         self.window = pyglet.window.Window(width=width, height=height)
         #self.window.maximize()
 
-        self.camera_height = 13
-        self.camera_distance = 45
-        self.camera_angle = 0
-
+        self.camera_height = 200
+        self.camera_distance = 200
+        self.camera_angle = np.random.random()*360
         if self.autocamera:
-            self.camera_height_goal = self.camera_height
-            self.camera_distance_goal = self.camera_distance
-            self.camera_angle_goal = self.camera_angle
+            self._reset_moving_camera()
 
         self.rotation = (0, 0)
         self.boat_models = {}
@@ -200,31 +207,42 @@ class Viewer3D(object):
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
+    def _reset_moving_camera(self, init_angle=None):
+        self.camera_distance_goal = max(5, np.random.gamma(shape=0.2, scale=30.0))
+        self.camera_height_goal = self.camera_distance_goal*np.random.random() 
+        self.camera_angle_goal = (-180 + 360*np.random.random())
+        self.camera_follow_vessel = bool(np.random.random() > 0.5)
+
     def reset_world(self):
         #self.queue = deque()
         self.sectors = {}
         self.sector = None
 
     def create_path(self, path):
-        for s in np.arange(0, path.length, path.length/1000):
+        for s in np.arange(0, path.length, path.length/5000):
             p = path(s)
             self.add_element((p[1], 0, p[0]), 2*[1.0, 1.0, 1.0, 1.0], 4*[0.1,], Element.PLANE)
 
-    def create_world(self, terrain, xlow, ylow, xhigh, yhigh):
+    def create_world(self, terrain, xlow, ylow, xhigh, yhigh, xoffset=0, yoffset=0):
+        self.xoffset = xoffset
+        self.yoffset = yoffset
         self.reset_world()
         N = (xhigh-xlow)*(yhigh-ylow)
-        for x in range(xlow, xhigh):
-            for y in range(ylow, yhigh):
+        for x_terrain in range(xlow, xhigh):
+            for y_terrain in range(ylow, yhigh):
+                x_3dworld = x_terrain-xoffset
+                y_3dworld = y_terrain-yoffset
 
-                z = terrain[x][y]
-                posarr = (y, z, x)
+                z = terrain[x_terrain][y_terrain]
+                posarr = (y_3dworld, z, x_3dworld)
                 if posarr in self.world:
                     continue
 
-                if x == xlow or x == (xhigh-1)  or y == ylow or y == (yhigh-1):
+                if x_terrain == xlow or x_terrain == (xhigh-1)  or y_terrain == ylow or y_terrain == (yhigh-1):
                     h_00, h_01, h_10, h_11 = (z, z, z, z)
                 
                 else:
+                    x, y = x_terrain, y_terrain
                     h_00 = np.mean([z, terrain[x-1][y], terrain[x-1][y-1], terrain[x][y-1]])
                     h_01 = np.mean([z, terrain[x-1][y], terrain[x-1][y+1], terrain[x][y+1]])
                     h_10 = np.mean([z, terrain[x+1][y], terrain[x+1][y-1], terrain[x][y-1]])
@@ -234,7 +252,7 @@ class Viewer3D(object):
                 if z<=0: # h_00 == 0 and h_10 == 0 and h_01 == 0 and h_11 == 0:
                     t = WATER
                 else:
-                    neighbours = get_neighbours(x, y, matrix=terrain)
+                    neighbours = get_neighbours(x_terrain, y_terrain, matrix=terrain)
                     values = np.array([terrain[p[0]][p[1]] for p in neighbours])
 
                     if np.std(values) >= 0.4:
@@ -245,8 +263,7 @@ class Viewer3D(object):
 
                 self.add_element(posarr, t, (h_00, h_10, h_01, h_11), Element.BLOCK)
 
-                i = (x-xlow)*(yhigh-ylow) + (y-ylow)
-
+                #i = (x-xlow)*(yhigh-ylow) + (y-ylow)
                 # if i % 100 == 0:
                 #     sys.stdout.write('Creating {}x{} world ({:.2%})\r'.format((xhigh-xlow), (yhigh-ylow), i/N))
                 #     sys.stdout.flush()
@@ -542,35 +559,43 @@ class Viewer3D(object):
 def render_env(env, mode, dt):
     x, y, z = (env.vessel.position[1], env._viewer3d.camera_height, env.vessel.position[0])
 
-    if env._viewer3d.autocamera:
-        d_height = env._viewer3d.camera_height_goal - env._viewer3d.camera_height
-        d_distance = env._viewer3d.camera_distance_goal - env._viewer3d.camera_distance
-        #d_angle = env._viewer3d.camera_angle_goal - env._viewer3d.camera_angle
-
-        if abs(d_height) < 1 and abs(d_distance) < 1: # and abs(d_angle) < 1:
-            env._viewer3d.camera_height_goal = np.random.gamma(shape=1.0, scale=25.0)
-            env._viewer3d.camera_distance_goal = max(15, np.random.gamma(shape=1.0, scale=50.0))
-            #env._viewer3d.camera_angle_goal = (-180 + 360*np.random.random()) if np.random.random() > 0.5 else env.vessel.heading*90
-
-        env._viewer3d.camera_height += CAMERA_ROTATION_SPEED*d_height
-        env._viewer3d.camera_distance += CAMERA_ROTATION_SPEED*d_distance
-        #env._viewer3d.camera_angle += CAMERA_ROTATION_SPEED*180/np.pi*geom.princip(d_angle*np.pi/180)
-
-    if env._viewer3d.camera_angle is None:
-        env._viewer3d.camera_angle = -env.vessel.heading*180/np.pi + 180
-    else:
-        env._viewer3d.camera_angle += CAMERA_ROTATION_SPEED*180/np.pi*geom.princip(-env.vessel.heading + np.pi - env._viewer3d.camera_angle*np.pi/180)
+    env._viewer3d.add_element((x, 0, z), 2*[1.0, 1.0, 1.0, 1.0], 4*[0.1,], Element.PLANE)
+    env._viewer3d.show_element((x, 0, z))
 
     camera_direction = (-env._viewer3d.camera_angle + 180)*np.pi/180
     camera_x = x-np.sin(camera_direction)*env._viewer3d.camera_distance
     camera_z = z-np.cos(camera_direction)*env._viewer3d.camera_distance
+
     try:
-        camera_terrain_height = env.all_terrain[int(camera_z)][int(camera_x)]
+        camera_terrain_height = env.all_terrain[int(camera_z+env._viewer3d.xoffset)][int(camera_x+env._viewer3d.yoffset)]
     except IndexError:
         camera_terrain_height = 0
-    y = max(camera_terrain_height+1, y)
 
-    env._viewer3d.position = (camera_x, y, camera_z) 
+    if env._viewer3d.autocamera:
+        if env._viewer3d.camera_follow_vessel:
+            env._viewer3d.camera_angle_goal = -env.vessel.heading*180/np.pi + 180
+        height_goal = max(env._viewer3d.camera_height_goal, camera_terrain_height+3)
+        d_height = height_goal - env._viewer3d.camera_height
+        d_distance = env._viewer3d.camera_distance_goal - env._viewer3d.camera_distance
+        d_angle = env._viewer3d.camera_angle_goal - env._viewer3d.camera_angle
+
+        if abs(d_height) < 1 or abs(d_distance) < 1:
+            env._viewer3d._reset_moving_camera(init_angle=-env.vessel.heading*180/np.pi + 180)
+
+        env._viewer3d.camera_height += dt*CAMERA_ROTATION_SPEED*d_height
+        env._viewer3d.camera_distance += dt*CAMERA_ROTATION_SPEED*d_distance
+        env._viewer3d.camera_angle += dt*CAMERA_ROTATION_SPEED*180/np.pi*geom.princip(d_angle*np.pi/180)
+        camera_y = env._viewer3d.camera_height
+
+    else:
+        camera_y = max(camera_terrain_height+1, y)
+
+        if env._viewer3d.camera_angle is None:
+            env._viewer3d.camera_angle = -env.vessel.heading*180/np.pi + 180
+        else:
+            env._viewer3d.camera_angle += dt*CAMERA_ROTATION_SPEED*180/np.pi*geom.princip(-env.vessel.heading + np.pi - env._viewer3d.camera_angle*np.pi/180)
+
+    env._viewer3d.position = (camera_x, camera_y, camera_z) 
     env._viewer3d.rotation = (env._viewer3d.camera_angle, -180/np.pi*np.arctan2(y, env._viewer3d.camera_distance))
     env._viewer3d.update()
     env._viewer3d.window.switch_to()
@@ -586,21 +611,21 @@ def render_env(env, mode, dt):
         glTranslatef(obsvessel.position[1], -1, obsvessel.position[0])
         glRotatef(-90, 1, 0, 0)
         glRotatef(90 + obsvessel.heading*180/np.pi, 0, 0, 1)
-        if obsvessel.width not in env._viewer3d.boat_models:
-            save_boatmodel(obsvessel.width, env)
-        visualization.draw(env._viewer3d.boat_models[obsvessel.width])
+        if (VESSEL_MODEL_PATH, obsvessel.width) not in env._viewer3d.boat_models:
+            save_boatmodel(VESSEL_MODEL_PATH, obsvessel.width, env)
+        visualization.draw(env._viewer3d.boat_models[(VESSEL_MODEL_PATH, obsvessel.width)])
         glRotatef(- 90 - obsvessel.heading*180/np.pi, 0, 0, 1)
         glRotatef(90, 1, 0, 0)
         glTranslatef(-obsvessel.position[1], 1, -obsvessel.position[0])
 
     # render agent vessel
-    glTranslatef(x, -1, z)
+    glTranslatef(x, 0.5, z)
     glRotatef(-90, 1, 0, 0)
     glRotatef(90 + env.vessel.heading*180/np.pi, 0, 0, 1)
-    visualization.draw(env._viewer3d.boat_models[env.vessel.width])
+    visualization.draw(env._viewer3d.boat_models[(TUGBOAT_MODEL_PATH, env.vessel.width)])
     glRotatef(-90 - env.vessel.heading*180/np.pi, 0, 0, 1)
     glRotatef(90, 1, 0, 0)
-    glTranslatef(-x, 1, -z)
+    glTranslatef(-x, -0.5, -z)
 
     env._viewer3d.main_batch.draw()
     
@@ -610,16 +635,15 @@ def render_env(env, mode, dt):
     if ENABLE_LIGHT:
         glEnable(GL_LIGHTING)
     env._viewer3d.set_2d()
-    env._viewer3d.draw_label(env)
-
-    x_shift = 0#-170
-    glViewport(x_shift, 0, WINDOW_W, WINDOW_H)
+    #env._viewer3d.draw_label(env)
 
     arr = None
     if mode == 'rgb_array':
+        #glViewport(X_SHIFT, 0, WINDOW_W, WINDOW_H)
         image_data = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
         arr = np.fromstring(image_data.data, dtype=np.uint8, sep='')
-        arr = arr.reshape(WINDOW_H, WINDOW_W, 4)
+        height = int(len(arr)/(WINDOW_W*4))
+        arr = arr.reshape(height, WINDOW_W, 4)
         arr = arr[::-1, :, 0:3]
 
     env._viewer3d.window.flip()
@@ -668,21 +692,22 @@ def init_env_viewer(env, autocamera=False):
     env._viewer3d = Viewer3D(WINDOW_W, WINDOW_H, autocamera=autocamera)
     setup()
 
-def save_boatmodel(width, env):
-    env._viewer3d.boat_models[width] = pywavefront.Wavefront(BOAT_MODEL_PATH)
+def save_boatmodel(path, width, env):
+    dictkey = (path, width)
+    env._viewer3d.boat_models[dictkey] = pywavefront.Wavefront(path)
     vertices = []
-    npvertices = np.array(env._viewer3d.boat_models[width].vertices)
+    npvertices = np.array(env._viewer3d.boat_models[dictkey].vertices)
     MODEL_BOAT_LENGTH = npvertices[:, 0].max() - npvertices[:, 0].min()
     boat_scale = 2*width/MODEL_BOAT_LENGTH
-    for v in env._viewer3d.boat_models[width].vertices:
+    for v in env._viewer3d.boat_models[dictkey].vertices:
         w = tuple((x*boat_scale for x in v))
         vertices.append(w)
-    env._viewer3d.boat_models[width].vertices = vertices
-    for name, material in env._viewer3d.boat_models[width].materials.items():
+    env._viewer3d.boat_models[dictkey].vertices = vertices
+    for name, material in env._viewer3d.boat_models[dictkey].materials.items():
         material.vertices = tuple((x*boat_scale for x in material.vertices))
     return boat_scale
     
 def init_boat_model(env):
-    if env.vessel.width not in env._viewer3d.boat_models:
-        boat_scale = save_boatmodel(env.vessel.width, env)
+    if (TUGBOAT_MODEL_PATH, env.vessel.width) not in env._viewer3d.boat_models:
+        boat_scale = save_boatmodel(TUGBOAT_MODEL_PATH, env.vessel.width, env)
         #print('Initialized 3D vessel model, scale factor is {:.4f}'.format(boat_scale))

@@ -28,8 +28,6 @@ N_urf = -0.4*Y_urf
 Y_uudr = 19.2
 N_uudr = -0.4*Y_uudr
 
-THRUST_MAX_AUV = 2.0
-MOMENT_MAX_AUV = 0.15
 MAX_SPEED = 2
 
 M =  np.array([[m - X_udot, 0, 0],

@@ -8,8 +8,12 @@ class BaseObstacle(ABC):
     def __init__(self, *args, **kwargs) -> None:
         """Initializes obstacle instance by calling private setup method implemented by
          subclasses of BaseObstacle and calculating obstacle boundary."""
+        self._prev_position = []
+        self._prev_heading = []
         self._setup(*args, **kwargs)
         self._boundary = self._calculate_boundary()
+        if not self._boundary.is_valid:
+            self._boundary = self._boundary.buffer(0)
 
     @property
     def boundary(self) -> shapely.geometry.Polygon:
@@ -23,6 +27,8 @@ class BaseObstacle(ABC):
         has_changed = self._update(dt)
         if has_changed:
             self._boundary = self._calculate_boundary()
+            if not self._boundary.is_valid:
+                self._boundary = self._boundary.buffer(0)
 
     @abstractmethod
     def _calculate_boundary(self) -> shapely.geometry.Polygon:
@@ -43,6 +49,17 @@ class BaseObstacle(ABC):
         has_changed : bool
         """
         return False
+
+    @property
+    def path_taken(self) -> list:
+        """Returns an array holding the path of the obstacle in cartesian
+        coordinates."""
+        return self._prev_position
+
+    @property
+    def heading_taken(self) -> list:
+        """Returns an array holding the heading of the obstacle at previous timesteps."""
+        return self._prev_heading
 
 class CircularObstacle(BaseObstacle):
     def _setup(self, position, radius, color=(0.6, 0, 0)):
@@ -67,8 +84,16 @@ class PolygonObstacle(BaseObstacle):
     def _calculate_boundary(self):
         return shapely.geometry.Polygon(self.points)
 
+class LineObstacle(BaseObstacle):
+    def _setup(self, points):
+        self.static = True
+        self.points = points
+
+    def _calculate_boundary(self):
+        return shapely.geometry.LineString(self.points)
+
 class VesselObstacle(BaseObstacle):
-    def _setup(self, width, trajectory, name=''):
+    def _setup(self, width, trajectory, init_position=None, init_heading=None, init_update=True, name=''):
         self.static = False
         self.width = width
         self.trajectory = trajectory
@@ -97,10 +122,17 @@ class VesselObstacle(BaseObstacle):
             (3/2*self.width, 0),
             (self.width/2, -self.width/2),
         ]
-        self.position = np.array(self.trajectory[0][1])
-        self.heading = np.pi/2
+        if init_position is not None:
+            self.position = init_position
+        else:
+            self.position = np.array(self.trajectory[0][1])
+        if init_heading is not None:
+            self.heading = init_heading
+        else:
+            self.heading = np.pi/2
 
-        self.update(dt=0.1)
+        if init_update:
+            self.update(dt=0.1)
 
     def _update(self, dt):
         self.waypoint_counter += dt
@@ -119,6 +151,8 @@ class VesselObstacle(BaseObstacle):
         self.dy = dt*dy
         self.heading = np.arctan2(self.dy, self.dx)
         self.position = self.position + np.array([self.dx, self.dy])
+        self._prev_position.append(self.position)
+        self._prev_heading.append(self.heading)
 
         return True
 

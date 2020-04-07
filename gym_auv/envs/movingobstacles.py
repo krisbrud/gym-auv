@@ -32,12 +32,12 @@ class MovingObstacles(BaseEnvironment):
         self.obstacles = []
 
         # Adding moving obstacles
-        for _ in range(100):
+        for _ in range(35):
             other_vessel_trajectory = []
 
             obst_position, obst_radius = helpers.generate_obstacle(self.rng, self.path, self.vessel, obst_radius_mean=10, displacement_dist_std=500)
             obst_direction = self.rng.rand()*2*np.pi
-            obst_speed = self.rng.rand()*1
+            obst_speed = max(0.4, self.rng.rand()*1.1)
 
             for i in range(10000):
                 other_vessel_trajectory.append((i, (
@@ -49,8 +49,8 @@ class MovingObstacles(BaseEnvironment):
             self.obstacles.append(other_vessel_obstacle)
 
         # Adding static obstacles
-        for _ in range(25):
-            obstacle = CircularObstacle(*helpers.generate_obstacle(self.rng, self.path, self.vessel))
+        for _ in range(20):
+            obstacle = CircularObstacle(*helpers.generate_obstacle(self.rng, self.path, self.vessel, displacement_dist_std=500))
             self.obstacles.append(obstacle)
 
         self._update()

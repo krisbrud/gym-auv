@@ -14,10 +14,12 @@ def _arc_len(coords):
     return np.concatenate([[0], np.cumsum(delta_arc)])
 
 class Path():
-    def __init__(self, waypoints:list, smooth:bool=True) -> None:
+    def __init__(self, waypoints:list) -> None:
         """Initializes path based on specified waypoints."""
 
-        for _ in range((3 if smooth else 1)):
+        self.init_waypoints = waypoints.copy()
+
+        for _ in range(3):
             self._arclengths = _arc_len(waypoints)
             path_coords = interpolate.pchip(x=self._arclengths, y=waypoints, axis=1)
             path_derivatives = path_coords.derivative()

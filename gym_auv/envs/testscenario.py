@@ -9,7 +9,7 @@ from gym_auv.environment import BaseEnvironment
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-TERRAIN_DATA_PATH = './resources/terrain.npy'
+TERRAIN_DATA_PATH = '../resources/terrain.npy'
 
 class TestScenario1(BaseEnvironment):
     def _generate(self):
@@ -149,9 +149,9 @@ class DebugScenario(BaseEnvironment):
 
         for vessel_idx in range(5):
             other_vessel_trajectory = []
-            trajectory_shift = self.rng.rand()()*2*np.pi
-            trajectory_radius = self.rng.rand()()*40 + 30
-            trajectory_speed = self.rng.rand()()*0.003 + 0.003
+            trajectory_shift = self.rng.rand()*2*np.pi
+            trajectory_radius = self.rng.rand()*40 + 30
+            trajectory_speed = self.rng.rand()*0.003 + 0.003
             for i in range(10000):
                 #other_vessel_trajectory.append((10*i, (250, 400-10*i)))
                 other_vessel_trajectory.append((1*i, (
@@ -165,9 +165,9 @@ class DebugScenario(BaseEnvironment):
 
         for vessel_idx in range(5):
             other_vessel_trajectory = []
-            trajectory_start = self.rng.rand()()*200 + 150
-            trajectory_speed = self.rng.rand()()*0.03 + 0.03
-            trajectory_shift = 10*self.rng.rand()()
+            trajectory_start = self.rng.rand()*200 + 150
+            trajectory_speed = self.rng.rand()*0.03 + 0.03
+            trajectory_shift = 10*self.rng.rand()
             for i in range(10000):
                 other_vessel_trajectory.append((i, (245 + 2.5*vessel_idx + trajectory_shift, trajectory_start-10*trajectory_speed*i)))
             other_vessel_obstacle = VesselObstacle(width=6, trajectory=other_vessel_trajectory)

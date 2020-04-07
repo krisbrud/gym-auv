@@ -61,7 +61,7 @@ def play_scenario(env, recorded_env, args, agent=None):
     # if args.video:
     #     print('Recording enabled')
     #     recorded_env = VecVideoRecorder(env, args.video_dir, record_video_trigger=lambda x: x == 0, 
-    #         video_length=args.video_length, name_prefix=args.video_name
+    #         video_length=args.recording_length, name_prefix=args.video_name
     #     )
 
     from pyglet.window import key
@@ -125,7 +125,7 @@ def play_scenario(env, recorded_env, args, agent=None):
         while True:
             t = time()
             restart = False
-            steps = 0
+            t_steps = 0
             quit = False
             if (args.env == 'PathGeneration-v0'):
                 a = np.array([5.0, 5.0, 1.0, 1.0])
@@ -173,13 +173,23 @@ def play_scenario(env, recorded_env, args, agent=None):
                 if args.verbose > 0:
                     print(', '.join('{:.1f}'.format(x) for x in obs) + '(size {})'.format(len(obs)))
                 recorded_env.render()
-                steps += 1
+                t_steps += 1
+
+                if args.play_plotting:
+                    if t_steps % 50 == 0:
+                        env.save_latest_episode()
+                        for size in (100, 200, 300, 400, 500):
+                            gym_auv.reporting.plot_trajectory(
+                                env, fig_dir='../logs/play_results/', fig_prefix=('_t_step_' + str(t_steps) + '_' + str(size)), local=True, size=size
+                            )
 
                 if quit: raise KeyboardInterrupt
                 if done or restart: break
             
+            env.seed(np.random.randint(1000))
             env.reset()
             gym_auv.reporting.report(env, report_dir='../logs/play_results/')
+            gym_auv.reporting.plot_trajectory(env, fig_dir='../logs/play_results/') 
 
 
     except KeyboardInterrupt:
@@ -215,9 +225,10 @@ def main(args):
         if args.scenario:
             env.load(args.scenario)
         vec_env = DummyVecEnv([lambda: env])
-        recorded_env = VecVideoRecorder(vec_env, args.video_dir, record_video_trigger=lambda x: x == 0, 
-            video_length=args.video_length, name_prefix=args.video_name
+        recorded_env = VecVideoRecorder(vec_env, args.video_dir, record_video_trigger=lambda x: x==0, 
+            video_length=args.recording_length, name_prefix=(args.env if args.video_name == 'auto' else args.video_name)
         )
+        print(args.video_dir, args.video_name)
         play_scenario(env, recorded_env, args, agent=agent)
         recorded_env.env.close()
 
@@ -239,16 +250,16 @@ def main(args):
         
 
         env = create_env(env_id, envconfig, test_mode=True, render_mode=args.render, pilot=args.pilot)
-        if (args.scenario):
+        if args.scenario:
             env.load(args.scenario)
         vec_env = DummyVecEnv([lambda: env])
-        recorded_env = VecVideoRecorder(vec_env, args.video_dir, record_video_trigger=lambda x: x==0 or x%1000 == 0, 
-            video_length=args.video_length, name_prefix=(args.env if args.video_name == 'auto' else args.video_name)
+        recorded_env = VecVideoRecorder(vec_env, args.video_dir, record_video_trigger=lambda x: x==0, 
+            video_length=args.recording_length, name_prefix=(args.env if args.video_name == 'auto' else args.video_name)
         )
         obs = recorded_env.reset()
         state = None
         done = [False for _ in range(vec_env.num_envs)]
-        for i in range(args.video_length):
+        for t_step in range(args.recording_length):
             if args.recurrent:
                 action, _states = agent.predict(observation=obs, state=state, mask=done, deterministic=not args.stochastic)
                 state = _states
@@ -256,7 +267,7 @@ def main(args):
                 action, _states = agent.predict(obs, deterministic=not args.stochastic)
             obs, reward, done, info = recorded_env.step(action)
             recorded_env.render()
-            if (args.env == 'PathGeneration-v0'):
+            if args.env == 'PathGeneration-v0':
                 sleep(1)
         recorded_env.env.close()
 
@@ -266,7 +277,7 @@ def main(args):
         scenario_folder = os.path.join(figure_folder, 'scenarios')
         os.makedirs(scenario_folder, exist_ok=True)
         video_folder = os.path.join(DIR_PATH, 'logs', 'videos', args.env, EXPERIMENT_ID)
-        video_length = 8000
+        recording_length = 8000
         os.makedirs(video_folder, exist_ok=True)
         agent_folder = os.path.join(DIR_PATH, 'logs', 'agents', args.env, EXPERIMENT_ID)
         os.makedirs(agent_folder, exist_ok=True)
@@ -399,6 +410,7 @@ def main(args):
             report_env.sensor_angle = 2*np.pi/(report_env.nsensors + 1)
             report_env.last_episode = vec_env.get_attr('last_episode')[0]
             report_env.config = vec_env.get_attr('config')[0]
+            report_env.obstacles = vec_env.get_attr('obstacles')[0]
 
             env_histories = vec_env.get_attr('history')
             for episode in range(max(map(len, env_histories))):
@@ -424,12 +436,12 @@ def main(args):
                 save_criteria = n_updates % 10000 == 0
                 recording_criteria = n_updates % 50000 == 0
                 report_criteria = report_env.episode > n_episodes
-                if (save_criteria):
+                if save_criteria:
                     _self.save(agent_filepath)
 
             if report_env.last_episode is not None and len(report_env.history) > 0 and report_criteria:
                 try:
-                    gym_auv.reporting.plot_last_episode(report_env, fig_dir=scenario_folder, fig_prefix=args.env + '_ep_{}'.format(report_env.episode))
+                    #gym_auv.reporting.plot_trajectory(report_env, fig_dir=scenario_folder, fig_prefix=args.env + '_ep_{}'.format(report_env.episode))
                     gym_auv.reporting.report(report_env, report_dir=figure_folder)
                     #vec_env.env_method('save', os.path.join(scenario_folder, '_ep_{}'.format(report_env.episode)))
                 except OSError as e:
@@ -437,14 +449,14 @@ def main(args):
                     print(repr(e))
 
             if recording_criteria:
-                if (args.pilot):
-                    cmd = 'python run.py enjoy {} --agent "{}" --video-dir "{}" --video-name "{}" --video-length {} --algo {} --pilot {} --envconfig {}{}'.format(
-                        args.env, agent_filepath, video_folder, args.env + '-' + str(total_t_steps), video_length, args.algo, args.pilot, envconfig_string, 
+                if args.pilot:
+                    cmd = 'python run.py enjoy {} --agent "{}" --video-dir "{}" --video-name "{}" --recording-length {} --algo {} --pilot {} --envconfig {}{}'.format(
+                        args.env, agent_filepath, video_folder, args.env + '-' + str(total_t_steps), recording_length, args.algo, args.pilot, envconfig_string, 
                         ' --recurrent' if args.recurrent else ''
                     )
                 else:
-                    cmd = 'python run.py enjoy {} --agent "{}" --video-dir "{}" --video-name "{}" --video-length {} --algo {} --envconfig {}{}'.format(
-                        args.env, agent_filepath, video_folder, args.env + '-' + str(total_t_steps), video_length, args.algo, envconfig_string, 
+                    cmd = 'python run.py enjoy {} --agent "{}" --video-dir "{}" --video-name "{}" --recording-length {} --algo {} --envconfig {}{}'.format(
+                        args.env, agent_filepath, video_folder, args.env + '-' + str(total_t_steps), recording_length, args.algo, envconfig_string, 
                         ' --recurrent' if args.recurrent else ''
                     )
                 subprocess.Popen(cmd)
@@ -496,22 +508,22 @@ def main(args):
 
         print('Output folder: ', figure_folder)
 
-    elif (args.mode == 'test'):
+    elif args.mode == 'test':
         figure_folder = os.path.join(DIR_PATH, 'logs', 'tests', args.env, EXPERIMENT_ID)
         scenario_folder = os.path.join(figure_folder, 'scenarios')
         os.makedirs(figure_folder, exist_ok=True)
         os.makedirs(scenario_folder, exist_ok=True)
 
-        if (not args.onlyplot):
+        if not args.onlyplot:
             agent = model.load(args.agent)
 
-        def create_test_env(envconfig=envconfig):
+        def create_test_env(envconfig=envconfig, video_name_prefix=None):
             print('Creating test environment: ' + env_id)
             env = create_env(env_id, envconfig, test_mode=True, render_mode=args.render if args.video else None, pilot=args.pilot)
             vec_env = DummyVecEnv([lambda: env])
             if args.video:
                 recorded_env = VecVideoRecorder(vec_env, args.video_dir, record_video_trigger=lambda x: x == 0, 
-                video_length=args.video_length, name_prefix=args.video_name
+                video_length=args.recording_length, name_prefix=args.video_name if video_name_prefix is None else video_name_prefix
             )
             active_env = recorded_env if args.video else vec_env
 
@@ -522,7 +534,7 @@ def main(args):
             nonlocal failed_tests
 
             if scenario is not None:
-                env, active_env = create_test_env()
+                env, active_env = create_test_env(video_name_prefix=args.env + '_'  + id)
                 obs = active_env.reset()
                 env.load(args.scenario)
                 print('Loaded', args.scenario)
@@ -550,15 +562,22 @@ def main(args):
                     active_env.render()
                 t_steps += 1
                 cumulative_reward += reward[0]
-                report_msg = '{:<20}{:<20}{:<20.2f}{:<20.2%}{:<20}{:<20.2f}{:<20.2f}\r'.format(
-                    id, t_steps, cumulative_reward, info[0]['progress'], info[0]['collisions'], info[0]['cross_track_error'], info[0]['heading_error']*180/np.pi)
+                report_msg = '{:<20}{:<20}{:<20.2f}{:<20.2%}\r'.format(
+                    id, t_steps, cumulative_reward, info[0]['progress'])
                 sys.stdout.write(report_msg)
                 sys.stdout.flush()
 
+                if t_steps % 10 == 0 and not done:
+                    env.save_latest_episode()
+                    for size in (100, 200, 300, 400, 500):
+                        gym_auv.reporting.plot_trajectory(
+                            env, fig_dir=scenario_folder, fig_prefix=(args.env + '_t_step_' + str(t_steps) + '_' + str(size) + '_' + id), local=True, size=size
+                        )
+
             gym_auv.reporting.report(env, report_dir=report_dir)
-            gym_auv.reporting.plot_last_episode(env, fig_dir=scenario_folder, fig_prefix=(args.env + '_' + id))
-            env.save(os.path.join(scenario_folder, id))
-            if (info[0]['collisions']):
+            gym_auv.reporting.plot_trajectory(env, fig_dir=scenario_folder, fig_prefix=(args.env + '_' + id))
+            #env.save(os.path.join(scenario_folder, id))
+            if env.collision:
                 failed_tests.append(id)
                 with open(os.path.join(figure_folder, 'failures.txt'), 'w') as f:
                     f.write(', '.join(map(str, failed_tests)))
@@ -591,10 +610,9 @@ def main(args):
                         last_episode = run_test(valuedict_str + '_ep' + str(episode), report_dir=rep_subfolder)
                         episode_dict[valuedict_str] = [last_episode, colorval]
                 print('Plotting all')
-                gym_auv.reporting.plot_last_episode(env, fig_dir=scenario_folder, fig_prefix=(args.env + '_all_agents'), episode_dict=episode_dict)
+                gym_auv.reporting.plot_trajectory(env, fig_dir=scenario_folder, fig_prefix=(args.env + '_all_agents'), episode_dict=episode_dict)
 
             else:
-                env, active_env = create_test_env()
                 run_test("ep0", reset=True, scenario=args.scenario)
 
         else:
@@ -616,9 +634,8 @@ def main(args):
                     episode_dict['Agent ' + str(agent_index)] = [last_episode, colorval]
                     agent_index += 1
                 
-                gym_auv.reporting.plot_last_episode(env, fig_dir=figure_folder, fig_prefix=(args.env + '_all_agents'), episode_dict=episode_dict)
+                gym_auv.reporting.plot_trajectory(env, fig_dir=figure_folder, fig_prefix=(args.env + '_all_agents'), episode_dict=episode_dict)
             else:
-                env, active_env = create_test_env()
                 for episode in range(args.episodes):
                     run_test('ep' + str(episode))
 
@@ -664,10 +681,10 @@ if __name__ == '__main__':
         choices=['2d', '3d', 'both'] #'both' currently broken
     )
     parser.add_argument(
-        '--video-length',
+        '--recording-length',
         help='Timesteps to simulate.',
         type=int,
-        default=1000
+        default=100000
     )
     parser.add_argument(
         '--episodes',
@@ -692,6 +709,11 @@ if __name__ == '__main__':
     parser.add_argument(
         '--verbose',
         help='Print debugging information.',
+        action='store_true'
+    )
+    parser.add_argument(
+        '--play-plotting',
+        help='Plot trajectory plots at fixed intervals while playing.',
         action='store_true'
     )
     parser.add_argument(
