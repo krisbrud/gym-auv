@@ -13,6 +13,8 @@ it also provides easy-to-use rendering in both 2D and 3D for debugging and showc
 
 The research paper [Taming an Autonomous Surface Vehicle for Path Following and Collision Avoidance Using Deep Reinforcement Learning (2020)](https://ieeexplore.ieee.org/document/9016254?fbclid=IwAR3obkbKJcbA2Jrn3nqKp7iUD_MAag01YSCm3liaIYJN7xN9enzdHUA0Ma8) gives a comprehensive overview of what the package is intended for.
 
+![3D Rendering](https://imgur.com/cf0a5f8c-49d3-42e4-83d8-db6c81c9fcd0)
+
 ## Getting Started
 
 After downloading the package, install the required Python libraries via
