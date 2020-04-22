@@ -13,10 +13,6 @@ it also provides easy-to-use rendering in both 2D and 3D for debugging and showc
 
 The research paper [Taming an Autonomous Surface Vehicle for Path Following and Collision Avoidance Using Deep Reinforcement Learning (2020)](https://ieeexplore.ieee.org/document/9016254?fbclid=IwAR3obkbKJcbA2Jrn3nqKp7iUD_MAag01YSCm3liaIYJN7xN9enzdHUA0Ma8) gives a comprehensive overview of what the package is intended for.
 
-![3D Rendering](https://i.imgur.com/KD0TqZW.png)
-
-![2D Rendering](https://i.imgur.com/dBQOWYT.png)
-
 ## Getting Started
 
 After downloading the package, install the required Python libraries via
@@ -29,8 +25,10 @@ The run script can be executed with the -h flag for a comprehensive overview of 
 
 ## Author
 
-* **Eivind Meyer** - *Initial work* - [EivMeyer](https://github.com/EivMeyer)
+* **Eivind Meyer** - [EivMeyer](https://github.com/EivMeyer)
 
-## License
+## Screenshots
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+![3D Rendering](https://i.imgur.com/KD0TqZW.png)
+
+![2D Rendering](https://i.imgur.com/dBQOWYT.png)
