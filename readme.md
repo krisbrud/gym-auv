@@ -15,6 +15,8 @@ The research paper [Taming an Autonomous Surface Vehicle for Path Following and 
 
 ![3D Rendering](https://i.imgur.com/KD0TqZW.png)
 
+![2D Rendering](https://i.imgur.com/dBQOWYT.png)
+
 ## Getting Started
 
 After downloading the package, install the required Python libraries via
