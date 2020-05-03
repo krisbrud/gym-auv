@@ -3,8 +3,7 @@ import numpy as np
 from gym.utils import seeding
 
 from gym_auv.objects.vessel import Vessel
-from gym_auv.objects.rewarder import *
-
+from gym_auv.objects.rewarder import ColavRewarder
 import gym_auv.rendering.render2d as render2d
 import gym_auv.rendering.render3d as render3d
 from abc import ABC, abstractmethod
@@ -34,6 +33,11 @@ class BaseEnvironment(gym.Env, ABC):
             verbose
                 Whether to print debugging information.
         """
+
+        if not hasattr(self, '_rewarder_class'):
+            self._rewarder_class = ColavRewarder
+            self._n_moving_obst = 10
+            self._n_moving_stat = 10
         
         self.test_mode = test_mode
         self.render_mode = render_mode
@@ -41,7 +45,7 @@ class BaseEnvironment(gym.Env, ABC):
         self.config = env_config
         
         # Setting dimension of observation vector
-        self.n_observations = len(Vessel.NAVIGATION_FEATURES) + 3*self.config["n_sectors"] + ColavRewarder.N_INSIGHTS
+        self.n_observations = len(Vessel.NAVIGATION_FEATURES) + 3*self.config["n_sectors"] + self._rewarder_class.N_INSIGHTS
 
         self.episode = 0
         self.total_t_steps = 0
@@ -62,6 +66,7 @@ class BaseEnvironment(gym.Env, ABC):
         self.last_episode = None
         self.rng = None
         self._tmp_storage = None
+        self._last_image_frame = None
 
         self._action_space = gym.spaces.Box(
             low=np.array([-1, -1]),
@@ -124,14 +129,15 @@ class BaseEnvironment(gym.Env, ABC):
         self.reached_goal = False
         self.collision = False
         self.progress = 0
+        self._last_image_frame = None
 
         # Generating a new environment
         if self.verbose:    print('Generating scenario...')
         self._generate()
+        if self.rewarder is None:
+            if self.verbose: print('Warning: Rewarder not initialized by _generate() method call. Selecting default ColavRewarder instead.')
+            self.rewarder = self._rewarder_class(self.vessel, self.test_mode)
         if self.verbose:    print('Generated scenario')
-
-        # Resetting rewarder instance
-        self.rewarder = ColavRewarder(self.vessel)
 
         # Initializing 3d viewer
         if self.render_mode == '3d':
@@ -202,6 +208,7 @@ class BaseEnvironment(gym.Env, ABC):
         vessel_data = self.vessel.req_latest_data()
         self.collision = vessel_data['collision']
         self.reached_goal = vessel_data['reached_goal']
+        self.goal_distance = vessel_data['navigation']['goal_distance']
         self.progress = vessel_data['progress']
 
         # Receiving agent's reward
@@ -212,6 +219,7 @@ class BaseEnvironment(gym.Env, ABC):
         info = {}
         info['collision'] = self.collision
         info['reached_goal'] = self.reached_goal
+        info['goal_distance'] = self.goal_distance
         info['progress'] = self.progress
 
         # Testing criteria for ending the episode
@@ -227,8 +235,8 @@ class BaseEnvironment(gym.Env, ABC):
         return any([
             self.collision,
             self.reached_goal,
-            self.t_step > self.config["max_timesteps"],
-            self.cumulative_reward < self.config["min_cumulative_reward"]
+            self.t_step > self.config["max_timesteps"] and not self.test_mode,
+            self.cumulative_reward < self.config["min_cumulative_reward"] and not self.test_mode
         ])
 
     def _update(self) -> None:
@@ -252,10 +260,16 @@ class BaseEnvironment(gym.Env, ABC):
     def render(self, mode='human'):
         """Render one frame of the environment. 
         The default mode will do something human friendly, such as pop up a window."""
-        if self.render_mode == '2d' or self.render_mode == 'both':
-            image_arr = render2d.render_env(self, mode)
-        if self.render_mode == '3d' or self.render_mode == 'both':
-            image_arr = render3d.render_env(self, mode, self.config["t_step_size"])
+        try:
+            if self.render_mode == '2d' or self.render_mode == 'both':
+                image_arr = render2d.render_env(self, mode)
+            if self.render_mode == '3d' or self.render_mode == 'both':
+                image_arr = render3d.render_env(self, mode, self.config["t_step_size"])
+        except OSError:
+            image_arr = self._last_image_frame
+
+        self._last_image_frame = image_arr
+
         return image_arr
 
     def seed(self, seed=None):
@@ -271,7 +285,7 @@ class BaseEnvironment(gym.Env, ABC):
         self.last_episode = {
             'path': self.path(np.linspace(0, self.path.length, 1000)) if self.path is not None else None,
             'path_taken': self.vessel.path_taken,
-            'obstacles': []
+            'obstacles': self.obstacles
         }
         self.history.append({
             'cross_track_error': np.array(self._tmp_storage['cross_track_error']).mean(),

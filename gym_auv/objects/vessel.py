@@ -439,6 +439,11 @@ class Vessel():
         progress = vessel_arclength/path.length
         self._progress = progress
 
+        # Deciding if vessel has reached the goal
+        goal_distance = linalg.norm(path.end - self.position)
+        reached_goal = goal_distance <= self.config["min_goal_distance"] or progress >= self.config["min_path_progress"]
+        self._reached_goal = reached_goal
+
         # Concatenating states
         self._last_navi_state_dict = {
             'surge_velocity': self.velocity[0],
@@ -451,14 +456,10 @@ class Vessel():
             'look_ahead_path_direction': look_ahead_path_direction,
             'path_direction': path_direction,
             'vessel_arclength': vessel_arclength,
-            'target_arclength': target_arclength
+            'target_arclength': target_arclength,
+            'goal_distance': goal_distance
         }
         navigation_states = np.array([self._last_navi_state_dict[state] for state in Vessel.NAVIGATION_FEATURES])
-
-        # Deciding if vessel has reached the goal
-        goal_distance = linalg.norm(path.end - self.position)
-        reached_goal = goal_distance <= self.config["min_goal_distance"] or progress >= self.config["min_path_progress"]
-        self._reached_goal = reached_goal
 
         return navigation_states
 

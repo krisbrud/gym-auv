@@ -3,6 +3,7 @@ import shapely.geometry
 import shapely.affinity
 import gym_auv.utils.geomutils as geom
 from abc import ABC, abstractmethod
+import copy
 
 class BaseObstacle(ABC):
     def __init__(self, *args, **kwargs) -> None:
@@ -14,12 +15,20 @@ class BaseObstacle(ABC):
         self._boundary = self._calculate_boundary()
         if not self._boundary.is_valid:
             self._boundary = self._boundary.buffer(0)
+        self._init_boundary = copy.deepcopy(self._boundary)
+
 
     @property
     def boundary(self) -> shapely.geometry.Polygon:
         """shapely.geometry.Polygon object used for simulating the 
         sensors' detection of the obstacle instance."""
         return self._boundary
+
+    @property
+    def init_boundary(self) -> shapely.geometry.Polygon:
+        """shapely.geometry.Polygon object used for simulating the 
+        sensors' detection of the obstacle instance."""
+        return self._init_boundary
 
     def update(self, dt:float) -> None:
         """Updates the obstacle according to its dynamic behavior, e.g. 
@@ -126,6 +135,7 @@ class VesselObstacle(BaseObstacle):
             self.position = init_position
         else:
             self.position = np.array(self.trajectory[0][1])
+        self.init_position = self.position.copy() 
         if init_heading is not None:
             self.heading = init_heading
         else:
@@ -166,4 +176,3 @@ class VesselObstacle(BaseObstacle):
         return boundary_temp
 
 
-        

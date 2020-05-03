@@ -6,12 +6,23 @@ from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.path import RandomCurveThroughOrigin, Path
 from gym_auv.objects.obstacles import PolygonObstacle, VesselObstacle, CircularObstacle
 from gym_auv.environment import BaseEnvironment
+from gym_auv.objects.rewarder import ColavRewarder, ColregRewarder
 import shapely.geometry, shapely.errors
 
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 class MovingObstacles(BaseEnvironment):
+
+    def __init__(self, *args, **kwargs) -> None:
+        """
+        Sets following parameters for the scenario before calling super init. method:
+            self._n_moving_obst : Number of moving obstacles
+            self._n_static_obst : Number of static obstacles
+            self._rewarder_class : Rewarder used, e.g. ColavRewarder, ColregRewarder
+        """
+
+        super().__init__(*args, **kwargs)
 
     def _generate(self):
         # Initializing path
@@ -32,7 +43,7 @@ class MovingObstacles(BaseEnvironment):
         self.obstacles = []
 
         # Adding moving obstacles
-        for _ in range(35):
+        for _ in range(self._n_moving_obst):
             other_vessel_trajectory = []
 
             obst_position, obst_radius = helpers.generate_obstacle(self.rng, self.path, self.vessel, obst_radius_mean=10, displacement_dist_std=500)
@@ -49,9 +60,25 @@ class MovingObstacles(BaseEnvironment):
             self.obstacles.append(other_vessel_obstacle)
 
         # Adding static obstacles
-        for _ in range(20):
-            obstacle = CircularObstacle(*helpers.generate_obstacle(self.rng, self.path, self.vessel, displacement_dist_std=500))
+        for _ in range(self._n_static_obst):
+            obstacle = CircularObstacle(*helpers.generate_obstacle(self.rng, self.path, self.vessel, displacement_dist_std=250))
             self.obstacles.append(obstacle)
+        
+        # Resetting rewarder instance
+        self.rewarder = self._rewarder_class(self.vessel, self.test_mode)
 
         self._update()
 
+class MovingObstaclesNoRules(MovingObstacles):
+    def __init__(self, *args, **kwargs):
+        self._n_moving_obst = 17
+        self._n_static_obst = 11
+        self._rewarder_class = ColavRewarder
+        super().__init__(*args, **kwargs)
+
+class MovingObstaclesColreg(MovingObstacles):
+    def __init__(self, *args, **kwargs):
+        self._n_moving_obst = 17
+        self._n_static_obst = 11
+        self._rewarder_class = ColregRewarder
+        super().__init__(*args, **kwargs)

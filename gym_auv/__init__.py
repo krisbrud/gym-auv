@@ -77,6 +77,18 @@ SCENARIOS = {
         'entry_point': 'gym_auv.envs:TestScenario4',
         'config': DEFAULT_CONFIG
     },
+    'TestHeadOn-v0': {
+        'entry_point': 'gym_auv.envs:TestHeadOn',
+        'config': DEFAULT_CONFIG
+    },
+    'TestCrossing-v0': {
+        'entry_point': 'gym_auv.envs:TestCrossing',
+        'config': DEFAULT_CONFIG
+    },
+    'TestCrossing1-v0': {
+        'entry_point': 'gym_auv.envs:TestCrossing1',
+        'config': DEFAULT_CONFIG
+    },
     'DebugScenario-v0': {
         'entry_point': 'gym_auv.envs:DebugScenario',
         'config': DEBUG_CONFIG
@@ -89,16 +101,24 @@ SCENARIOS = {
         'entry_point': 'gym_auv.envs:Sorbuoya',
         'config': REALWORLD_CONFIG
     },
-    'Trondheimsfjorden-v0': {
-        'entry_point': 'gym_auv.envs:Trondheimsfjorden',
+    'Agdenes-v0': {
+        'entry_point': 'gym_auv.envs:Agdenes',
         'config': REALWORLD_CONFIG
     },
     'Trondheim-v0': {
         'entry_point': 'gym_auv.envs:Trondheim',
         'config': REALWORLD_CONFIG
     },
-    'MovingObstacles-v0': {
-        'entry_point': 'gym_auv.envs:MovingObstacles',
+    'Trondheimsfjorden-v0': {
+        'entry_point': 'gym_auv.envs:Trondheimsfjorden',
+        'config': REALWORLD_CONFIG
+    },
+    'MovingObstaclesNoRules-v0': {
+        'entry_point': 'gym_auv.envs:MovingObstaclesNoRules',
+        'config': MOVING_CONFIG
+    },
+    'MovingObstaclesColreg-v0': {
+        'entry_point': 'gym_auv.envs:MovingObstaclesColreg',
         'config': MOVING_CONFIG
     }
 }

@@ -1,4 +1,6 @@
 import numpy as np
+import random
+import math
 
 import gym_auv.utils.geomutils as geom
 from gym_auv.objects.vessel import Vessel
@@ -6,10 +8,12 @@ from gym_auv.objects.path import RandomCurveThroughOrigin, Path
 from gym_auv.objects.obstacles import CircularObstacle, VesselObstacle
 from gym_auv.environment import BaseEnvironment
 
-import os 
+import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 TERRAIN_DATA_PATH = '../resources/terrain.npy'
+
+deg2rad = math.pi/180
 
 class TestScenario1(BaseEnvironment):
     def _generate(self):
@@ -58,11 +62,11 @@ class TestScenario2(BaseEnvironment):
                 break
 
             obst_displacement_dist = 140 - 120 / (1 + np.exp(-0.005*obst_arclength))
-            
+
             obst_position = self.path(obst_arclength)
             obst_displacement_angle = self.path.get_direction(obst_arclength) - np.pi/2
             obst_displacement = obst_displacement_dist*np.array([
-                np.cos(obst_displacement_angle), 
+                np.cos(obst_displacement_angle),
                 np.sin(obst_displacement_angle)
             ])
 
@@ -113,6 +117,111 @@ class TestScenario4(BaseEnvironment):
             obst_position = np.array([np.cos(angle)*N_dist, np.sin(angle)*N_dist])
             self.obstacles.append(CircularObstacle(obst_position, obst_radius))
 
+class TestHeadOn(BaseEnvironment):
+    def _generate(self):
+
+        waypoints = np.vstack([[0, 0], [0, 250]]).T
+        self.path = Path(waypoints)
+
+        init_state = self.path(0)
+        init_angle = self.path.get_direction(0)
+
+        self.vessel = Vessel(self.config, np.hstack([init_state, init_angle]))
+        prog = self.path.get_closest_arclength(self.vessel.position)
+        self.path_prog_hist = np.array([prog])
+        self.max_path_prog = prog
+        vessel_pos = self.vessel.position
+
+        start_angle = random.uniform(-5*deg2rad, 5*deg2rad)
+        trajectory_shift = 5*deg2rad #random.uniform(-5*deg2rad+start_angle, 5*deg2rad+start_angle) #2*np.pi*(rng.rand() - 0.5)
+        trajectory_radius = 150
+        trajectory_speed = 0.5
+        start_x = vessel_pos[0] + trajectory_radius*np.sin(start_angle)
+        start_y = vessel_pos[1] + trajectory_radius*np.cos(start_angle)
+
+        vessel_trajectory = [[0, (start_x, start_y)]]
+
+
+        for i in range(1,5000):
+            vessel_trajectory.append((1*i, (
+                start_x - trajectory_speed*np.sin(start_angle)*i,
+                start_y - trajectory_speed*np.cos(start_angle)*i
+            )))
+
+        self.obstacles = [VesselObstacle(width=30, trajectory=vessel_trajectory)]
+
+        self._update()
+
+class TestCrossing(BaseEnvironment):
+    def _generate(self):
+
+        waypoints = np.vstack([[0, 0], [0, 500]]).T
+        self.path = Path(waypoints)
+
+        init_state = self.path(0)
+        init_angle = self.path.get_direction(0)
+
+        self.vessel = Vessel(self.config, np.hstack([init_state, init_angle]))
+        prog = self.path.get_closest_arclength(self.vessel.position)
+        self.path_prog_hist = np.array([prog])
+        self.max_path_prog = prog
+        vessel_pos = self.vessel.position
+
+        trajectory_shift = 90*deg2rad #random.uniform(-5*deg2rad, 5*deg2rad) #2*np.pi*(rng.rand() - 0.5)
+        trajectory_radius = 200
+        trajectory_speed = 0.5
+        start_angle = -45*deg2rad
+        start_x = vessel_pos[0] + trajectory_radius*np.sin(start_angle)
+        start_y = vessel_pos[1] + trajectory_radius*np.cos(start_angle)
+
+    #    vessel_trajectory = [[0, (vessel_pos[1], trajectory_radius+vessel_pos[0])]] # in front, ahead
+        vessel_trajectory = [[0, (start_x,start_y)]]
+
+        for i in range(1,5000):
+            vessel_trajectory.append((1*i, (
+                start_x + trajectory_speed*np.sin(trajectory_shift)*i,
+                start_y + trajectory_speed*np.cos(trajectory_shift)*i
+            )))
+
+        self.obstacles = [VesselObstacle(width=30, trajectory=vessel_trajectory)]
+
+        self._update()
+
+class TestCrossing1(BaseEnvironment):
+    def _generate(self):
+
+        waypoints = np.vstack([[0, 0], [0, 500]]).T
+        self.path = Path(waypoints)
+
+        init_state = self.path(0)
+        init_angle = self.path.get_direction(0)
+
+        self.vessel = Vessel(self.config, np.hstack([init_state, init_angle]))
+        prog = self.path.get_closest_arclength(self.vessel.position)
+        self.path_prog_hist = np.array([prog])
+        self.max_path_prog = prog
+        vessel_pos = self.vessel.position
+
+        trajectory_shift = -50*deg2rad #random.uniform(-5*deg2rad, 5*deg2rad) #2*np.pi*(rng.rand() - 0.5)
+        trajectory_radius = 200
+        trajectory_speed = 0.5
+        start_angle = 70*deg2rad
+        start_x = vessel_pos[0] + trajectory_radius*np.sin(start_angle)
+        start_y = vessel_pos[1] + trajectory_radius*np.cos(start_angle)
+
+    #    vessel_trajectory = [[0, (vessel_pos[1], trajectory_radius+vessel_pos[0])]] # in front, ahead
+        vessel_trajectory = [[0, (start_x,start_y)]]
+
+        for i in range(1,5000):
+            vessel_trajectory.append((1*i, (
+                start_x + trajectory_speed*np.sin(trajectory_shift)*i,
+                start_y + trajectory_speed*np.cos(trajectory_shift)*i
+            )))
+
+        self.obstacles = [VesselObstacle(width=30, trajectory=vessel_trajectory)]
+
+        self._update()
+
 class EmptyScenario(BaseEnvironment):
 
     def _generate(self):
@@ -133,7 +242,7 @@ class EmptyScenario(BaseEnvironment):
 
 class DebugScenario(BaseEnvironment):
     def _generate(self):
-        waypoints = np.vstack([[250, 100], [250, 300]]).T
+        waypoints = np.vstack([[250, 100], [250, 200]]).T
         self.path = Path(waypoints)
 
         init_state = self.path(0)
@@ -143,7 +252,7 @@ class DebugScenario(BaseEnvironment):
         prog = self.path.get_closest_arclength(self.vessel.position)
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
-        
+
         self.obstacles = []
         self.vessel_obstacles = []
 
@@ -155,7 +264,7 @@ class DebugScenario(BaseEnvironment):
             for i in range(10000):
                 #other_vessel_trajectory.append((10*i, (250, 400-10*i)))
                 other_vessel_trajectory.append((1*i, (
-                    250 + trajectory_radius*np.cos(trajectory_speed*i + trajectory_shift), 
+                    250 + trajectory_radius*np.cos(trajectory_speed*i + trajectory_shift),
                     150 + 70*vessel_idx + trajectory_radius*np.sin(trajectory_speed*i + trajectory_shift)
                 )))
             other_vessel_obstacle = VesselObstacle(width=6, trajectory=other_vessel_trajectory)

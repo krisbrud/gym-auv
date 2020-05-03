@@ -24,7 +24,7 @@ import gym_auv.envs.realworld
 from gym_auv.objects.obstacles import *
 
 # Size of sectors used to ease block loading.
-VIEW_DISTANCE_3D = 1500 #1000#0
+VIEW_DISTANCE_3D = 100 #1000#0
 MAX_RENDER_DISTANCE = max(1000, VIEW_DISTANCE_3D*2)
 PAD = 50
 SECTOR_SIZE = 25
@@ -208,8 +208,8 @@ class Viewer3D(object):
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
     def _reset_moving_camera(self, init_angle=None):
-        self.camera_distance_goal = max(5, np.random.gamma(shape=0.2, scale=30.0))
-        self.camera_height_goal = self.camera_distance_goal*np.random.random() 
+        self.camera_distance_goal = max(15, np.random.gamma(shape=0.5, scale=30.0))
+        self.camera_height_goal = self.camera_distance_goal*np.random.random()*0.3
         self.camera_angle_goal = (-180 + 360*np.random.random())
         self.camera_follow_vessel = bool(np.random.random() > 0.5)
 
@@ -643,6 +643,11 @@ def render_env(env, mode, dt):
         image_data = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
         arr = np.fromstring(image_data.data, dtype=np.uint8, sep='')
         height = int(len(arr)/(WINDOW_W*4))
+        calc_size = int(height*WINDOW_W*4)
+        if calc_size > len(arr):
+            arr = np.pad(arr, calc_size-len(arr))
+        elif calc_size < len(arr):
+            arr = arr[:calc_size]
         arr = arr.reshape(height, WINDOW_W, 4)
         arr = arr[::-1, :, 0:3]
 

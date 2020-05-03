@@ -170,10 +170,10 @@ class Sorbuoya(RealWorldEnv):
         self.all_terrain = np.load(TERRAIN_DATA_PATH)/7.5 #np.load(TERRAIN_DATA_PATH)[0000:2000, 10000:12000]/7.5
         super()._generate()
 
-class Trondheimsfjorden(RealWorldEnv):
+class Agdenes(RealWorldEnv):
     def __init__(self, *args, **kw):
         self.x0, self.y0 = 3121, 5890
-        self.vessel_data_path = '../resources/vessel_data_local_trondheimsfjorden.csv'
+        self.vessel_data_path = '../resources/vessel_data_local_agdenes.csv'
         self.n_vessels = 15
         super().__init__(*args, **kw)
 
@@ -198,3 +198,16 @@ class Trondheim(RealWorldEnv):
         self.all_terrain = np.load(TERRAIN_DATA_PATH)[self.x0:8000, self.y0:6900]/7.5
         super()._generate()
 
+class Trondheimsfjorden(RealWorldEnv):
+    def __init__(self, *args, **kw):
+        self.x0, self.y0 = 0, 0
+        self.vessel_data_path = '../resources/vessel_data.csv'
+        self.n_vessels = 0
+        super().__init__(*args, **kw)
+
+    def _generate(self):
+        self.path = Path([[520, 1070, 4080, 5473, 10170, 12220], [3330, 5740, 7110, 4560, 7360, 11390]]) #South-west -> north-east
+        self.obstacle_perimeters = np.load('../resources/obstacles_trondheimsfjorden.npy')
+        self.all_terrain = np.load(TERRAIN_DATA_PATH)/7.5 #[3121:4521, 5890:7390]/7.5
+        
+        super()._generate()

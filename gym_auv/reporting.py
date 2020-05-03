@@ -28,31 +28,30 @@ SHADOW_LENGTH = 100
 
 #matplotlib.use('pdf')
 
-def report(env, report_dir):
+def report(env, report_dir, lastn=100):
     try:
         os.makedirs(report_dir, exist_ok=True)
 
-        relevant_history = env.history[-min(100, len(env.history)):]
+        if lastn > -1:
+            relevant_history = env.history[-min(lastn, len(env.history)):]
+        else:
+            relevant_history = env.history
 
         collisions = np.array([obj['collision'] for obj in relevant_history])
         no_collisions = collisions == 0
         cross_track_errors = np.array([obj['cross_track_error'] for obj in relevant_history])
         progresses = np.array([obj['progress'] for obj in relevant_history])
-        reached_goals = np.array([obj['reached_goal'] for obj in relevant_history])
         rewards = np.array([obj['reward'] for obj in relevant_history])
-        success = np.logical_and(no_collisions, reached_goals)
         timesteps = np.array([obj['timesteps'] for obj in relevant_history]) 
 
         with open(os.path.join(report_dir, 'report.txt'), 'w') as f:
-            f.write('# PERFORMANCE METRICS (LAST 100 EPISODES AVG.)\n')
+            f.write('# PERFORMANCE METRICS (LAST {} EPISODES AVG.)\n'.format(lastn))
             f.write('{:<30}{:<30}\n'.format('Episodes', env.episode-3))
             f.write('{:<30}{:<30.2f}\n'.format('Avg. Reward', rewards.mean()))
             f.write('{:<30}{:<30.2f}\n'.format('Std. Reward', rewards.std()))
             f.write('{:<30}{:<30.2%}\n'.format('Avg. Progress', progresses.mean()))
-            f.write('{:<30}{:<30.2%}\n'.format('Reached Goal Percentage', reached_goals.mean()))
             f.write('{:<30}{:<30.2f}\n'.format('Avg. Collisions', collisions.mean()))
-            f.write('{:<30}{:<30.2%}\n'.format('No collisions', no_collisions.mean()))
-            f.write('{:<30}{:<30.2%}\n'.format('Success', success.mean()))
+            f.write('{:<30}{:<30.2%}\n'.format('No Collisions', no_collisions.mean()))
             f.write('{:<30}{:<30.2f}\n'.format('Avg. Cross-Track Error', cross_track_errors.mean()))
             f.write('{:<30}{:<30.2f}\n'.format('Avg. Timesteps', timesteps.mean()))\
 
@@ -87,7 +86,7 @@ def report(env, report_dir):
         ax.plot(smoothed_cross_track_errors, color='blue', linewidth=1, alpha=0.4)
         ax.set_ylabel(r"Avg. Cross-Track Error")
         ax.set_xlabel(r"Episode")
-        ax.legend()
+        #ax.legend()
         fig.savefig(os.path.join(report_dir, 'cross_track_error.pdf'), format='pdf')
         plt.close(fig)
 
@@ -100,7 +99,7 @@ def report(env, report_dir):
         ax.plot(smoothed_rewards, color='blue', linewidth=1, alpha=0.4)
         ax.set_ylabel(r"Reward")
         ax.set_xlabel(r"Episode")
-        ax.legend()
+        #ax.legend()
         fig.savefig(os.path.join(report_dir, 'reward.pdf'), format='pdf')
         plt.close(fig)
 
@@ -114,7 +113,7 @@ def report(env, report_dir):
         ax.plot(smoothed_progresses, color='blue', linewidth=1, alpha=0.4)
         ax.set_ylabel(r"Progress [%]")
         ax.set_xlabel(r"Episode")
-        ax.legend()
+        #ax.legend()
         fig.savefig(os.path.join(report_dir, 'progress.pdf'), format='pdf')
         plt.close(fig)
 
@@ -127,7 +126,7 @@ def report(env, report_dir):
         ax.plot(smoothed_timesteps, color='blue', linewidth=1, alpha=0.4)
         ax.set_ylabel(r"Timesteps")
         ax.set_xlabel(r"Episode")
-        ax.legend()
+        #ax.legend()
         fig.savefig(os.path.join(report_dir, 'timesteps.pdf'), format='pdf')
         plt.close(fig)
 
@@ -193,7 +192,7 @@ def plot_trajectory(env, fig_dir, local=False, size=100, fig_prefix='', episode_
         axis_max = max(axis_max_x, axis_max_y)
         axis_min = min(axis_min_x, axis_min_y)
 
-    for obst in env.obstacles:
+    for obst in obstacles:
         if isinstance(obst, CircularObstacle):
             obst_object = plt.Circle(
                 obst.position,
@@ -215,7 +214,7 @@ def plot_trajectory(env, fig_dir, local=False, size=100, fig_prefix='', episode_
             )
             obst = ax.add_patch(obst_object)
 
-    for obst in env.obstacles:
+    for obst in obstacles:
         if not obst.static:
             # if isinstance(obst, VesselObstacle):
             #     x_arr = [elm[0] for elm in obst.path_taken[len(obst.path_taken) - min(len(obst.path_taken), 100):]]
@@ -241,36 +240,36 @@ def plot_trajectory(env, fig_dir, local=False, size=100, fig_prefix='', episode_
                 y_arr = [elm[1][1] for elm in obst.trajectory]
                 ax.plot(x_arr, y_arr, dashes=[6, 2], color='red', linewidth=0.5, alpha=0.3)
 
-            plt.arrow(
-                obst.boundary.centroid.coords[0][0],
-                obst.boundary.centroid.coords[0][1],
-                40*obst.dx,
-                40*obst.dy,
-                head_width=3 if local else 8,
-                color='black',
-                zorder=9
-            )
+            # plt.arrow(
+            #     obst.init_boundary.centroid.coords[0][0],
+            #     obst.init_boundary.centroid.coords[0][1],
+            #     120*obst.dx,
+            #     120*obst.dy,
+            #     head_width=3 if local else 8,
+            #     color='black',
+            #     zorder=9
+            # )
 
-    for obst in env.obstacles:
+    for obst in obstacles:
         if isinstance(obst, VesselObstacle):
             if local and (abs(obst.position[0] - env.vessel.position[0]) > size or abs(obst.position[1] - env.vessel.position[1]) > size):
                 continue 
             vessel_obst = VesselObstacle(
                 width=obst.width, 
                 trajectory=[],  
-                init_position=obst.position,
+                init_position=obst.init_position,
                 init_heading=obst.heading, 
                 init_update=False
             )
             vessel_obst_object = plt.Polygon(
-                np.array(list(vessel_obst.boundary.exterior.coords)), True,
+                np.array(list(vessel_obst.init_boundary.exterior.coords)), True,
                 facecolor='#C0C0C0',
                 edgecolor='red',
                 linewidth=0.5,
                 zorder=10
             )
             ax.add_patch(vessel_obst_object)
-            if len(obst.heading_taken) >= SHADOW_LENGTH:
+            if not local and len(obst.heading_taken) >= SHADOW_LENGTH:
                 position = obst.path_taken[-SHADOW_LENGTH]
                 heading = obst.heading_taken[-SHADOW_LENGTH]
 
@@ -317,7 +316,7 @@ def plot_trajectory(env, fig_dir, local=False, size=100, fig_prefix='', episode_
         vessel_obst_object = plt.Polygon(
             np.array(list(vessel_obst.boundary.exterior.coords)), True,
             facecolor='#C0C0C0',
-            edgecolor='red',
+            edgecolor='#0c7cba',
             linewidth=0.5,
             zorder=10
         )
@@ -337,7 +336,7 @@ def plot_trajectory(env, fig_dir, local=False, size=100, fig_prefix='', episode_
             vessel_obst_object = plt.Polygon(
                 np.array(list(vessel_obst.boundary.exterior.coords)), True,
                 facecolor='none',
-                edgecolor='red',
+                edgecolor='#0c7cba',
                 linewidth=0.5,
                 linestyle='--',
                 zorder=10
@@ -348,18 +347,21 @@ def plot_trajectory(env, fig_dir, local=False, size=100, fig_prefix='', episode_
     ax.set_xlabel(r"East (m)")
     ax.set_xlim(axis_min_x, axis_max_x)
     ax.set_ylim(axis_min_y, axis_max_y)
-    ax.legend()
+    #ax.legend()
 
-    ax.plot(path[0, :], path[1, :], dashes=[6, 2], color='black', linewidth=1.5, label=r'Path', zorder=8)
+    dashmultiplier = 3 if local == False else size/100
+    linemultiplier = 1 if local == False else size/300
+    ax.plot(path[0, :], path[1, :], dashes=[3*dashmultiplier, 1*dashmultiplier], color='black', linewidth=1.0*linemultiplier, label=r'Path', zorder=8)
 
     if episode_dict is None or local:
+        pathcolor = '#0c7cba'
         L = len(env.vessel.heading_taken)
         if L + 5 >= SHADOW_LENGTH:
-            ax.plot(path_taken[:L-SHADOW_LENGTH-5, 0], path_taken[:L-SHADOW_LENGTH-5, 1], dashes=[6, 2], color='red', linewidth=1.0, label=r'Path taken')
-            ax.plot(path_taken[L-SHADOW_LENGTH+5+int(env.vessel.width):, 0], path_taken[L-SHADOW_LENGTH+5+int(env.vessel.width):, 1], dashes=[6, 2], color='red', linewidth=1.0, label=r'Path taken')
+            ax.plot(path_taken[:L-SHADOW_LENGTH-7, 0], path_taken[:L-SHADOW_LENGTH-7, 1], dashes=[1*dashmultiplier, 2*dashmultiplier], color=pathcolor, linewidth=1.0*linemultiplier, label=r'Path taken')
+            ax.plot(path_taken[L-SHADOW_LENGTH+7+int(env.vessel.width):, 0], path_taken[L-SHADOW_LENGTH+7+int(env.vessel.width):, 1],  dashes=[1*dashmultiplier, 2*dashmultiplier], color=pathcolor, linewidth=1.0*linemultiplier, label=r'Path taken')
         
         else:
-            ax.plot(path_taken[:, 0], path_taken[:, 1], dashes=[6, 2], color='red', linewidth=1.0, label=r'Path taken')
+            ax.plot(path_taken[:, 0], path_taken[:, 1], dashes=[1*dashmultiplier, 2*dashmultiplier], color=pathcolor, linewidth=1.0*linemultiplier, label=r'Path taken')
 
         # x_arr = path_taken[:, 0]
         # y_arr = path_taken[:, 1]
@@ -402,12 +404,12 @@ def plot_trajectory(env, fig_dir, local=False, size=100, fig_prefix='', episode_
 
     if not local:
         ax.annotate("Goal", 
-            xy=(path[0, -1], path[1, -1] + (axis_max - axis_min)/40),   
+            xy=(path[0, -1], path[1, -1] + (axis_max - axis_min)/25),   
             fontsize=11, ha="center", zorder=20, color='white', family='sans-serif',
             bbox=dict(facecolor='tab:red', edgecolor='black', alpha=0.75, boxstyle='round')
         )
         ax.annotate("Start", 
-            xy=(path[0, 0], path[1, 0] + (axis_max - axis_min)/40),
+            xy=(path[0, 0], path[1, 0] - (axis_max - axis_min)/20),
             fontsize=11, ha="center", zorder=20, color='white', family='sans-serif',
             bbox=dict(facecolor='tab:red', edgecolor='black', alpha=0.75, boxstyle='round')
         )
@@ -454,15 +456,15 @@ def plot_scenario(env, fig_dir, fig_postfix='', show=True):
                 y_arr = [elm[1][1] for elm in obst.trajectory]
                 ax.plot(x_arr, y_arr, dashes=[6, 2], color='red', linewidth=0.5, alpha=0.3)
 
-            plt.arrow(
-                obst.boundary.centroid.coords[0][0],
-                obst.boundary.centroid.coords[0][1],
-                40*obst.dx,
-                40*obst.dy,
-                head_width=8,
-                color='black',
-                zorder=11
-            )
+            # plt.arrow(
+            #     obst.boundary.centroid.coords[0][0],
+            #     obst.boundary.centroid.coords[0][1],
+            #     120*obst.dx,
+            #     120*obst.dy,
+            #     head_width=8,
+            #     color='black',
+            #     zorder=11
+            # )
 
     for obst in env.obstacles:
         if isinstance(obst, CircularObstacle):
@@ -496,7 +498,7 @@ def plot_scenario(env, fig_dir, fig_postfix='', show=True):
     ax.set_xlabel(r"East (m)")
     ax.set_xlim(axis_min_x, axis_max_x)
     ax.set_ylim(axis_min_y, axis_max_y)
-    ax.legend()
+    #ax.legend()
 
     ax.plot(path[0, :], path[1, :], dashes=[6, 2], color='black', linewidth=1.5)
     if isinstance(env, RealWorldEnv):
@@ -510,12 +512,12 @@ def plot_scenario(env, fig_dir, fig_postfix='', show=True):
             )
             ax.add_patch(waypoint_marker)
     ax.annotate("Goal", 
-        xy=(path[0, -1], path[1, -1] + (axis_max - axis_min)/40),
+        xy=(path[0, -1], path[1, -1] + (axis_max - axis_min)/25),
         fontsize=11, ha="center", zorder=20, color='white', family='sans-serif',
         bbox=dict(facecolor='tab:red', edgecolor='black', alpha=0.75, boxstyle='round')
     )
     ax.annotate("Start", 
-        xy=(path[0, 0], path[1, 0] + (axis_max - axis_min)/40),
+        xy=(path[0, 0], path[1, 0] - (axis_max - axis_min)/20),
         fontsize=11, ha="center", zorder=20, color='white', family='sans-serif',
         bbox=dict(facecolor='tab:red', edgecolor='black', alpha=0.75, boxstyle='round')
     )
@@ -828,7 +830,7 @@ def plot_vector_field(env, agent, fig_dir, fig_prefix='', xstep=2.0, ystep=5.0, 
         fontsize=12, ha="center", zorder=20, color='black',
     )
 
-    ax.legend()
+    #ax.legend()
 
     fig.savefig(os.path.join(fig_dir, fig_prefix + 'vector_field.pdf'), format='pdf')
     plt.close(fig)

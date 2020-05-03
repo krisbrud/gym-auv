@@ -175,10 +175,10 @@ def play_scenario(env, recorded_env, args, agent=None):
                 recorded_env.render()
                 t_steps += 1
 
-                if args.play_plotting:
+                if args.play_plotting and not done:
                     if t_steps % 50 == 0:
                         env.save_latest_episode()
-                        for size in (100, 200, 300, 400, 500):
+                        for size in (100, 200):#, 300, 400, 500):
                             gym_auv.reporting.plot_trajectory(
                                 env, fig_dir='../logs/play_results/', fig_prefix=('_t_step_' + str(t_steps) + '_' + str(size)), local=True, size=size
                             )
@@ -187,9 +187,10 @@ def play_scenario(env, recorded_env, args, agent=None):
                 if done or restart: break
             
             env.seed(np.random.randint(1000))
-            env.reset()
+            env.save_latest_episode()
             gym_auv.reporting.report(env, report_dir='../logs/play_results/')
-            gym_auv.reporting.plot_trajectory(env, fig_dir='../logs/play_results/') 
+            gym_auv.reporting.plot_trajectory(env, fig_dir='../logs/play_results/')
+            env.reset()
 
 
     except KeyboardInterrupt:
@@ -247,13 +248,15 @@ def main(args):
         # ]
         # for param in params:
         #     print(param, params[param].shape)
-        
+
+        video_folder = os.path.join(DIR_PATH, 'logs', 'videos', args.env, EXPERIMENT_ID)
+        os.makedirs(video_folder, exist_ok=True)
 
         env = create_env(env_id, envconfig, test_mode=True, render_mode=args.render, pilot=args.pilot)
         if args.scenario:
             env.load(args.scenario)
         vec_env = DummyVecEnv([lambda: env])
-        recorded_env = VecVideoRecorder(vec_env, args.video_dir, record_video_trigger=lambda x: x==0, 
+        recorded_env = VecVideoRecorder(vec_env, video_folder, record_video_trigger=lambda x: x==0, 
             video_length=args.recording_length, name_prefix=(args.env if args.video_name == 'auto' else args.video_name)
         )
         obs = recorded_env.reset()
@@ -465,7 +468,7 @@ def main(args):
             n_updates += 1
         
         agent.learn(
-            total_timesteps=10000000, 
+            total_timesteps=1500000, 
             tb_log_name='log',
             callback=callback
         )
@@ -511,35 +514,39 @@ def main(args):
     elif args.mode == 'test':
         figure_folder = os.path.join(DIR_PATH, 'logs', 'tests', args.env, EXPERIMENT_ID)
         scenario_folder = os.path.join(figure_folder, 'scenarios')
+        video_folder = os.path.join(figure_folder, 'videos')
         os.makedirs(figure_folder, exist_ok=True)
         os.makedirs(scenario_folder, exist_ok=True)
+        os.makedirs(video_folder, exist_ok=True)
 
         if not args.onlyplot:
             agent = model.load(args.agent)
 
-        def create_test_env(envconfig=envconfig, video_name_prefix=None):
+        def create_test_env(video_name_prefix, envconfig=envconfig):
             print('Creating test environment: ' + env_id)
             env = create_env(env_id, envconfig, test_mode=True, render_mode=args.render if args.video else None, pilot=args.pilot)
             vec_env = DummyVecEnv([lambda: env])
             if args.video:
-                recorded_env = VecVideoRecorder(vec_env, args.video_dir, record_video_trigger=lambda x: x == 0, 
-                video_length=args.recording_length, name_prefix=args.video_name if video_name_prefix is None else video_name_prefix
+                video_length = min(500, args.recording_length)
+                recorded_env = VecVideoRecorder(vec_env, video_folder, record_video_trigger=lambda x: (x%video_length) == 0, 
+                video_length=video_length, name_prefix=video_name_prefix
             )
             active_env = recorded_env if args.video else vec_env
 
             return env, active_env
 
         failed_tests = []
-        def run_test(id, reset=True, report_dir=figure_folder, scenario=None, max_t_steps=None):
+        def run_test(id, reset=True, report_dir=figure_folder, scenario=None, max_t_steps=None, env=None, active_env=None):
             nonlocal failed_tests
 
-            if scenario is not None:
+            if env is None or active_env is None:
                 env, active_env = create_test_env(video_name_prefix=args.env + '_'  + id)
+
+            if scenario is not None:
                 obs = active_env.reset()
                 env.load(args.scenario)
                 print('Loaded', args.scenario)
             else: 
-                env, active_env = create_test_env()
                 if reset:
                     obs = active_env.reset()
                 else:
@@ -567,15 +574,19 @@ def main(args):
                 sys.stdout.write(report_msg)
                 sys.stdout.flush()
 
-                if t_steps % 10 == 0 and not done:
+                if t_steps % 30 == 0 and not done:
                     env.save_latest_episode()
-                    for size in (100, 200, 300, 400, 500):
+                    for size in (100, 200):#, 300, 400, 500):
                         gym_auv.reporting.plot_trajectory(
                             env, fig_dir=scenario_folder, fig_prefix=(args.env + '_t_step_' + str(t_steps) + '_' + str(size) + '_' + id), local=True, size=size
                         )
+                elif done:
+                    gym_auv.reporting.plot_trajectory(env, fig_dir=scenario_folder, fig_prefix=(args.env + '_' + id))
 
-            gym_auv.reporting.report(env, report_dir=report_dir)
-            gym_auv.reporting.plot_trajectory(env, fig_dir=scenario_folder, fig_prefix=(args.env + '_' + id))
+            env.close()
+
+            gym_auv.reporting.report(env, report_dir=report_dir, lastn=-1)
+            #gym_auv.reporting.plot_trajectory(env, fig_dir=scenario_folder, fig_prefix=(args.env + '_' + id))
             #env.save(os.path.join(scenario_folder, id))
             if env.collision:
                 failed_tests.append(id)
@@ -636,8 +647,9 @@ def main(args):
                 
                 gym_auv.reporting.plot_trajectory(env, fig_dir=figure_folder, fig_prefix=(args.env + '_all_agents'), episode_dict=episode_dict)
             else:
+                env, active_env = create_test_env(video_name_prefix=args.env)
                 for episode in range(args.episodes):
-                    run_test('ep' + str(episode))
+                    run_test('ep' + str(episode), env=env, active_env=active_env)
 
         if args.video and active_env:
             active_env.close()
