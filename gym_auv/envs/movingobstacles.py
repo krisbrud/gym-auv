@@ -12,6 +12,9 @@ import shapely.geometry, shapely.errors
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
+vessel_speed_vals = np.loadtxt('../resources/speed_vals.txt')
+vessel_speed_density = np.loadtxt('../resources/speed_density.txt')
+
 class MovingObstacles(BaseEnvironment):
 
     def __init__(self, *args, **kwargs) -> None:
@@ -48,7 +51,7 @@ class MovingObstacles(BaseEnvironment):
 
             obst_position, obst_radius = helpers.generate_obstacle(self.rng, self.path, self.vessel, obst_radius_mean=10, displacement_dist_std=500)
             obst_direction = self.rng.rand()*2*np.pi
-            obst_speed = max(0.4, self.rng.rand()*1.1)
+            obst_speed = np.random.choice(vessel_speed_vals, p=vessel_speed_density)
 
             for i in range(10000):
                 other_vessel_trajectory.append((i, (

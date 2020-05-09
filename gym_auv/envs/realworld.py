@@ -84,7 +84,7 @@ class RealWorldEnv(BaseEnvironment):
                 self.all_obstacles.append(obstacle)
                 self.obstacles.append(obstacle)
 
-        print('Added {} obstacles'.format(len(self.obstacles)))
+        if self.verbose: print('Added {} obstacles'.format(len(self.obstacles)))
 
         if self.verbose: print('Generating {} vessel trajectories'.format(len(self.other_vessels)))
         for vessel_width, vessel_trajectory, vessel_name in self.other_vessels:
@@ -110,35 +110,31 @@ class RealWorldEnv(BaseEnvironment):
         self._update()
 
     def _update(self):
+        if self.render_mode == '3d':
+            if self.t_step % UPDATE_WAIT == 0:
+                travelled_distance = np.linalg.norm(self.vessel.position - self.last_scenario_load_coordinates) if self.last_scenario_load_coordinates is not None else np.inf
+                if travelled_distance > VIEW_DISTANCE_3D/10:
+                    if self.verbose:
+                        print('Update scheduled with distance travelled {:.2f}.'.format(travelled_distance))
+                    
+                    if self.verbose:
+                        print('Loading nearby terrain...'.format(len(self.obstacles)))
+                    vessel_center = shapely.geometry.Point(
+                        self.vessel.position[0], 
+                        self.vessel.position[1],
+                    )
+                    self.obstacles = []
+                    for obstacle in self.all_obstacles:
+                        obst_dist = float(vessel_center.distance(obstacle.boundary)) - self.vessel.width
+                        if obst_dist <= VIEW_DISTANCE_3D:
+                            self.obstacles.append(obstacle)
+                        else:
+                            if not obstacle.static:
+                                obstacle.update(UPDATE_WAIT*self.config["t_step_size"])
 
-        if self.t_step % UPDATE_WAIT == 0:
-
-            travelled_distance = np.linalg.norm(self.vessel.position - self.last_scenario_load_coordinates) if self.last_scenario_load_coordinates is not None else np.inf
-
-            if travelled_distance > VIEW_DISTANCE_3D/10:
-                
-                if self.verbose:
-                    print('Update scheduled with distance travelled {:.2f}.'.format(travelled_distance))
-                
-                if self.verbose:
-                    print('Loading nearby terrain...'.format(len(self.obstacles)))
-                vessel_center = shapely.geometry.Point(
-                    self.vessel.position[0], 
-                    self.vessel.position[1],
-                )
-                self.obstacles = []
-                for obstacle in self.all_obstacles:
-                    obst_dist = float(vessel_center.distance(obstacle.boundary)) - self.vessel.width
-                    if obst_dist <= VIEW_DISTANCE_3D:
-                        self.obstacles.append(obstacle)
-                    else:
-                        if not obstacle.static:
-                            obstacle.update(UPDATE_WAIT*self.config["t_step_size"])
-
-                if self.verbose:
-                    print('Loaded nearby terrain ({} obstacles).'.format(len(self.obstacles)))
-                
-                if self.render_mode == '3d':
+                    if self.verbose:
+                        print('Loaded nearby terrain ({} obstacles).'.format(len(self.obstacles)))
+                    
                     if self.verbose:
                         print('Loading nearby 3D terrain...')
                     x = int(self.vessel.position[0] + self.x0)
@@ -151,7 +147,7 @@ class RealWorldEnv(BaseEnvironment):
                     if self.verbose:
                         print('Loaded nearby 3D terrain ({}-{}, {}-{})'.format(xlow, xhigh, ylow, yhigh))
 
-                self.last_scenario_load_coordinates = self.vessel.position
+                    self.last_scenario_load_coordinates = self.vessel.position
 
         super()._update()
 

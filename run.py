@@ -177,7 +177,7 @@ def play_scenario(env, recorded_env, args, agent=None):
 
                 if args.play_plotting and not done:
                     if t_steps % 50 == 0:
-                        env.save_latest_episode()
+                        env.save_latest_episode(save_history=False)
                         for size in (100, 200):#, 300, 400, 500):
                             gym_auv.reporting.plot_trajectory(
                                 env, fig_dir='../logs/play_results/', fig_prefix=('_t_step_' + str(t_steps) + '_' + str(size)), local=True, size=size
@@ -190,7 +190,7 @@ def play_scenario(env, recorded_env, args, agent=None):
             env.save_latest_episode()
             gym_auv.reporting.report(env, report_dir='../logs/play_results/')
             gym_auv.reporting.plot_trajectory(env, fig_dir='../logs/play_results/')
-            env.reset()
+            env.reset(save_history=False)
 
 
     except KeyboardInterrupt:
@@ -347,8 +347,8 @@ def main(args):
                     }
                     #policy_kwargs = dict(act_fun=tf.nn.tanh, net_arch=[64, 64, 64])
                     #policy_kwargs = dict(net_arch=[64, 64, 64])
-                    #layers = [256, 128, 64, 32, 16, 8]
-                    layers = [64, 64]
+                    layers = [256, 128, 64]
+                    #layers = [64, 64]
                     policy_kwargs = dict(net_arch = [dict(vf=layers, pi=layers)])
                     agent = PPO2(MlpPolicy, 
                         vec_env, verbose=True, tensorboard_log=tensorboard_log, 
@@ -575,7 +575,7 @@ def main(args):
                 sys.stdout.flush()
 
                 if t_steps % 30 == 0 and not done:
-                    env.save_latest_episode()
+                    env.save_latest_episode(save_history=False)
                     for size in (100, 200):#, 300, 400, 500):
                         gym_auv.reporting.plot_trajectory(
                             env, fig_dir=scenario_folder, fig_prefix=(args.env + '_t_step_' + str(t_steps) + '_' + str(size) + '_' + id), local=True, size=size

@@ -99,7 +99,7 @@ class BaseEnvironment(gym.Env, ABC):
         """Array defining the shape and bounds of the agent's observations."""
         return self._observation_space
 
-    def reset(self):
+    def reset(self, save_history=True):
         """Reset the environment's state. Returns observation.
 
         Returns
@@ -107,6 +107,8 @@ class BaseEnvironment(gym.Env, ABC):
         obs : np.ndarray
             The initial observation of the environment.
         """
+
+        #print('Resetting environment')
 
         if self.verbose: print('Resetting environment... Last reward was {:.2f}'.format(self.cumulative_reward))
 
@@ -116,7 +118,7 @@ class BaseEnvironment(gym.Env, ABC):
 
         # Saving information about episode
         if self.t_step:
-           self.save_latest_episode()
+           self.save_latest_episode(save_history=save_history)
 
         # Incrementing counters
         self.episode += 1
@@ -152,6 +154,8 @@ class BaseEnvironment(gym.Env, ABC):
         self._tmp_storage = {
             'cross_track_error': [],
         }
+
+        #print('Reset environment')
 
         return obs
 
@@ -281,17 +285,21 @@ class BaseEnvironment(gym.Env, ABC):
         latest_data = self.vessel.req_latest_data()
         self._tmp_storage['cross_track_error'].append(abs(latest_data['navigation']['cross_track_error']))
 
-    def save_latest_episode(self):
+    def save_latest_episode(self, save_history=True):
+        #print('Saving latest episode with save_history = ' + str(save_history))
         self.last_episode = {
             'path': self.path(np.linspace(0, self.path.length, 1000)) if self.path is not None else None,
             'path_taken': self.vessel.path_taken,
             'obstacles': self.obstacles
         }
-        self.history.append({
-            'cross_track_error': np.array(self._tmp_storage['cross_track_error']).mean(),
-            'reached_goal': int(self.reached_goal),
-            'collision': int(self.collision),
-            'reward': self.cumulative_reward,
-            'timesteps': self.t_step,
-            'progress': self.progress
-        })
+        if save_history:
+            self.history.append({
+                'cross_track_error': np.array(self._tmp_storage['cross_track_error']).mean(),
+                'reached_goal': int(self.reached_goal),
+                'collision': int(self.collision),
+                'reward': self.cumulative_reward,
+                'timesteps': self.t_step,
+                'duration': self.t_step*self.config["t_step_size"],
+                'progress': self.progress,
+                'pathlength': self.path.length
+            })

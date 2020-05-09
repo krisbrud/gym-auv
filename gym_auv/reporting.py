@@ -42,18 +42,24 @@ def report(env, report_dir, lastn=100):
         cross_track_errors = np.array([obj['cross_track_error'] for obj in relevant_history])
         progresses = np.array([obj['progress'] for obj in relevant_history])
         rewards = np.array([obj['reward'] for obj in relevant_history])
-        timesteps = np.array([obj['timesteps'] for obj in relevant_history]) 
+        timesteps = np.array([obj['timesteps'] for obj in relevant_history])
+        duration = np.array([obj['duration'] for obj in relevant_history])
+        pathlengths = np.array([obj['pathlength'] for obj in relevant_history])
+        speeds = np.array([obj['pathlength']/obj['duration'] if obj['duration'] > 0 else np.nan for obj in relevant_history])
 
         with open(os.path.join(report_dir, 'report.txt'), 'w') as f:
             f.write('# PERFORMANCE METRICS (LAST {} EPISODES AVG.)\n'.format(lastn))
-            f.write('{:<30}{:<30}\n'.format('Episodes', env.episode-3))
+            f.write('{:<30}{:<30}\n'.format('Episodes', len(pathlengths)))
             f.write('{:<30}{:<30.2f}\n'.format('Avg. Reward', rewards.mean()))
             f.write('{:<30}{:<30.2f}\n'.format('Std. Reward', rewards.std()))
             f.write('{:<30}{:<30.2%}\n'.format('Avg. Progress', progresses.mean()))
             f.write('{:<30}{:<30.2f}\n'.format('Avg. Collisions', collisions.mean()))
             f.write('{:<30}{:<30.2%}\n'.format('No Collisions', no_collisions.mean()))
             f.write('{:<30}{:<30.2f}\n'.format('Avg. Cross-Track Error', cross_track_errors.mean()))
-            f.write('{:<30}{:<30.2f}\n'.format('Avg. Timesteps', timesteps.mean()))\
+            f.write('{:<30}{:<30.2f}\n'.format('Avg. Timesteps', timesteps.mean()))
+            f.write('{:<30}{:<30.2f}\n'.format('Avg. Duration', duration.mean()))
+            f.write('{:<30}{:<30.2f}\n'.format('Avg. Pathlength', pathlengths.mean()))
+            f.write('{:<30}{:<30.2f}\n'.format('Avg. Speed', speeds.mean()))
 
         plt.style.use('ggplot')
         plt.rc('font', family='serif')
@@ -148,6 +154,8 @@ def plot_trajectory(env, fig_dir, local=False, size=100, fig_prefix='', episode_
         Absolute path to a directory to store the plotted
         figure in.
     """
+
+    #print('Plotting with local = ' + str(local))
 
     path = env.last_episode['path']
     path_taken = env.last_episode['path_taken']
@@ -316,7 +324,7 @@ def plot_trajectory(env, fig_dir, local=False, size=100, fig_prefix='', episode_
         vessel_obst_object = plt.Polygon(
             np.array(list(vessel_obst.boundary.exterior.coords)), True,
             facecolor='#C0C0C0',
-            edgecolor='#0c7cba',
+            edgecolor='red',
             linewidth=0.5,
             zorder=10
         )
@@ -336,7 +344,7 @@ def plot_trajectory(env, fig_dir, local=False, size=100, fig_prefix='', episode_
             vessel_obst_object = plt.Polygon(
                 np.array(list(vessel_obst.boundary.exterior.coords)), True,
                 facecolor='none',
-                edgecolor='#0c7cba',
+                edgecolor='red',
                 linewidth=0.5,
                 linestyle='--',
                 zorder=10
@@ -354,7 +362,7 @@ def plot_trajectory(env, fig_dir, local=False, size=100, fig_prefix='', episode_
     ax.plot(path[0, :], path[1, :], dashes=[3*dashmultiplier, 1*dashmultiplier], color='black', linewidth=1.0*linemultiplier, label=r'Path', zorder=8)
 
     if episode_dict is None or local:
-        pathcolor = '#0c7cba'
+        pathcolor = 'red'
         L = len(env.vessel.heading_taken)
         if L + 5 >= SHADOW_LENGTH:
             ax.plot(path_taken[:L-SHADOW_LENGTH-7, 0], path_taken[:L-SHADOW_LENGTH-7, 1], dashes=[1*dashmultiplier, 2*dashmultiplier], color=pathcolor, linewidth=1.0*linemultiplier, label=r'Path taken')
