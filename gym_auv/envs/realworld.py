@@ -16,6 +16,9 @@ UPDATE_WAIT = 100
 TERRAIN_DATA_PATH = '../resources/terrain.npy'
 INCLUDED_VESSELS = None
 
+VESSEL_SPEED_RANGE_LOWER = 0.4
+VESSEL_SPEED_RANGE_UPPER = 0.7
+
 class RealWorldEnv(BaseEnvironment):
 
     def __init__(self, *args, **kw):
@@ -33,31 +36,49 @@ class RealWorldEnv(BaseEnvironment):
         vessel_trajectories = []
 
         #print('Preprocessing traffic...')
+        while len(vessel_trajectories) < self.n_vessels:
+            if len(vessel_names) == 0:
+                break
+            vessel_idx = self.rng.randint(0, len(vessel_names))
+            vessel_name = vessel_names.pop(vessel_idx)
 
-        selected_vessels = self.rng.choice(vessel_names, min(len(vessel_names), self.n_vessels), replace=False)
-
-        for vessel_name in selected_vessels:
             vessels[vessel_name]['AIS_Timestamp'] = pd.to_datetime(vessels[vessel_name]['AIS_Timestamp'])
             vessels[vessel_name]['AIS_Timestamp'] -= vessels[vessel_name].iloc[0]['AIS_Timestamp']
             start_timestamp = None
 
             last_timestamp = pd.to_timedelta(0, unit='D')
+            last_east = None
+            last_north = None
             cutoff_dt = pd.to_timedelta(0.1, unit='D')
             path = []
             for _, row in vessels[vessel_name].iterrows():
+                east = row['AIS_East']/10.0
+                north = row['AIS_North']/10.0
                 if row['AIS_Length_Overall'] < 12:
                     continue
                 if len(path) == 0:
                     start_timestamp = row['AIS_Timestamp']
                 timedelta = row['AIS_Timestamp'] - last_timestamp
                 if timedelta < cutoff_dt:
-                    path.append((int((row['AIS_Timestamp']-start_timestamp).total_seconds()), (row['AIS_East']/10.0-self.x0, row['AIS_North']/10.0-self.y0)))
+                    if last_east is not None:
+                        dx = east - last_east
+                        dy = north - last_north
+                        distance = np.sqrt(dx**2 + dy**2)
+                        seconds = timedelta.seconds
+                        speed = distance/seconds
+                        if speed < VESSEL_SPEED_RANGE_LOWER or speed > VESSEL_SPEED_RANGE_UPPER:
+                            path = []
+                            continue
+
+                    path.append((int((row['AIS_Timestamp']-start_timestamp).total_seconds()), (east-self.x0, north-self.y0)))
                 else:
                     if len(path) > 1 and not np.isnan(row['AIS_Length_Overall']) and row['AIS_Length_Overall'] > 0:
                         start_index = self.rng.randint(0, len(path)-1)
                         vessel_trajectories.append((row['AIS_Length_Overall']/10.0, path[start_index:], vessel_name))
                     path = []
                 last_timestamp = row['AIS_Timestamp']
+                last_east = east
+                last_north = north
         
             #if self.other_vessels:
             #    print(vessel_name, path[0], len(path))
