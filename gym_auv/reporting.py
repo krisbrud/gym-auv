@@ -261,23 +261,39 @@ def plot_trajectory(env, fig_dir, local=False, size=100, fig_prefix='', episode_
     for obst in obstacles:
         if isinstance(obst, VesselObstacle):
             if local and (abs(obst.position[0] - env.vessel.position[0]) > size or abs(obst.position[1] - env.vessel.position[1]) > size):
-                continue 
-            vessel_obst = VesselObstacle(
-                width=obst.width, 
-                trajectory=[],  
-                init_position=obst.init_position,
-                init_heading=obst.heading, 
-                init_update=False
-            )
-            vessel_obst_object = plt.Polygon(
-                np.array(list(vessel_obst.init_boundary.exterior.coords)), True,
-                facecolor='#C0C0C0',
-                edgecolor='red',
-                linewidth=0.5,
-                zorder=10
-            )
+                continue
+            if local:
+                vessel_obst = VesselObstacle(
+                    width=obst.width, 
+                    trajectory=[],  
+                    init_position=obst.position,
+                    init_heading=obst.heading, 
+                    init_update=False
+                )
+                vessel_obst_object = plt.Polygon(
+                    np.array(list(vessel_obst.boundary.exterior.coords)), True,
+                    facecolor='#C0C0C0',
+                    edgecolor='red',
+                    linewidth=0.5,
+                    zorder=10
+                )
+            else:
+                vessel_obst = VesselObstacle(
+                    width=obst.width, 
+                    trajectory=[],  
+                    init_position=obst.init_position,
+                    init_heading=obst.heading, 
+                    init_update=False
+                )
+                vessel_obst_object = plt.Polygon(
+                    np.array(list(vessel_obst.init_boundary.exterior.coords)), True,
+                    facecolor='#C0C0C0',
+                    edgecolor='red',
+                    linewidth=0.5,
+                    zorder=10
+                )
             ax.add_patch(vessel_obst_object)
-            if not local and len(obst.heading_taken) >= SHADOW_LENGTH:
+            if local and len(obst.heading_taken) >= SHADOW_LENGTH:
                 position = obst.path_taken[-SHADOW_LENGTH]
                 heading = obst.heading_taken[-SHADOW_LENGTH]
 
@@ -298,20 +314,20 @@ def plot_trajectory(env, fig_dir, local=False, size=100, fig_prefix='', episode_
                 )
                 ax.add_patch(vessel_obst_object)
 
-                # x_arr = [elm[0] for elm in obst.path_taken[len(obst.path_taken) - min(len(obst.path_taken), SHADOW_LENGTH):]]
-                # y_arr = [elm[1] for elm in obst.path_taken[len(obst.path_taken) - min(len(obst.path_taken), SHADOW_LENGTH):]]
-                # points = np.array([x_arr, y_arr]).T.reshape(-1, 1, 2)
-                # segments = np.concatenate([points[:-1], points[1:]], axis=1)
-                # colors = []
-                # for i in range(len(x_arr)-1):
-                #     di = len(x_arr)-1 - i
-                #     if di > PLOT_COLOR_TRESHOLD:
-                #         c = (1.0, 0.0, 0.0)
-                #     else:
-                #         c = (max(0.0, 1-di*0.01), 0.0, 0.0)
-                #     colors.append(c)
-                # lc = LineCollection(segments, color=colors, linewidth=0.5, linestyle='--', zorder=9)
-                # ax.add_collection(lc)
+                x_arr = [elm[0] for elm in obst.path_taken[len(obst.path_taken) - min(len(obst.path_taken), SHADOW_LENGTH):]]
+                y_arr = [elm[1] for elm in obst.path_taken[len(obst.path_taken) - min(len(obst.path_taken), SHADOW_LENGTH):]]
+                points = np.array([x_arr, y_arr]).T.reshape(-1, 1, 2)
+                segments = np.concatenate([points[:-1], points[1:]], axis=1)
+                colors = []
+                for i in range(len(x_arr)-1):
+                    di = len(x_arr)-1 - i
+                    if di > PLOT_COLOR_TRESHOLD:
+                        c = (1.0, 0.0, 0.0)
+                    else:
+                        c = (max(0.0, 1-di*0.01), 0.0, 0.0)
+                    colors.append(c)
+                lc = LineCollection(segments, color=colors, linewidth=0.5, linestyle='--', zorder=9)
+                ax.add_collection(lc)
 
     if local:
         vessel_obst = VesselObstacle(
@@ -353,6 +369,8 @@ def plot_trajectory(env, fig_dir, local=False, size=100, fig_prefix='', episode_
 
     ax.set_ylabel(r"North (m)")
     ax.set_xlabel(r"East (m)")
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0f}'.format(y*10)))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0f}'.format(y*10)))
     ax.set_xlim(axis_min_x, axis_max_x)
     ax.set_ylim(axis_min_y, axis_max_y)
     #ax.legend()
@@ -504,21 +522,23 @@ def plot_scenario(env, fig_dir, fig_postfix='', show=True):
     
     ax.set_ylabel(r"North (m)")
     ax.set_xlabel(r"East (m)")
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0f}'.format(y*10)))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0f}'.format(y*10)))
     ax.set_xlim(axis_min_x, axis_max_x)
     ax.set_ylim(axis_min_y, axis_max_y)
     #ax.legend()
 
     ax.plot(path[0, :], path[1, :], dashes=[6, 2], color='black', linewidth=1.5)
-    if isinstance(env, RealWorldEnv):
-        for x, y in zip(*env.path.init_waypoints):
-            waypoint_marker = plt.Circle(
-                (x, y),
-                (axis_max - axis_min)/150,
-                facecolor='red',
-                linewidth=0.5,
-                zorder=11
-            )
-            ax.add_patch(waypoint_marker)
+    # if isinstance(env, RealWorldEnv):
+    #     for x, y in zip(*env.path.init_waypoints):
+    #         waypoint_marker = plt.Circle(
+    #             (x, y),
+    #             (axis_max - axis_min)/150,
+    #             facecolor='red',
+    #             linewidth=0.5,
+    #             zorder=11,
+    #         )
+    #         ax.add_patch(waypoint_marker)
     ax.annotate("Goal", 
         xy=(path[0, -1], path[1, -1] + (axis_max - axis_min)/25),
         fontsize=11, ha="center", zorder=20, color='white', family='sans-serif',
@@ -681,6 +701,8 @@ def plot_streamlines(env, agent, fig_dir, fig_prefix='', N=11):
     ax.plot(path[0, :], path[1, :], color='black', linewidth=1.5, label=r'Path')
     ax.set_ylabel(r"North (m)")
     ax.set_xlabel(r"East (m)")
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0f}'.format(y*10)))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0f}'.format(y*10)))
     ax.set_xlim(axis_min_x, axis_max_x)
     ax.set_ylim(axis_min_y, axis_max_y)
 
@@ -810,6 +832,8 @@ def plot_vector_field(env, agent, fig_dir, fig_prefix='', xstep=2.0, ystep=5.0, 
     ax.plot(path[0, :], path[1, :], dashes=[6, 2], linewidth=1.0, color='red', label=r'Path')
     ax.set_ylabel(r"North (m)")
     ax.set_xlabel(r"East (m)")
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0f}'.format(y*10)))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0f}'.format(y*10)))
     ax.set_xlim(axis_min_x-5, axis_max_x+5)
     ax.set_ylim(axis_min_y-5, axis_max_y+5)
 

@@ -576,7 +576,7 @@ def main(args):
 
                 if t_steps % 30 == 0 and not done:
                     env.save_latest_episode(save_history=False)
-                    for size in (100, 200):#, 300, 400, 500):
+                    for size in (100, 200, 300, 400, 500):
                         gym_auv.reporting.plot_trajectory(
                             env, fig_dir=scenario_folder, fig_prefix=(args.env + '_t_step_' + str(t_steps) + '_' + str(size) + '_' + id), local=True, size=size
                         )
