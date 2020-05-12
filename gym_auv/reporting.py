@@ -367,10 +367,16 @@ def plot_trajectory(env, fig_dir, local=False, size=100, fig_prefix='', episode_
             )
             ax.add_patch(vessel_obst_object)
 
-    ax.set_ylabel(r"North (m)")
-    ax.set_xlabel(r"East (m)")
-    ax.xaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0f}'.format(y*10)))
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0f}'.format(y*10)))
+    if local and size <= 50:
+        ax.set_ylabel(r"North (m)")
+        ax.set_xlabel(r"East (m)")
+        ax.xaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0f}'.format(y*10)))
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0f}'.format(y*10)))
+    else:
+        ax.set_ylabel(r"North (km)")
+        ax.set_xlabel(r"East (km)")
+        ax.xaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.1f}'.format(y/100)))
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.1f}'.format(y/100)))
     ax.set_xlim(axis_min_x, axis_max_x)
     ax.set_ylim(axis_min_y, axis_max_y)
     #ax.legend()
@@ -520,10 +526,10 @@ def plot_scenario(env, fig_dir, fig_postfix='', show=True):
         obst = ax.add_patch(obst_object)
 
     
-    ax.set_ylabel(r"North (m)")
-    ax.set_xlabel(r"East (m)")
-    ax.xaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0f}'.format(y*10)))
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0f}'.format(y*10)))
+    ax.set_ylabel(r"North (km)")
+    ax.set_xlabel(r"East (km)")
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.1f}'.format(y/100)))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.1f}'.format(y/100)))
     ax.set_xlim(axis_min_x, axis_max_x)
     ax.set_ylim(axis_min_y, axis_max_y)
     #ax.legend()
