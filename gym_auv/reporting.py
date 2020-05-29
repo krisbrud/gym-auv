@@ -248,15 +248,15 @@ def plot_trajectory(env, fig_dir, local=False, size=100, fig_prefix='', episode_
                 y_arr = [elm[1][1] for elm in obst.trajectory]
                 ax.plot(x_arr, y_arr, dashes=[6, 2], color='red', linewidth=0.5, alpha=0.3)
 
-            # plt.arrow(
-            #     obst.init_boundary.centroid.coords[0][0],
-            #     obst.init_boundary.centroid.coords[0][1],
-            #     120*obst.dx,
-            #     120*obst.dy,
-            #     head_width=3 if local else 8,
-            #     color='black',
-            #     zorder=9
-            # )
+            plt.arrow(
+                obst.init_boundary.centroid.coords[0][0],
+                obst.init_boundary.centroid.coords[0][1],
+                120*obst.dx,
+                120*obst.dy,
+                head_width=3 if local else 8,
+                color='black',
+                zorder=9
+            )
 
     for obst in obstacles:
         if isinstance(obst, VesselObstacle):
@@ -314,20 +314,20 @@ def plot_trajectory(env, fig_dir, local=False, size=100, fig_prefix='', episode_
                 )
                 ax.add_patch(vessel_obst_object)
 
-                x_arr = [elm[0] for elm in obst.path_taken[len(obst.path_taken) - min(len(obst.path_taken), SHADOW_LENGTH):]]
-                y_arr = [elm[1] for elm in obst.path_taken[len(obst.path_taken) - min(len(obst.path_taken), SHADOW_LENGTH):]]
-                points = np.array([x_arr, y_arr]).T.reshape(-1, 1, 2)
-                segments = np.concatenate([points[:-1], points[1:]], axis=1)
-                colors = []
-                for i in range(len(x_arr)-1):
-                    di = len(x_arr)-1 - i
-                    if di > PLOT_COLOR_TRESHOLD:
-                        c = (1.0, 0.0, 0.0)
-                    else:
-                        c = (max(0.0, 1-di*0.01), 0.0, 0.0)
-                    colors.append(c)
-                lc = LineCollection(segments, color=colors, linewidth=0.5, linestyle='--', zorder=9)
-                ax.add_collection(lc)
+                # x_arr = [elm[0] for elm in obst.path_taken[len(obst.path_taken) - min(len(obst.path_taken), SHADOW_LENGTH):]]
+                # y_arr = [elm[1] for elm in obst.path_taken[len(obst.path_taken) - min(len(obst.path_taken), SHADOW_LENGTH):]]
+                # points = np.array([x_arr, y_arr]).T.reshape(-1, 1, 2)
+                # segments = np.concatenate([points[:-1], points[1:]], axis=1)
+                # colors = []
+                # for i in range(len(x_arr)-1):
+                #     di = len(x_arr)-1 - i
+                #     if di > PLOT_COLOR_TRESHOLD:
+                #         c = (1.0, 0.0, 0.0)
+                #     else:
+                #         c = (max(0.0, 1-di*0.01), 0.0, 0.0)
+                #     colors.append(c)
+                # lc = LineCollection(segments, color=colors, linewidth=0.5, linestyle='--', zorder=9)
+                # ax.add_collection(lc)
 
     if local:
         vessel_obst = VesselObstacle(
@@ -488,15 +488,15 @@ def plot_scenario(env, fig_dir, fig_postfix='', show=True):
                 y_arr = [elm[1][1] for elm in obst.trajectory]
                 ax.plot(x_arr, y_arr, dashes=[6, 2], color='red', linewidth=0.5, alpha=0.3)
 
-            # plt.arrow(
-            #     obst.boundary.centroid.coords[0][0],
-            #     obst.boundary.centroid.coords[0][1],
-            #     120*obst.dx,
-            #     120*obst.dy,
-            #     head_width=8,
-            #     color='black',
-            #     zorder=11
-            # )
+            plt.arrow(
+                obst.boundary.centroid.coords[0][0],
+                obst.boundary.centroid.coords[0][1],
+                120*obst.dx,
+                120*obst.dy,
+                head_width=8,
+                color='black',
+                zorder=11
+            )
 
     for obst in env.obstacles:
         if isinstance(obst, CircularObstacle):

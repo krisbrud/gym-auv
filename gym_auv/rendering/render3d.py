@@ -23,8 +23,7 @@ import gym_auv.utils.geomutils as geom
 import gym_auv.envs.realworld
 from gym_auv.objects.obstacles import *
 
-# Size of sectors used to ease block loading.
-VIEW_DISTANCE_3D = 100 #1000#0
+VIEW_DISTANCE_3D = 100
 MAX_RENDER_DISTANCE = max(1000, VIEW_DISTANCE_3D*2)
 PAD = 50
 SECTOR_SIZE = 25
@@ -41,8 +40,8 @@ screen = display.get_default_screen()
 screen_width = screen.width
 screen_height = screen.height
 
-WINDOW_W = screen_width# 1920 # 720
-WINDOW_H = screen_height# 1080 # 600
+WINDOW_W = screen_width
+WINDOW_H = screen_height
 
 counter_3d = 0
 
@@ -657,38 +656,16 @@ def render_env(env, mode, dt):
 
 
 def setup_fog():
-    """ Configure the OpenGL fog properties.
-
-    """
-    # Enable fog. Fog "blends a fog color with each rasterized pixel fragment's
-    # post-texturing color."
     glEnable(GL_FOG)
-    # Set the fog color.
     glFogfv(GL_FOG_COLOR, (GLfloat * 4)(*SKY_COLOR))
-    # Say we have no preference between rendering speed and quality.
     glHint(GL_FOG_HINT, GL_DONT_CARE)
-    # Specify the equation used to compute the blending factor.
     glFogi(GL_FOG_MODE, GL_LINEAR)
-    # How close and far away fog starts and ends. The closer the start and end,
-    # the denser the fog in the fog range.
     glFogf(GL_FOG_START, 20.0)
     glFogf(GL_FOG_END, FOG_DISTANCE)
 
 def setup():
-    """ Basic OpenGL configuration.
-
-    """
-    # Set the color of "clear", i.e. the sky, in rgba.
     glClearColor(*SKY_COLOR)
-    # Enable culling (not rendering) of back-facing facets -- facets that aren't
-    # visible to you.
     glEnable(GL_CULL_FACE)
-    # Set the texture minification/magnification function to GL_NEAREST (nearest
-    # in Manhattan distance) to the specified texture coordinates. GL_NEAREST
-    # "is generally faster than GL_LINEAR, but it can produce textured images
-    # with sharper edges because the transition between texture elements is not
-    # as smooth."
-    #glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
 
     setup_fog()

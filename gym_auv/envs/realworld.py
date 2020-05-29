@@ -219,7 +219,7 @@ class Trondheimsfjorden(RealWorldEnv):
     def __init__(self, *args, **kw):
         self.x0, self.y0 = 0, 0
         self.vessel_data_path = '../resources/vessel_data.csv'
-        self.n_vessels = 0
+        self.n_vessels = 999999
         super().__init__(*args, **kw)
 
     def _generate(self):

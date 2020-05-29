@@ -175,7 +175,7 @@ def play_scenario(env, recorded_env, args, agent=None):
                 recorded_env.render()
                 t_steps += 1
 
-                if args.play_plotting and not done:
+                if args.save_snapshots and not done:
                     if t_steps % 50 == 0:
                         env.save_latest_episode(save_history=False)
                         for size in (100, 200):#, 300, 400, 500):
@@ -574,7 +574,7 @@ def main(args):
                 sys.stdout.write(report_msg)
                 sys.stdout.flush()
 
-                if t_steps % 30 == 0 and not done:
+                if args.save_snapshots and t_steps % 30 == 0 and not done:
                     env.save_latest_episode(save_history=False)
                     for size in (20, 50, 100, 200, 300, 400, 500):
                         gym_auv.reporting.plot_trajectory(
@@ -696,7 +696,7 @@ if __name__ == '__main__':
         '--recording-length',
         help='Timesteps to simulate.',
         type=int,
-        default=100000
+        default=2000000
     )
     parser.add_argument(
         '--episodes',
@@ -721,11 +721,6 @@ if __name__ == '__main__':
     parser.add_argument(
         '--verbose',
         help='Print debugging information.',
-        action='store_true'
-    )
-    parser.add_argument(
-        '--play-plotting',
-        help='Plot trajectory plots at fixed intervals while playing.',
         action='store_true'
     )
     parser.add_argument(
@@ -755,6 +750,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '--testvals',
         help='Path to JSON file containing config values to test.',
+    )
+    parser.add_argument(
+        '--save-snapshots',
+        help='Save snapshots of the vessel trajectory on a fixed interval.',
     )
     args = parser.parse_args()
 

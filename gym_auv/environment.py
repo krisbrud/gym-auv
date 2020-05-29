@@ -283,7 +283,7 @@ class BaseEnvironment(gym.Env, ABC):
 
     def _save_latest_step(self):
         latest_data = self.vessel.req_latest_data()
-        self._tmp_storage['cross_track_error'].append(abs(latest_data['navigation']['cross_track_error']))
+        self._tmp_storage['cross_track_error'].append(abs(latest_data['navigation']['cross_track_error'])*100)
 
     def save_latest_episode(self, save_history=True):
         #print('Saving latest episode with save_history = ' + str(save_history))
