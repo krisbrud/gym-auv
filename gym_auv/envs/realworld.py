@@ -197,7 +197,7 @@ class Agdenes(RealWorldEnv):
 
     def _generate(self):
         #self.path = Path([[520, 1070, 4080, 5473, 10170, 12220], [3330, 5740, 7110, 4560, 7360, 11390]]) #South-west -> north-east
-        self.path = Path([[4000-self.x0, 4247-self.x0, 4137-self.x0, 3937-self.x0, 3217-self.x0], [6100-self.y0, 6100-self.y0, 6860-self.y0, 6910-self.y0, 6690-self.y0]])
+        self.path = Path([[4100-self.x0, 4247-self.x0, 4137-self.x0, 3937-self.x0, 3217-self.x0], [6100-self.y0, 6100-self.y0, 6860-self.y0, 6910-self.y0, 6690-self.y0]])
         self.obstacle_perimeters = np.load('../resources/obstacles_entrance.npy')
         self.all_terrain = np.load(TERRAIN_DATA_PATH)/7.5 #[3121:4521, 5890:7390]/7.5
         

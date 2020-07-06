@@ -10,9 +10,9 @@ import tensorflow as tf
 import gym
 import gym_auv
 import gym_auv.reporting
-import logging
-logging.basicConfig()
-logging.getLogger().setLevel(logging.DEBUG)
+#import logging
+#logging.basicConfig()
+#logging.getLogger().setLevel(logging.DEBUG)
 
 from stable_baselines.common import set_global_seeds
 from stable_baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy
