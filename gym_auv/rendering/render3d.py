@@ -23,13 +23,12 @@ import gym_auv.utils.geomutils as geom
 import gym_auv.envs.realworld
 from gym_auv.objects.obstacles import *
 
-VIEW_DISTANCE_3D = 100
-MAX_RENDER_DISTANCE = max(1000, VIEW_DISTANCE_3D*2)
+MAX_RENDER_DISTANCE = None
+FOG_DISTANCE = None
 PAD = 50
 SECTOR_SIZE = 25
-FOG_DISTANCE = 1000
 TICKS_PER_SEC = 1 
-CAMERA_ROTATION_SPEED = 0.003
+CAMERA_ROTATION_SPEED = 0.002
 SKY_COLOR = (109/255, 173/255, 255/255, 1)
 ENABLE_LIGHT = True
 X_SHIFT = -170
@@ -167,7 +166,8 @@ def sectorize(position):
 
 
 class Viewer3D(object):
-    def __init__(self, width, height, autocamera=False):
+    def __init__(self, rng, width, height, autocamera=False):
+        self.rng = rng
         self.autocamera = autocamera
 
         self.overlay_batch = pyglet.graphics.Batch()
@@ -179,9 +179,12 @@ class Viewer3D(object):
         self.window = pyglet.window.Window(width=width, height=height)
         #self.window.maximize()
 
-        self.camera_height = 200
-        self.camera_distance = 200
-        self.camera_angle = np.random.random()*360
+        self.xoffset = 0
+        self.yoffset = 0
+        self.camera_distance = max(15, self.rng.gamma(shape=1, scale=100))
+        self.camera_height = self.camera_distance*self.rng.rand()*0.3
+        self.camera_angle =  (-180 + 360*self.rng.rand())
+
         if self.autocamera:
             self._reset_moving_camera()
 
@@ -207,10 +210,10 @@ class Viewer3D(object):
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
     def _reset_moving_camera(self, init_angle=None):
-        self.camera_distance_goal = max(15, np.random.gamma(shape=0.5, scale=30.0))
-        self.camera_height_goal = self.camera_distance_goal*np.random.random()*0.3
-        self.camera_angle_goal = (-180 + 360*np.random.random())
-        self.camera_follow_vessel = bool(np.random.random() > 0.5)
+        self.camera_distance_goal = max(15, self.rng.gamma(shape=1, scale=40.0))
+        self.camera_height_goal = self.camera_distance_goal*self.rng.rand()*0.3
+        self.camera_angle_goal = (-180 + 360*self.rng.rand())
+        self.camera_follow_vessel = bool(self.rng.rand() > 0.5)
 
     def reset_world(self):
         #self.queue = deque()
@@ -558,8 +561,8 @@ class Viewer3D(object):
 def render_env(env, mode, dt):
     x, y, z = (env.vessel.position[1], env._viewer3d.camera_height, env.vessel.position[0])
 
-    env._viewer3d.add_element((x, 0, z), 2*[1.0, 1.0, 1.0, 1.0], 4*[0.1,], Element.PLANE)
-    env._viewer3d.show_element((x, 0, z))
+    # env._viewer3d.add_element((x, 0, z), 2*[1.0, 1.0, 1.0, 1.0], 4*[0.1,], Element.PLANE)
+    # env._viewer3d.show_element((x, 0, z))
 
     camera_direction = (-env._viewer3d.camera_angle + 180)*np.pi/180
     camera_x = x-np.sin(camera_direction)*env._viewer3d.camera_distance
@@ -613,18 +616,18 @@ def render_env(env, mode, dt):
         if (VESSEL_MODEL_PATH, obsvessel.width) not in env._viewer3d.boat_models:
             save_boatmodel(VESSEL_MODEL_PATH, obsvessel.width, env)
         visualization.draw(env._viewer3d.boat_models[(VESSEL_MODEL_PATH, obsvessel.width)])
-        glRotatef(- 90 - obsvessel.heading*180/np.pi, 0, 0, 1)
+        glRotatef(-90 - obsvessel.heading*180/np.pi, 0, 0, 1)
         glRotatef(90, 1, 0, 0)
         glTranslatef(-obsvessel.position[1], 1, -obsvessel.position[0])
 
     # render agent vessel
-    glTranslatef(x, 0.5, z)
+    glTranslatef(x, 0.3, z)
     glRotatef(-90, 1, 0, 0)
     glRotatef(90 + env.vessel.heading*180/np.pi, 0, 0, 1)
     visualization.draw(env._viewer3d.boat_models[(TUGBOAT_MODEL_PATH, env.vessel.width)])
     glRotatef(-90 - env.vessel.heading*180/np.pi, 0, 0, 1)
     glRotatef(90, 1, 0, 0)
-    glTranslatef(-x, -0.5, -z)
+    glTranslatef(-x, -0.3, -z)
 
     env._viewer3d.main_batch.draw()
     
@@ -670,8 +673,12 @@ def setup():
 
     setup_fog()
 
-def init_env_viewer(env, autocamera=False):
-    env._viewer3d = Viewer3D(WINDOW_W, WINDOW_H, autocamera=autocamera)
+def init_env_viewer(env, autocamera=False, render_dist=1000):
+    global MAX_RENDER_DISTANCE
+    global FOG_DISTANCE
+    MAX_RENDER_DISTANCE = max(1000, render_dist*2)
+    FOG_DISTANCE = render_dist*0.8
+    env._viewer3d = Viewer3D(env.rng, WINDOW_W, WINDOW_H, autocamera=autocamera)
     setup()
 
 def save_boatmodel(path, width, env):

@@ -31,6 +31,7 @@ DEFAULT_CONFIG = {
     "vessel_width": 1.255,                          # Width of vessel [m]
     "feasibility_width_multiplier": 5.0,            # Multiplier for vessel width in feasibility pooling algorithm 
     "look_ahead_distance": 300,                     # Path look-ahead distance for vessel [m]
+    'render_distance': 300,                         # 3D rendering render distance [m]
     "sensing": True,                                # Whether rangerfinder sensors for perception should be activated
     "sensor_interval_load_obstacles": 25,           # Interval for loading nearby obstacles
     "n_sensors_per_sector": 20,                     # Number of rangefinder sensors within each sector
@@ -58,6 +59,7 @@ DEBUG_CONFIG["min_goal_distance"] = 0.1
 
 REALWORLD_CONFIG = DEFAULT_CONFIG.copy()
 REALWORLD_CONFIG["t_step_size"] = 0.2
+REALWORLD_CONFIG["render_distance"] = 300#2000
 #REALWORLD_CONFIG["observe_frequency"] = 0.1
 
 SCENARIOS = {
@@ -120,7 +122,11 @@ SCENARIOS = {
     'MovingObstaclesColreg-v0': {
         'entry_point': 'gym_auv.envs:MovingObstaclesColreg',
         'config': MOVING_CONFIG
-    }
+    },
+    'FilmScenario-v0':  {
+        'entry_point': 'gym_auv.envs:FilmScenario',
+        'config': REALWORLD_CONFIG
+    },
 }
 
 for scenario in SCENARIOS:

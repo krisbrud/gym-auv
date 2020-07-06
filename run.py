@@ -10,6 +10,10 @@ import tensorflow as tf
 import gym
 import gym_auv
 import gym_auv.reporting
+import logging
+logging.basicConfig()
+logging.getLogger().setLevel(logging.DEBUG)
+
 from stable_baselines.common import set_global_seeds
 from stable_baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy
 from stable_baselines.common.vec_env import VecVideoRecorder, DummyVecEnv, SubprocVecEnv
@@ -192,7 +196,6 @@ def play_scenario(env, recorded_env, args, agent=None):
             gym_auv.reporting.plot_trajectory(env, fig_dir='../logs/play_results/')
             env.reset(save_history=False)
 
-
     except KeyboardInterrupt:
         pass
 
@@ -251,7 +254,7 @@ def main(args):
 
         video_folder = os.path.join(DIR_PATH, 'logs', 'videos', args.env, EXPERIMENT_ID)
         os.makedirs(video_folder, exist_ok=True)
-
+        
         env = create_env(env_id, envconfig, test_mode=True, render_mode=args.render, pilot=args.pilot)
         if args.scenario:
             env.load(args.scenario)
@@ -262,7 +265,7 @@ def main(args):
         obs = recorded_env.reset()
         state = None
         done = [False for _ in range(vec_env.num_envs)]
-        for t_step in range(args.recording_length):
+        for _ in range(args.recording_length):
             if args.recurrent:
                 action, _states = agent.predict(observation=obs, state=state, mask=done, deterministic=not args.stochastic)
                 state = _states
@@ -270,9 +273,7 @@ def main(args):
                 action, _states = agent.predict(obs, deterministic=not args.stochastic)
             obs, reward, done, info = recorded_env.step(action)
             recorded_env.render()
-            if args.env == 'PathGeneration-v0':
-                sleep(1)
-        recorded_env.env.close()
+        recorded_env.close()
 
     elif (args.mode == 'train'):
         figure_folder = os.path.join(DIR_PATH, 'logs', 'figures', args.env, EXPERIMENT_ID)
@@ -694,9 +695,9 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--recording-length',
-        help='Timesteps to simulate.',
+        help='Timesteps to simulate in enjoy mode.',
         type=int,
-        default=2000000
+        default=2000
     )
     parser.add_argument(
         '--episodes',

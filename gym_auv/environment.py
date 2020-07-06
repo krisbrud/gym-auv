@@ -65,6 +65,7 @@ class BaseEnvironment(gym.Env, ABC):
         self.last_reward = None
         self.last_episode = None
         self.rng = None
+        self.seed()
         self._tmp_storage = None
         self._last_image_frame = None
 
@@ -85,7 +86,11 @@ class BaseEnvironment(gym.Env, ABC):
         if self.render_mode == '2d' or self.render_mode == 'both':
             render2d.init_env_viewer(self)
         if self.render_mode == '3d' or self.render_mode == 'both':
-            render3d.init_env_viewer(self, autocamera=self.config["autocamera3d"])
+            if self.config['render_distance'] == 'random':
+                self.render_distance = self.rng.randint(300, 2000)
+            else:
+                self.render_distance = self.config['render_distance']
+            render3d.init_env_viewer(self, autocamera=self.config["autocamera3d"], render_dist=self.render_distance)
 
         self.reset()
 
@@ -144,7 +149,7 @@ class BaseEnvironment(gym.Env, ABC):
         # Initializing 3d viewer
         if self.render_mode == '3d':
             render3d.init_boat_model(self)
-            self._viewer3d.create_path(self.path)
+            #self._viewer3d.create_path(self.path)
 
         # Getting initial observation vector
         obs = self.observe()
@@ -264,6 +269,7 @@ class BaseEnvironment(gym.Env, ABC):
     def render(self, mode='human'):
         """Render one frame of the environment. 
         The default mode will do something human friendly, such as pop up a window."""
+        image_arr = None
         try:
             if self.render_mode == '2d' or self.render_mode == 'both':
                 image_arr = render2d.render_env(self, mode)
@@ -272,7 +278,13 @@ class BaseEnvironment(gym.Env, ABC):
         except OSError:
             image_arr = self._last_image_frame
 
-        self._last_image_frame = image_arr
+        if image_arr is None:
+            image_arr = self._last_image_frame
+        else:
+            self._last_image_frame = image_arr
+
+        if image_arr is None and mode == 'rgb_array':
+            print('Warning: image_arr is None -> video is likely broken' )
 
         return image_arr
 
