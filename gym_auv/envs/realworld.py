@@ -205,7 +205,7 @@ class Agdenes(RealWorldEnv):
 
 class Trondheim(RealWorldEnv):
     def __init__(self, *args, **kw):
-        self.x0, self.y0 = 10000,3900
+        self.x0, self.y0 = 5000,3900
         self.vessel_data_path = '../resources/vessel_data_local_trondheim.csv'
         self.n_vessels = 100
         super().__init__(*args, **kw)
