@@ -5,11 +5,11 @@ Python simulation framework for Collision Avoidance for Unmanned Surface Vehicle
 ## Background
 
 This Python package, which provides an easily expandable code framework for simulating autonomous surface vessels
-in maritime environments, was developed as a part of my Master's thesis at NTNU, Norway.
+in maritime environments, as well as training reinforcement learning-based AI agents to guide them, was developed as a part of my Master's thesis at the Norwegian University of Science and Technology.
 
 Apart from the underlying simulation engine, which simulates the vessel dynamics according to well-researched manuevering theory,
 as well as the functioning of a LiDAR-based sensor suite for distance measurements.
-it also provides easy-to-use rendering in both 2D and 3D for debugging and showcasing purposes.
+it also provides easy-to-use rendering in both 2D and 3D for debugging and showcasing purposes. Implemented as an extention of the OpenAI gym toolkit, it offers an easy-to-use interface for training state-of-the-art deep reinforcement learning algorithms for guiding the vessel.
 
 The research paper [Taming an Autonomous Surface Vehicle for Path Following and Collision Avoidance Using Deep Reinforcement Learning (2020)](https://ieeexplore.ieee.org/document/9016254?fbclid=IwAR3obkbKJcbA2Jrn3nqKp7iUD_MAag01YSCm3liaIYJN7xN9enzdHUA0Ma8) gives a comprehensive overview of what the package is intended for.
 
