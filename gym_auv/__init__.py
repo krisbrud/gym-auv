@@ -133,5 +133,5 @@ for scenario in SCENARIOS:
     register(
         id=scenario,
         entry_point=SCENARIOS[scenario]['entry_point'],
-        #kwargs={'env_config': SCENARIOS[scenario]['config']}
+        kwargs={'env_config': SCENARIOS[scenario]['config']}
     )
