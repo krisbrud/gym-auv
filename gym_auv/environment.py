@@ -1,3 +1,4 @@
+from typing import Tuple
 import gym
 import numpy as np
 from gym.utils import seeding
@@ -44,6 +45,8 @@ class BaseEnvironment(gym.Env, ABC):
         self.verbose = verbose
         self.config = env_config
         
+        # print(f"{env_config = }")
+        # print(f"{self.config = }")
         # Setting dimension of observation vector
         self.n_observations = len(Vessel.NAVIGATION_FEATURES) + 3*self.config["n_sectors"] + self._rewarder_class.N_INSIGHTS
 
@@ -70,13 +73,14 @@ class BaseEnvironment(gym.Env, ABC):
         self._last_image_frame = None
 
         self._action_space = gym.spaces.Box(
-            low=np.array([-1, -1]),
+            # low=np.array([0, -1]), 
+            low=np.array([-1, -1]), 
             high=np.array([1, 1]),
             dtype=np.float32
         )
         self._observation_space = gym.spaces.Box(
-            low=np.array([-1]*self.n_observations),
-            high=np.array([1]*self.n_observations),
+            low=np.array([-1] * self.n_observations),
+            high=np.array([1] * self.n_observations),
             dtype=np.float32
         )
 
@@ -179,10 +183,14 @@ class BaseEnvironment(gym.Env, ABC):
         else:
             sector_closenesses, sector_velocities = [], []
 
-        obs = np.concatenate([reward_insight, navigation_states, sector_closenesses, sector_velocities])
+        raw_obs = np.concatenate([reward_insight, navigation_states, sector_closenesses, sector_velocities])
+
+        # Clamp/clip the observation to the valid domain as specified by the Space
+        obs = np.clip(raw_obs, a_min=self.observation_space.low, a_max=self.observation_space.high)
+
         return obs
 
-    def step(self, action:list) -> (np.ndarray, float, bool, dict):
+    def step(self, action:list) -> Tuple[np.ndarray, float, bool, dict]:
         """
         Steps the environment by one timestep. Returns observation, reward, done, info.
 
@@ -203,7 +211,7 @@ class BaseEnvironment(gym.Env, ABC):
             Dictionary with data used for reporting or debugging
         """
 
-        action[0] = (action[0] + 1)/2 # Done to be compatible with RL algorithms that require symmetric action spaces
+        # action[0] = (action[0] + 1)/2 # Done to be compatible with RL algorithms that require symmetric action spaces
         if np.isnan(action).any(): action = np.zeros(action.shape)
 
         # If the environment is dynamic, calling self.update will change it.

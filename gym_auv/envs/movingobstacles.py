@@ -12,8 +12,8 @@ import shapely.geometry, shapely.errors
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-vessel_speed_vals = np.loadtxt('../resources/speed_vals.txt')
-vessel_speed_density = np.loadtxt('../resources/speed_density.txt')
+vessel_speed_vals = None 
+vessel_speed_density = None
 
 class MovingObstacles(BaseEnvironment):
 
@@ -43,6 +43,14 @@ class MovingObstacles(BaseEnvironment):
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
         
+        # Use lasy loading for external files so the code doesn't crash if they don't exist
+        global vessel_speed_vals
+        global vessel_speed_density
+        if vessel_speed_vals is None: 
+            vessel_speed_vals = np.loadtxt('../resources/speed_vals.txt')
+        if vessel_speed_density is None:
+            vessel_speed_density = np.loadtxt('../resources/speed_density.txt')
+
         self.obstacles = []
 
         # Adding moving obstacles
