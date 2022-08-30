@@ -1,3 +1,4 @@
+from typing import Tuple
 import gym
 import numpy as np
 from gym.utils import seeding
@@ -189,7 +190,7 @@ class BaseEnvironment(gym.Env, ABC):
 
         return obs
 
-    def step(self, action:list) -> (np.ndarray, float, bool, dict):
+    def step(self, action:list) -> Tuple[np.ndarray, float, bool, dict]:
         """
         Steps the environment by one timestep. Returns observation, reward, done, info.
 
