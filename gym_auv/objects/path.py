@@ -31,7 +31,7 @@ class Path():
         self._path_derivatives = path_derivatives
         self._path_dderivatives = path_dderivatives
 
-        S = np.linspace(0, self.length, 10*self.length)
+        S = np.linspace(0, self.length, int(10*self.length))
         self._points = np.transpose(self._path_coords(S))
         self._linestring = shapely.geometry.LineString(self._points)
 
