@@ -9,46 +9,51 @@ import gym_auv.rendering.render2d as render2d
 import gym_auv.rendering.render3d as render3d
 from abc import ABC, abstractmethod
 
+
 class BaseEnvironment(gym.Env, ABC):
     """Creates an environment with a vessel and a path."""
 
     metadata = {
-        'render.modes': ['human', 'rgb_array', 'state_pixels'],
-        'video.frames_per_second': render2d.FPS
+        "render.modes": ["human", "rgb_array", "state_pixels"],
+        "video.frames_per_second": render2d.FPS,
     }
 
-    def __init__(self, env_config, test_mode=False, render_mode='2d', verbose=False):
+    def __init__(self, env_config, test_mode=False, render_mode="2d", verbose=False):
         """The __init__ method declares all class atributes and calls
         the self.reset() to intialize them properly.
 
         Parameters
         ----------
             env_config : dict
-                Configuration parameters for the environment. 
+                Configuration parameters for the environment.
                 The default values are set in __init__.py
             test_mode : bool
-                If test_mode is True, the environment will not be autonatically reset 
-                due to too low cumulative reward or too large distance from the path. 
+                If test_mode is True, the environment will not be autonatically reset
+                due to too low cumulative reward or too large distance from the path.
             render_mode : {'2d', '3d', 'both'}
                 Whether to use 2d or 3d rendering. 'both' is currently broken.
             verbose
                 Whether to print debugging information.
         """
 
-        if not hasattr(self, '_rewarder_class'):
+        if not hasattr(self, "_rewarder_class"):
             self._rewarder_class = ColavRewarder
             self._n_moving_obst = 10
             self._n_moving_stat = 10
-        
+
         self.test_mode = test_mode
         self.render_mode = render_mode
         self.verbose = verbose
         self.config = env_config
-        
+
         # print(f"{env_config = }")
         # print(f"{self.config = }")
         # Setting dimension of observation vector
-        self.n_observations = len(Vessel.NAVIGATION_FEATURES) + 3*self.config["n_sectors"] + self._rewarder_class.N_INSIGHTS
+        self.n_observations = (
+            len(Vessel.NAVIGATION_FEATURES)
+            + 3 * self.config["n_sectors"]
+            + self._rewarder_class.N_INSIGHTS
+        )
 
         self.episode = 0
         self.total_t_steps = 0
@@ -61,7 +66,7 @@ class BaseEnvironment(gym.Env, ABC):
         self.obstacles = []
         self.vessel = None
         self.path = None
-        
+
         self.reached_goal = None
         self.collision = None
         self.progress = None
@@ -73,28 +78,32 @@ class BaseEnvironment(gym.Env, ABC):
         self._last_image_frame = None
 
         self._action_space = gym.spaces.Box(
-            # low=np.array([0, -1]), 
-            low=np.array([-1, -1]), 
+            # low=np.array([0, -1]),
+            low=np.array([-1, -1]),
             high=np.array([1, 1]),
-            dtype=np.float32
+            dtype=np.float32,
         )
         self._observation_space = gym.spaces.Box(
             low=np.array([-1] * self.n_observations),
             high=np.array([1] * self.n_observations),
-            dtype=np.float32
+            dtype=np.float32,
         )
 
         # Initializing rendering
         self._viewer2d = None
         self._viewer3d = None
-        if self.render_mode == '2d' or self.render_mode == 'both':
+        if self.render_mode == "2d" or self.render_mode == "both":
             render2d.init_env_viewer(self)
-        if self.render_mode == '3d' or self.render_mode == 'both':
-            if self.config['render_distance'] == 'random':
+        if self.render_mode == "3d" or self.render_mode == "both":
+            if self.config["render_distance"] == "random":
                 self.render_distance = self.rng.randint(300, 2000)
             else:
-                self.render_distance = self.config['render_distance']
-            render3d.init_env_viewer(self, autocamera=self.config["autocamera3d"], render_dist=self.render_distance)
+                self.render_distance = self.config["render_distance"]
+            render3d.init_env_viewer(
+                self,
+                autocamera=self.config["autocamera3d"],
+                render_dist=self.render_distance,
+            )
 
         self.reset()
 
@@ -117,9 +126,14 @@ class BaseEnvironment(gym.Env, ABC):
             The initial observation of the environment.
         """
 
-        #print('Resetting environment')
+        # print('Resetting environment')
 
-        if self.verbose: print('Resetting environment... Last reward was {:.2f}'.format(self.cumulative_reward))
+        if self.verbose:
+            print(
+                "Resetting environment... Last reward was {:.2f}".format(
+                    self.cumulative_reward
+                )
+            )
 
         # Seeding
         if self.rng is None:
@@ -127,7 +141,7 @@ class BaseEnvironment(gym.Env, ABC):
 
         # Saving information about episode
         if self.t_step:
-           self.save_latest_episode(save_history=save_history)
+            self.save_latest_episode(save_history=save_history)
 
         # Incrementing counters
         self.episode += 1
@@ -143,28 +157,34 @@ class BaseEnvironment(gym.Env, ABC):
         self._last_image_frame = None
 
         # Generating a new environment
-        if self.verbose:    print('Generating scenario...')
+        if self.verbose:
+            print("Generating scenario...")
         self._generate()
         if self.rewarder is None:
-            if self.verbose: print('Warning: Rewarder not initialized by _generate() method call. Selecting default ColavRewarder instead.')
+            if self.verbose:
+                print(
+                    "Warning: Rewarder not initialized by _generate() method call. Selecting default ColavRewarder instead."
+                )
             self.rewarder = self._rewarder_class(self.vessel, self.test_mode)
-        if self.verbose:    print('Generated scenario')
+        if self.verbose:
+            print("Generated scenario")
 
         # Initializing 3d viewer
-        if self.render_mode == '3d':
+        if self.render_mode == "3d":
             render3d.init_boat_model(self)
-            #self._viewer3d.create_path(self.path)
+            # self._viewer3d.create_path(self.path)
 
         # Getting initial observation vector
         obs = self.observe()
-        if self.verbose:    print('Calculated initial observation')
+        if self.verbose:
+            print("Calculated initial observation")
 
         # Resetting temporary data storage
         self._tmp_storage = {
-            'cross_track_error': [],
+            "cross_track_error": [],
         }
 
-        #print('Reset environment')
+        # print('Reset environment')
 
         return obs
 
@@ -183,14 +203,18 @@ class BaseEnvironment(gym.Env, ABC):
         else:
             sector_closenesses, sector_velocities = [], []
 
-        raw_obs = np.concatenate([reward_insight, navigation_states, sector_closenesses, sector_velocities])
+        raw_obs = np.concatenate(
+            [reward_insight, navigation_states, sector_closenesses, sector_velocities]
+        )
 
         # Clamp/clip the observation to the valid domain as specified by the Space
-        obs = np.clip(raw_obs, a_min=self.observation_space.low, a_max=self.observation_space.high)
+        obs = np.clip(
+            raw_obs, a_min=self.observation_space.low, a_max=self.observation_space.high
+        )
 
         return obs
 
-    def step(self, action:list) -> Tuple[np.ndarray, float, bool, dict]:
+    def step(self, action: list) -> Tuple[np.ndarray, float, bool, dict]:
         """
         Steps the environment by one timestep. Returns observation, reward, done, info.
 
@@ -212,7 +236,8 @@ class BaseEnvironment(gym.Env, ABC):
         """
 
         # action[0] = (action[0] + 1)/2 # Done to be compatible with RL algorithms that require symmetric action spaces
-        if np.isnan(action).any(): action = np.zeros(action.shape)
+        if np.isnan(action).any():
+            action = np.zeros(action.shape)
 
         # If the environment is dynamic, calling self.update will change it.
         self._update()
@@ -223,10 +248,10 @@ class BaseEnvironment(gym.Env, ABC):
         # Getting observation vector
         obs = self.observe()
         vessel_data = self.vessel.req_latest_data()
-        self.collision = vessel_data['collision']
-        self.reached_goal = vessel_data['reached_goal']
-        self.goal_distance = vessel_data['navigation']['goal_distance']
-        self.progress = vessel_data['progress']
+        self.collision = vessel_data["collision"]
+        self.reached_goal = vessel_data["reached_goal"]
+        self.goal_distance = vessel_data["navigation"]["goal_distance"]
+        self.progress = vessel_data["progress"]
 
         # Receiving agent's reward
         reward = self.rewarder.calculate()
@@ -234,10 +259,10 @@ class BaseEnvironment(gym.Env, ABC):
         self.cumulative_reward += reward
 
         info = {}
-        info['collision'] = self.collision
-        info['reached_goal'] = self.reached_goal
-        info['goal_distance'] = self.goal_distance
-        info['progress'] = self.progress
+        info["collision"] = self.collision
+        info["reached_goal"] = self.reached_goal
+        info["goal_distance"] = self.goal_distance
+        info["progress"] = self.progress
 
         # Testing criteria for ending the episode
         done = self._isdone()
@@ -249,20 +274,27 @@ class BaseEnvironment(gym.Env, ABC):
         return (obs, reward, done, info)
 
     def _isdone(self) -> bool:
-        return any([
-            self.collision,
-            self.reached_goal,
-            self.t_step > self.config["max_timesteps"] and not self.test_mode,
-            self.cumulative_reward < self.config["min_cumulative_reward"] and not self.test_mode
-        ])
+        return any(
+            [
+                self.collision,
+                self.reached_goal,
+                self.t_step > self.config["max_timesteps"] and not self.test_mode,
+                self.cumulative_reward < self.config["min_cumulative_reward"]
+                and not self.test_mode,
+            ]
+        )
 
     def _update(self) -> None:
         """Updates the environment at each time-step. Can be customized in sub-classes."""
-        [obst.update(dt=self.config["t_step_size"]) for obst in self.obstacles if not obst.static]
+        [
+            obst.update(dt=self.config["t_step_size"])
+            for obst in self.obstacles
+            if not obst.static
+        ]
 
     @abstractmethod
-    def _generate(self) -> None:    
-        """Create new, stochastically genereated scenario. 
+    def _generate(self) -> None:
+        """Create new, stochastically genereated scenario.
         To be implemented in extensions of BaseEnvironment. Must set the
         'vessel', 'path' and 'obstacles' attributes.
         """
@@ -274,14 +306,14 @@ class BaseEnvironment(gym.Env, ABC):
         if self._viewer3d is not None:
             self._viewer3d.close()
 
-    def render(self, mode='human'):
-        """Render one frame of the environment. 
+    def render(self, mode="human"):
+        """Render one frame of the environment.
         The default mode will do something human friendly, such as pop up a window."""
         image_arr = None
         try:
-            if self.render_mode == '2d' or self.render_mode == 'both':
+            if self.render_mode == "2d" or self.render_mode == "both":
                 image_arr = render2d.render_env(self, mode)
-            if self.render_mode == '3d' or self.render_mode == 'both':
+            if self.render_mode == "3d" or self.render_mode == "both":
                 image_arr = render3d.render_env(self, mode, self.config["t_step_size"])
         except OSError:
             image_arr = self._last_image_frame
@@ -291,8 +323,8 @@ class BaseEnvironment(gym.Env, ABC):
         else:
             self._last_image_frame = image_arr
 
-        if image_arr is None and mode == 'rgb_array':
-            print('Warning: image_arr is None -> video is likely broken' )
+        if image_arr is None and mode == "rgb_array":
+            print("Warning: image_arr is None -> video is likely broken")
 
         return image_arr
 
@@ -303,23 +335,31 @@ class BaseEnvironment(gym.Env, ABC):
 
     def _save_latest_step(self):
         latest_data = self.vessel.req_latest_data()
-        self._tmp_storage['cross_track_error'].append(abs(latest_data['navigation']['cross_track_error'])*100)
+        self._tmp_storage["cross_track_error"].append(
+            abs(latest_data["navigation"]["cross_track_error"]) * 100
+        )
 
     def save_latest_episode(self, save_history=True):
-        #print('Saving latest episode with save_history = ' + str(save_history))
+        # print('Saving latest episode with save_history = ' + str(save_history))
         self.last_episode = {
-            'path': self.path(np.linspace(0, self.path.length, 1000)) if self.path is not None else None,
-            'path_taken': self.vessel.path_taken,
-            'obstacles': self.obstacles
+            "path": self.path(np.linspace(0, self.path.length, 1000))
+            if self.path is not None
+            else None,
+            "path_taken": self.vessel.path_taken,
+            "obstacles": self.obstacles,
         }
         if save_history:
-            self.history.append({
-                'cross_track_error': np.array(self._tmp_storage['cross_track_error']).mean(),
-                'reached_goal': int(self.reached_goal),
-                'collision': int(self.collision),
-                'reward': self.cumulative_reward,
-                'timesteps': self.t_step,
-                'duration': self.t_step*self.config["t_step_size"],
-                'progress': self.progress,
-                'pathlength': self.path.length
-            })
+            self.history.append(
+                {
+                    "cross_track_error": np.array(
+                        self._tmp_storage["cross_track_error"]
+                    ).mean(),
+                    "reached_goal": int(self.reached_goal),
+                    "collision": int(self.collision),
+                    "reward": self.cumulative_reward,
+                    "timesteps": self.t_step,
+                    "duration": self.t_step * self.config["t_step_size"],
+                    "progress": self.progress,
+                    "pathlength": self.path.length,
+                }
+            )

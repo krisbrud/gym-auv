@@ -9,14 +9,15 @@ from gym_auv.environment import BaseEnvironment
 from gym_auv.objects.rewarder import ColavRewarder, ColregRewarder
 import shapely.geometry, shapely.errors
 
-import os 
+import os
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-vessel_speed_vals = None 
+vessel_speed_vals = None
 vessel_speed_density = None
 
-class MovingObstacles(BaseEnvironment):
 
+class MovingObstacles(BaseEnvironment):
     def __init__(self, *args, **kwargs) -> None:
         """
         Sets following parameters for the scenario before calling super init. method:
@@ -29,27 +30,31 @@ class MovingObstacles(BaseEnvironment):
 
     def _generate(self):
         # Initializing path
-        nwaypoints = int(np.floor(4*self.rng.rand() + 2))
+        nwaypoints = int(np.floor(4 * self.rng.rand() + 2))
         self.path = RandomCurveThroughOrigin(self.rng, nwaypoints, length=800)
 
         # Initializing vessel
         init_state = self.path(0)
         init_angle = self.path.get_direction(0)
-        init_state[0] += 50*(self.rng.rand()-0.5)
-        init_state[1] += 50*(self.rng.rand()-0.5)
-        init_angle = geom.princip(init_angle + 2*np.pi*(self.rng.rand()-0.5))
-        self.vessel = Vessel(self.config, np.hstack([init_state, init_angle]), width=self.config["vessel_width"])
+        init_state[0] += 50 * (self.rng.rand() - 0.5)
+        init_state[1] += 50 * (self.rng.rand() - 0.5)
+        init_angle = geom.princip(init_angle + 2 * np.pi * (self.rng.rand() - 0.5))
+        self.vessel = Vessel(
+            self.config,
+            np.hstack([init_state, init_angle]),
+            width=self.config["vessel_width"],
+        )
         prog = 0
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
-        
+
         # Use lasy loading for external files so the code doesn't crash if they don't exist
         global vessel_speed_vals
         global vessel_speed_density
-        if vessel_speed_vals is None: 
-            vessel_speed_vals = np.loadtxt('../resources/speed_vals.txt')
+        if vessel_speed_vals is None:
+            vessel_speed_vals = np.loadtxt("../resources/speed_vals.txt")
         if vessel_speed_density is None:
-            vessel_speed_density = np.loadtxt('../resources/speed_density.txt')
+            vessel_speed_density = np.loadtxt("../resources/speed_density.txt")
 
         self.obstacles = []
 
@@ -57,28 +62,46 @@ class MovingObstacles(BaseEnvironment):
         for _ in range(self._n_moving_obst):
             other_vessel_trajectory = []
 
-            obst_position, obst_radius = helpers.generate_obstacle(self.rng, self.path, self.vessel, obst_radius_mean=10, displacement_dist_std=500)
-            obst_direction = self.rng.rand()*2*np.pi
+            obst_position, obst_radius = helpers.generate_obstacle(
+                self.rng,
+                self.path,
+                self.vessel,
+                obst_radius_mean=10,
+                displacement_dist_std=500,
+            )
+            obst_direction = self.rng.rand() * 2 * np.pi
             obst_speed = np.random.choice(vessel_speed_vals, p=vessel_speed_density)
 
             for i in range(10000):
-                other_vessel_trajectory.append((i, (
-                    obst_position[0] + i*obst_speed*np.cos(obst_direction), 
-                    obst_position[1] + i*obst_speed*np.sin(obst_direction)
-                )))
-            other_vessel_obstacle = VesselObstacle(width=obst_radius, trajectory=other_vessel_trajectory)
+                other_vessel_trajectory.append(
+                    (
+                        i,
+                        (
+                            obst_position[0] + i * obst_speed * np.cos(obst_direction),
+                            obst_position[1] + i * obst_speed * np.sin(obst_direction),
+                        ),
+                    )
+                )
+            other_vessel_obstacle = VesselObstacle(
+                width=obst_radius, trajectory=other_vessel_trajectory
+            )
 
             self.obstacles.append(other_vessel_obstacle)
 
         # Adding static obstacles
         for _ in range(self._n_static_obst):
-            obstacle = CircularObstacle(*helpers.generate_obstacle(self.rng, self.path, self.vessel, displacement_dist_std=250))
+            obstacle = CircularObstacle(
+                *helpers.generate_obstacle(
+                    self.rng, self.path, self.vessel, displacement_dist_std=250
+                )
+            )
             self.obstacles.append(obstacle)
-        
+
         # Resetting rewarder instance
         self.rewarder = self._rewarder_class(self.vessel, self.test_mode)
 
         self._update()
+
 
 class MovingObstaclesNoRules(MovingObstacles):
     def __init__(self, *args, **kwargs):
@@ -86,6 +109,7 @@ class MovingObstaclesNoRules(MovingObstacles):
         self._n_static_obst = 11
         self._rewarder_class = ColavRewarder
         super().__init__(*args, **kwargs)
+
 
 class MovingObstaclesColreg(MovingObstacles):
     def __init__(self, *args, **kwargs):
