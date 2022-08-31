@@ -99,34 +99,34 @@ SCENARIOS = {
         'entry_point': 'gym_auv.envs:EmptyScenario',
         'config': DEBUG_CONFIG
     },
-    'Sorbuoya-v0': {
-        'entry_point': 'gym_auv.envs:Sorbuoya',
-        'config': REALWORLD_CONFIG
-    },
-    'Agdenes-v0': {
-        'entry_point': 'gym_auv.envs:Agdenes',
-        'config': REALWORLD_CONFIG
-    },
-    'Trondheim-v0': {
-        'entry_point': 'gym_auv.envs:Trondheim',
-        'config': REALWORLD_CONFIG
-    },
-    'Trondheimsfjorden-v0': {
-        'entry_point': 'gym_auv.envs:Trondheimsfjorden',
-        'config': REALWORLD_CONFIG
-    },
-    'MovingObstaclesNoRules-v0': {
-        'entry_point': 'gym_auv.envs:MovingObstaclesNoRules',
-        'config': MOVING_CONFIG
-    },
-    'MovingObstaclesColreg-v0': {
-        'entry_point': 'gym_auv.envs:MovingObstaclesColreg',
-        'config': MOVING_CONFIG
-    },
-    'FilmScenario-v0':  {
-        'entry_point': 'gym_auv.envs:FilmScenario',
-        'config': REALWORLD_CONFIG
-    },
+    # 'Sorbuoya-v0': {
+    #     'entry_point': 'gym_auv.envs:Sorbuoya',
+    #     'config': REALWORLD_CONFIG
+    # },
+    # 'Agdenes-v0': {
+    #     'entry_point': 'gym_auv.envs:Agdenes',
+    #     'config': REALWORLD_CONFIG
+    # },
+    # 'Trondheim-v0': {
+    #     'entry_point': 'gym_auv.envs:Trondheim',
+    #     'config': REALWORLD_CONFIG
+    # },
+    # 'Trondheimsfjorden-v0': {
+    #     'entry_point': 'gym_auv.envs:Trondheimsfjorden',
+    #     'config': REALWORLD_CONFIG
+    # },
+    # 'MovingObstaclesNoRules-v0': {
+    #     'entry_point': 'gym_auv.envs:MovingObstaclesNoRules',
+    #     'config': MOVING_CONFIG
+    # },
+    # 'MovingObstaclesColreg-v0': {
+    #     'entry_point': 'gym_auv.envs:MovingObstaclesColreg',
+    #     'config': MOVING_CONFIG
+    # },
+    # 'FilmScenario-v0':  {
+    #     'entry_point': 'gym_auv.envs:FilmScenario',
+    #     'config': REALWORLD_CONFIG
+    # },
 }
 
 for scenario in SCENARIOS:
