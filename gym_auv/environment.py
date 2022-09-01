@@ -52,8 +52,6 @@ class BaseEnvironment(gym.Env, ABC):
         self.verbose = verbose
         self.config = env_config
 
-        # print(f"{env_config = }")
-        # print(f"{self.config = }")
         # Setting dimension of observation vector
         self.n_observations = (
             len(Vessel.NAVIGATION_FEATURES)
