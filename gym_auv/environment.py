@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Union
 import gym
 import numpy as np
 from gym.utils import seeding
@@ -18,7 +18,13 @@ class BaseEnvironment(gym.Env, ABC):
         "video.frames_per_second": render2d.FPS,
     }
 
-    def __init__(self, env_config, test_mode=False, render_mode="2d", verbose=False):
+    def __init__(
+        self,
+        env_config: dict,
+        test_mode: bool = False,
+        render_mode: Union[str, None] = None,
+        verbose: bool = False,
+    ):
         """The __init__ method declares all class atributes and calls
         the self.reset() to intialize them properly.
 
@@ -270,6 +276,8 @@ class BaseEnvironment(gym.Env, ABC):
         self._save_latest_step()
 
         self.t_step += 1
+        if self.t_step % 50 == 1:
+            print("timestep:", self.t_step)
 
         return (obs, reward, done, info)
 
