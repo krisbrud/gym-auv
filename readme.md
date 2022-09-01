@@ -17,10 +17,16 @@ The research paper [Taming an Autonomous Surface Vehicle for Path Following and 
 
 ## Getting Started
 
+### Using the Environment
 After downloading the package, install the required Python libraries via
 
 ```
 pip install -r requirements.py
+```
+### Running the Training Script
+The `gym`-environment is intended to work with a variety of different RL libraries and algorithms. However, `Eivind's` original implementation included a training script based on `stable_baselines` (which uses `tensorflow`), this has been moved to `scripts/`.
+```
+pip install -r scripts/train-requirements.py
 ```
 
 The run script can be executed with the -h flag for a comprehensive overview of the available usage modes.
