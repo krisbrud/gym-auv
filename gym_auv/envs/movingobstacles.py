@@ -42,7 +42,7 @@ class MovingObstacles(BaseEnvironment):
         self.vessel = Vessel(
             self.config,
             np.hstack([init_state, init_angle]),
-            width=self.config["vessel_width"],
+            width=self.config.vessel.vessel_width,
         )
         prog = 0
         self.path_prog_hist = np.array([prog])

@@ -18,7 +18,7 @@ def _sample_eta():
 
 
 class BaseRewarder(ABC):
-    def __init__(self, vessel, test_mode) -> None:
+    def __init__(self, vessel: Vessel, test_mode) -> None:
         self._vessel = vessel
         self._test_mode = test_mode
         self.params = {}
@@ -54,7 +54,7 @@ class BaseRewarder(ABC):
 
 
 class ColavRewarder(BaseRewarder):
-    def __init__(self, vessel, test_mode):
+    def __init__(self, vessel: Vessel, test_mode):
         super().__init__(vessel, test_mode)
         self.params["gamma_theta"] = 10.0
         self.params["gamma_x"] = 0.1
@@ -109,7 +109,7 @@ class ColavRewarder(BaseRewarder):
                 x = measured_distances[isensor]
                 speed_vec = measured_speeds[isensor]
                 weight = 1 / (1 + np.abs(self.params["gamma_theta"] * angle))
-                raw_penalty = self._vessel.config["sensor_range"] * np.exp(
+                raw_penalty = self._vessel.config.vessel.sensor_range * np.exp(
                     -self.params["gamma_x"] * x
                     + self.params["gamma_v_y"] * max(0, speed_vec[1])
                 )

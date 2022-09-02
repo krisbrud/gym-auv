@@ -6,6 +6,7 @@ import numpy as np
 import numpy.linalg as linalg
 from itertools import islice, chain, repeat
 import shapely.geometry, shapely.errors, shapely.strtree, shapely.ops, shapely.prepared
+import gym_auv
 
 import gym_auv.utils.constants as const
 import gym_auv.utils.geomutils as geom
@@ -115,15 +116,17 @@ def _simulate_sensor(sensor_angle, p0_point, sensor_range, obstacles):
 class LidarPreprocessor:
     """LidarPreprocessor reduces the dimensionality of the Lidar measurements through feasibility pooling"""
 
-    def __init__(self, config):
+    def __init__(self, config: gym_auv.Config, _d_sensor_angle: float):
         self._feasibility_width = (
-            config["vessel_width"] * config["feasibility_width_multiplier"]
+            config.vessel.vessel_width * config.vessel.feasibility_width_multiplier
         )
-        self._n_sectors = config["n_sectors"]
+        self._n_sectors = config.vessel.n_sectors
         self._sector_angles = []
         self._n_sensors_per_sector = [0] * self._n_sectors
         self._sector_start_indeces = [0] * self._n_sectors
         self._sector_end_indeces = [0] * self._n_sectors
+        self._sector_partition_fun = config.vessel.sector_partition_fun
+        self._d_sensor_angle = _d_sensor_angle
 
     def _init_sectors(self) -> None:
         """Initializes the sectors used in for instance feasibility pooling
@@ -134,7 +137,7 @@ class LidarPreprocessor:
         tmp_sector_angle_sum = 0
         tmp_sector_sensor_count = 0
         for isensor in range(self._n_sensors):
-            isector = self.config["sector_partition_fun"](self, isensor)
+            isector = self._sector_partition_fun(self, isensor)
             angle = self._sensor_angles[isensor]
             if isector == last_isector:
                 tmp_sector_angle_sum += angle
@@ -153,7 +156,7 @@ class LidarPreprocessor:
         self._sector_angles = np.array(self._sector_angles)
 
         for isensor in range(self._n_sensors):
-            isector = self.config["sector_partition_fun"](self, isensor)
+            isector = self._sector_partition_fun(self, isensor)
             isensor_internal = isensor - self._sector_start_indeces[isector]
             self._sensor_internal_indeces.append(isensor_internal)
 
@@ -257,7 +260,9 @@ class Vessel:
         "cross_track_error",
     ]
 
-    def __init__(self, config: dict, init_state: np.ndarray, width: float = 4) -> None:
+    def __init__(
+        self, config: gym_auv.Config, init_state: np.ndarray, width: float = 4
+    ) -> None:
         """
         Initializes and resets the vessel.
 
@@ -278,34 +283,39 @@ class Vessel:
 
         # Initializing private attributes
         self._width = width
-        self._n_sectors = self.config["n_sectors"]
-        self._n_sensors = self.config["n_sensors_per_sector"] * self.config["n_sectors"]
-        self._d_sensor_angle = 2 * np.pi / (self._n_sensors)
+
+        self._n_sectors = self.config.vessel.n_sectors
+        self._n_sensors = self.config.vessel.n_sensors_per_sector * self._n_sectors
+        self._d_sensor_angle = 2 * np.pi / (self._n_sensors)  # TODO: Move to sensor?
         self._sensor_angles = np.array(
             [-np.pi + (i + 1) * self._d_sensor_angle for i in range(self._n_sensors)]
         )
 
         self._sensor_internal_indeces = []
-        self._sensor_interval = max(1, int(1 / self.config["sensor_frequency"]))
-        self._observe_interval = max(1, int(1 / self.config["observe_frequency"]))
+        self._sensor_interval = max(1, int(1 / self.config.simulation.sensor_frequency))
+        self._observe_interval = max(
+            1, int(1 / self.config.simulation.observe_frequency)
+        )
         self._virtual_environment = None
-        self._use_feasibility_pooling = config["sensor_use_feasibility_pooling"]
+        self._use_feasibility_pooling = config.vessel.sensor_use_feasibility_pooling
 
         # Calculating sensor partitioning
         if self._use_feasibility_pooling:
             # Initialize sectors used for sensor dimensionality reduction
-            self.lidar_preprocessor = LidarPreprocessor(self.config)
+            self.lidar_preprocessor = LidarPreprocessor(
+                self.config, self._d_sensor_angle
+            )
         else:
             self.lidar_preprocessor = None
 
         # Calculating feasible closeness
-        if self.config["sensor_log_transform"]:
+        if self.config.vessel.sensor_log_transform:
             self._get_closeness = lambda x: 1 - np.clip(
-                np.log(1 + x) / np.log(1 + self.config["sensor_range"]), 0, 1
+                np.log(1 + x) / np.log(1 + self.config.vessel.sensor_range), 0, 1
             )
         else:
             self._get_closeness = lambda x: 1 - np.clip(
-                x / self.config["sensor_range"], 0, 1
+                x / self.config.vessel.sensor_range, 0, 1
             )
 
         # Initializing vessel to initial position
@@ -397,7 +407,7 @@ class Vessel:
         self._input = [0, 0]
         self._prev_inputs = np.vstack([self._input])
         self._last_sensor_dist_measurements = (
-            np.ones((self._n_sensors,)) * self.config["sensor_range"]
+            np.ones((self._n_sensors,)) * self.config.vessel.sensor_range
         )
         self._last_sensor_speed_measurements = np.zeros((self._n_sensors, 2))
         if self._use_feasibility_pooling:
@@ -426,7 +436,9 @@ class Vessel:
         self._input = np.array(
             [self._thrust_surge(action[0]), self._moment_steer(action[1])]
         )
-        w, q = _odesolver45(self._state_dot, self._state, self.config["t_step_size"])
+        w, q = _odesolver45(
+            self._state_dot, self._state, self.config.simulation.t_step_size
+        )
 
         self._state = q
         self._state[2] = geom.princip(self._state[2])
@@ -449,11 +461,11 @@ class Vessel:
         """
 
         # Initializing variables
-        sensor_range = self.config["sensor_range"]
+        sensor_range = self.config.vessel.sensor_range
         p0_point = shapely.geometry.Point(*self.position)
 
         # Loading nearby obstacles, i.e. obstacles within the vessel's detection range
-        if self._step_counter % self.config["sensor_interval_load_obstacles"] == 0:
+        if self._step_counter % self.config.vessel.sensor_interval_load_obstacles == 0:
             self._nearby_obstacles = list(
                 filter(
                     lambda obst: float(p0_point.distance(obst.boundary)) - self._width
@@ -629,7 +641,7 @@ class Vessel:
 
         # Calculating tangential path direction at look-ahead point
         target_arclength = min(
-            path.length, vessel_arclength + self.config["look_ahead_distance"]
+            path.length, vessel_arclength + self.config.vessel.look_ahead_distance
         )
         look_ahead_path_direction = path.get_direction(target_arclength)
         look_ahead_heading_error = float(
@@ -650,8 +662,8 @@ class Vessel:
         # Deciding if vessel has reached the goal
         goal_distance = linalg.norm(path.end - self.position)
         reached_goal = (
-            goal_distance <= self.config["min_goal_distance"]
-            or progress >= self.config["min_path_progress"]
+            goal_distance <= self.config.episode.min_goal_distance
+            or progress >= self.config.episode.min_path_progress
         )
         self._reached_goal = reached_goal
 
@@ -706,8 +718,8 @@ class Vessel:
 
     def _thrust_surge(self, surge):
         surge = np.clip(surge, 0, 1)
-        return surge * self.config["thrust_max_auv"]
+        return surge * self.config.vessel.thrust_max_auv
 
     def _moment_steer(self, steer):
         steer = np.clip(steer, -1, 1)
-        return steer * self.config["moment_max_auv"]
+        return steer * self.config.vessel.moment_max_auv
