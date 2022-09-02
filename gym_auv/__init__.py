@@ -38,7 +38,7 @@ DEFAULT_CONFIG = {
     "sensor_interval_load_obstacles": 25,  # Interval for loading nearby obstacles
     "n_sensors_per_sector": 20,  # Number of rangefinder sensors within each sector
     "n_sectors": 9,  # Number of sensor sectors
-    "sensor_use_feasibility_pooling": False,  # Whether to use the Feasibility pooling preprocessing for LiDAR measurements
+    "sensor_use_feasibility_pooling": True,  # False,  # Whether to use the Feasibility pooling preprocessing for LiDAR measurements
     "sector_partition_fun": sector_partition_fun,  # Function that returns corresponding sector for a given sensor index
     "sensor_rotation": False,  # Whether to activate the sectors in a rotating pattern (for performance reasons)
     "sensor_range": 150.0,  # Range of rangefinder sensors [m]

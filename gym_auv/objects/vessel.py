@@ -117,7 +117,7 @@ class LidarPreprocessor:
 
     def __init__(self, config):
         self._feasibility_width = (
-            config["width"] * config["feasibility_width_multiplier"]
+            config["vessel_width"] * config["feasibility_width_multiplier"]
         )
         self._n_sectors = config["n_sectors"]
         self._sector_angles = []
@@ -248,7 +248,6 @@ class LidarPreprocessor:
 
 
 class Vessel:
-
     NAVIGATION_FEATURES = [
         "surge_velocity",
         "sway_velocity",
@@ -279,6 +278,7 @@ class Vessel:
 
         # Initializing private attributes
         self._width = width
+        self._n_sectors = self.config["n_sectors"]
         self._n_sensors = self.config["n_sensors_per_sector"] * self.config["n_sectors"]
         self._d_sensor_angle = 2 * np.pi / (self._n_sensors)
         self._sensor_angles = np.array(
@@ -400,8 +400,9 @@ class Vessel:
             np.ones((self._n_sensors,)) * self.config["sensor_range"]
         )
         self._last_sensor_speed_measurements = np.zeros((self._n_sensors, 2))
-        self._last_sector_dist_measurements = np.zeros((self._n_sectors,))
-        self._last_sector_feasible_dists = np.zeros((self._n_sectors,))
+        if self._use_feasibility_pooling:
+            self._last_sector_dist_measurements = np.zeros((self._n_sectors,))
+            self._last_sector_feasible_dists = np.zeros((self._n_sectors,))
         self._last_navi_state_dict = dict(
             (state, 0) for state in Vessel.NAVIGATION_FEATURES
         )
@@ -433,6 +434,8 @@ class Vessel:
         self._prev_states = np.vstack([self._prev_states, self._state])
         self._prev_inputs = np.vstack([self._prev_inputs, self._input])
 
+        self._step_counter += 1
+
     def perceive(self, obstacles: List[BaseObstacle]) -> Tuple[np.ndarray, np.ndarray]:
         """
         Simulates the sensor suite and returns observation arrays of the environment.
@@ -447,7 +450,7 @@ class Vessel:
 
         # Initializing variables
         sensor_range = self.config["sensor_range"]
-        p0_point = shapely.output_velocities.Point(*self.position)
+        p0_point = shapely.geometry.Point(*self.position)
 
         # Loading nearby obstacles, i.e. obstacles within the vessel's detection range
         if self._step_counter % self.config["sensor_interval_load_obstacles"] == 0:
@@ -516,6 +519,7 @@ class Vessel:
                 # Outputs are TK inputs
 
                 distances = sensor_dist_measurements
+                output_velocities = sensor_speed_measurements
 
             # Calculating feasible closeness
             output_closenesses = self._get_closeness(distances)
