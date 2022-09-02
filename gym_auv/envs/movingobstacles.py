@@ -48,7 +48,7 @@ class MovingObstacles(BaseEnvironment):
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
 
-        # Use lasy loading for external files so the code doesn't crash if they don't exist
+        # Use lasy loading for external files so the code doesn't crash if they don't exist during import
         global vessel_speed_vals
         global vessel_speed_density
         if vessel_speed_vals is None:
