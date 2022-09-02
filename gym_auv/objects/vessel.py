@@ -197,7 +197,7 @@ class LidarPreprocessor:
             ]
         )
 
-        return sector_closenesses, sector_velocities
+        return sector_feasible_distances, sector_velocities
 
     @staticmethod
     def _feasibility_pooling(
@@ -433,21 +433,21 @@ class Vessel:
         self._prev_states = np.vstack([self._prev_states, self._state])
         self._prev_inputs = np.vstack([self._prev_inputs, self._input])
 
-        self._step_counter += 1
-
     def perceive(self, obstacles: List[BaseObstacle]) -> Tuple[np.ndarray, np.ndarray]:
         """
         Simulates the sensor suite and returns observation arrays of the environment.
 
         Returns
         -------
-        sector_closenesses : np.ndarray
-        sector_velocities : np.ndarray
+        if self.lidar_preprocessor is not None:
+            sector_closenesses : np.ndarray
+            sector_velocities : np.ndarray
+
         """
 
         # Initializing variables
         sensor_range = self.config["sensor_range"]
-        p0_point = shapely.geometry.Point(*self.position)
+        p0_point = shapely.output_velocities.Point(*self.position)
 
         # Loading nearby obstacles, i.e. obstacles within the vessel's detection range
         if self._step_counter % self.config["sensor_interval_load_obstacles"] == 0:
@@ -502,33 +502,35 @@ class Vessel:
                 # Preprocess sensor readings, splitting them into sectors and
                 # applying feasibility pooling
                 (
-                    sector_closenesses,
+                    sector_feasible_distances,
                     sector_velocities,
-                ) = self.lidar_preprocessor.preprocess(sensor_dist_measurements)
+                ) = self.lidar_preprocessor.preprocess(
+                    sensor_dist_measurements, sensor_speed_measurements
+                )
 
-                # Use sector closenesses and velocities as output
-                output_closenesses = sector_closenesses
+                # Use sector distances and velocities as output
+                distances = sector_feasible_distances
                 output_velocities = sector_velocities
             else:
                 # Don't apply dimensionality reduction/feasibility pooling
                 # Outputs are TK inputs
 
-                # TODO: Figure out if we want to apply closeness-preprocessing or
-                # use raw sensor inputs
-                output_closenesses
+                distances = sensor_dist_measurements
 
             # Calculating feasible closeness
-            sector_closenesses = self._get_closeness(sector_feasible_distances)
+            output_closenesses = self._get_closeness(distances)
 
             # Testing if vessel has collided
             collision = np.any(sensor_dist_measurements < self.width)
 
-        self._last_sector_dist_measurements = sector_closenesses
-        self._last_sector_feasible_dists = sector_feasible_distances
+        if self.lidar_preprocessor is not None:
+            self._last_sector_dist_measurements = sector_closenesses
+            self._last_sector_feasible_dists = sector_feasible_distances
+
         self._collision = collision
         self._perceive_counter += 1
 
-        return (sector_closenesses, sector_velocities)
+        return (output_closenesses, output_velocities)
 
     def _simulate_sensors_or_use_previous_measurement(
         self,
