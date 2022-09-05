@@ -2,6 +2,8 @@ from typing import Tuple, Union
 import gym
 import numpy as np
 from gym.utils import seeding
+import gym_auv
+from gym_auv.config import Config
 
 from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.rewarder import ColavRewarder
@@ -20,7 +22,7 @@ class BaseEnvironment(gym.Env, ABC):
 
     def __init__(
         self,
-        env_config: dict,
+        env_config: Union[gym_auv.Config, dict],
         test_mode: bool = False,
         render_mode: Union[str, None] = None,
         verbose: bool = False,
@@ -50,14 +52,28 @@ class BaseEnvironment(gym.Env, ABC):
         self.test_mode = test_mode
         self.render_mode = render_mode
         self.verbose = verbose
-        self.config = env_config
 
-        # print(f"{env_config = }")
-        # print(f"{self.config = }")
+        # As some RL frameworks (RLlib) requires the config object to be a dictionary,
+        # a workaround for this is wrapping our `Config` object in a dict, while keeping type safety of
+        # using dataclasses for config
+        if isinstance(env_config, dict):
+            self.config = env_config["config"]
+            assert isinstance(self.config, gym_auv.Config), (
+                "Expected config attribute of env_config to be"
+                f"gym_auv.Config, but got type {type(self.config)}!"
+            )
+        elif isinstance(env_config, gym_auv.Config):
+            # Config argument should already be the right type
+            self.config = env_config
+
+        print("self.config", self.config)
+        # print("self.config.vessel", self.config.vessel)
+
         # Setting dimension of observation vector
         self.n_observations = (
             len(Vessel.NAVIGATION_FEATURES)
-            + 3 * self.config["n_sectors"]
+            + 3
+            * (self.config.vessel.n_sectors * self.config.vessel.n_sensors_per_sector)
             + self._rewarder_class.N_INSIGHTS
         )
 
@@ -101,13 +117,13 @@ class BaseEnvironment(gym.Env, ABC):
         if self.render_mode == "2d" or self.render_mode == "both":
             render2d.init_env_viewer(self)
         if self.render_mode == "3d" or self.render_mode == "both":
-            if self.config["render_distance"] == "random":
+            if self.config.vessel.render_distance == "random":
                 self.render_distance = self.rng.randint(300, 2000)
             else:
-                self.render_distance = self.config["render_distance"]
+                self.render_distance = self.config.vessel.render_distance
             render3d.init_env_viewer(
                 self,
-                autocamera=self.config["autocamera3d"],
+                autocamera=self.config.rendering.autocamera3d,
                 render_dist=self.render_distance,
             )
 
@@ -204,10 +220,12 @@ class BaseEnvironment(gym.Env, ABC):
         """
         reward_insight = self.rewarder.insight()
         navigation_states = self.vessel.navigate(self.path)
-        if bool(self.config["sensing"]):
+        if bool(self.config.vessel.sensing):
             sector_closenesses, sector_velocities = self.vessel.perceive(self.obstacles)
         else:
             sector_closenesses, sector_velocities = [], []
+
+        sector_velocities = np.concatenate(sector_velocities)
 
         raw_obs = np.concatenate(
             [reward_insight, navigation_states, sector_closenesses, sector_velocities]
@@ -286,8 +304,8 @@ class BaseEnvironment(gym.Env, ABC):
             [
                 self.collision,
                 self.reached_goal,
-                self.t_step > self.config["max_timesteps"] and not self.test_mode,
-                self.cumulative_reward < self.config["min_cumulative_reward"]
+                self.t_step > self.config.episode.max_timesteps and not self.test_mode,
+                self.cumulative_reward < self.config.episode.min_cumulative_reward
                 and not self.test_mode,
             ]
         )
@@ -295,7 +313,7 @@ class BaseEnvironment(gym.Env, ABC):
     def _update(self) -> None:
         """Updates the environment at each time-step. Can be customized in sub-classes."""
         [
-            obst.update(dt=self.config["t_step_size"])
+            obst.update(dt=self.config.simulation.t_step_size)
             for obst in self.obstacles
             if not obst.static
         ]
@@ -322,7 +340,9 @@ class BaseEnvironment(gym.Env, ABC):
             if self.render_mode == "2d" or self.render_mode == "both":
                 image_arr = render2d.render_env(self, mode)
             if self.render_mode == "3d" or self.render_mode == "both":
-                image_arr = render3d.render_env(self, mode, self.config["t_step_size"])
+                image_arr = render3d.render_env(
+                    self, mode, self.config.simulation.t_step_size
+                )
         except OSError:
             image_arr = self._last_image_frame
 
@@ -366,7 +386,7 @@ class BaseEnvironment(gym.Env, ABC):
                     "collision": int(self.collision),
                     "reward": self.cumulative_reward,
                     "timesteps": self.t_step,
-                    "duration": self.t_step * self.config["t_step_size"],
+                    "duration": self.t_step * self.config.simulation.t_step_size,
                     "progress": self.progress,
                     "pathlength": self.path.length,
                 }

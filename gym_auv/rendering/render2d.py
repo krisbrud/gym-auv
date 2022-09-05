@@ -18,6 +18,8 @@ import numpy as np
 import math
 from numpy import sin, cos, arctan2
 from gym import error
+
+# from gym_auv.environment import BaseEnvironment
 import gym_auv.utils.geomutils as geom
 from gym_auv.objects.obstacles import CircularObstacle, PolygonObstacle, VesselObstacle
 
@@ -499,9 +501,9 @@ def _render_interceptions(env):
             )
 
 
-def _render_sensors(env):
+def _render_sensors(env):  # : BaseEnvironment):
     for isensor, sensor_angle in enumerate(env.vessel._sensor_angles):
-        isector = env.config["sector_partition_fun"](
+        isector = env.config.vessel.sector_partition_fun(
             env, isensor
         )  # isensor // env.config["n_sensors_per_sector"]
         distance = env.vessel._last_sensor_dist_measurements[isensor]
@@ -516,8 +518,9 @@ def _render_sensors(env):
         greenness = 1 - max(0, closeness)
         blueness = (
             0.5
-            if abs(isector - int(np.floor(env.config["n_sectors"] / 2) + 1)) % 2 == 0
-            and not env.config["sensor_rotation"]
+            if abs(isector - int(np.floor(env.config.vessel.n_sectors / 2) + 1)) % 2
+            == 0
+            and not env.config.vessel.sensor_rotation
             else 1
         )
         alpha = 0.5
@@ -641,6 +644,7 @@ def _render_indicators(env, W, H):
     env._viewer2d.eta_value_field.draw()
 
 
+# def render_env(env: BaseEnvironment, mode):
 def render_env(env, mode):
     global rot_angle
 
@@ -668,7 +672,7 @@ def render_env(env, mode):
 
         t.disable()
 
-        if env.config["show_indicators"]:
+        if env.config.rendering.show_indicators:
             _render_indicators(env, WINDOW_W, WINDOW_H)
 
     scroll_x = env.vessel.position[0]

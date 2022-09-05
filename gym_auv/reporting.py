@@ -1,4 +1,7 @@
+import dataclasses
 import warnings
+
+from gym_auv.environment import BaseEnvironment
 
 warnings.filterwarnings("ignore")
 
@@ -824,7 +827,7 @@ def plot_actions(
         )
 
 
-def plot_streamlines(env, agent, fig_dir, fig_prefix="", N=11):
+def plot_streamlines(env: BaseEnvironment, agent, fig_dir, fig_prefix="", N=11):
     OBST_POSITION = [0, 50]
     OBST_RADIUS = 25
     env.reset()
@@ -836,8 +839,8 @@ def plot_streamlines(env, agent, fig_dir, fig_prefix="", N=11):
     waypoints = np.vstack([[0, 0], [0, 100]]).T
     env.path = Path(waypoints)
     env.obstacles = [CircularObstacle(OBST_POSITION, OBST_RADIUS)]
-    env.config["min_goal_distance"] = 0
-    env.config["min_goal_progress"] = 0
+    env.config.episode.min_goal_distance = 0
+    env.config.episode.min_path_progress = 0  # ["min_goal_progress"] = 0
     path = env.path(np.linspace(0, env.path.length, 1000))
 
     plt.style.use("ggplot")
@@ -927,7 +930,13 @@ def plot_streamlines(env, agent, fig_dir, fig_prefix="", N=11):
 
 
 def plot_vector_field(
-    env, agent, fig_dir, fig_prefix="", xstep=2.0, ystep=5.0, obstacle=True
+    env: BaseEnvironment,
+    agent,
+    fig_dir,
+    fig_prefix="",
+    xstep=2.0,
+    ystep=5.0,
+    obstacle=True,
 ):
     OBST_POSITION = [0, 50]
     OBST_RADIUS = 10
@@ -942,9 +951,9 @@ def plot_vector_field(
     ax = fig.add_subplot(1, 1, 1)
 
     waypoints = np.vstack([[0, 0], [0, 100]]).T
-    env.config["min_goal_distance"] = 0
-    env.config["min_goal_progress"] = 1
-    env.config["sensor_rotation"] = False
+    env.config.episode.min_goal_distance = 0
+    env.config.episode.min_path_progress = 1  # ["min_goal_progress"] = 1
+    env.config.vessel.sensor_rotation  # ["sensor_rotation"] = False
     env.path = Path(waypoints)
     env.obstacles = obstacles
     path = env.path(np.linspace(0, env.path.length, 1000))
@@ -1063,7 +1072,7 @@ def test_report(fig_dir):
     env = Struct()
     env.history = []
     env.episode = 1001
-    env.config = gym_auv.DEFAULT_CONFIG
+    env.config = dataclasses.asdict(gym_auv.DEFAULT_CONFIG)
     for episode in range(1000):
         env.path = Struct()
         env.path.length = np.random.poisson(1000)
