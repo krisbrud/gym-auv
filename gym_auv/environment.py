@@ -3,6 +3,7 @@ import gym
 import numpy as np
 from gym.utils import seeding
 import gym_auv
+from gym_auv.config import Config
 
 from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.rewarder import ColavRewarder
@@ -21,7 +22,7 @@ class BaseEnvironment(gym.Env, ABC):
 
     def __init__(
         self,
-        env_config: gym_auv.Config,
+        env_config: Union[gym_auv.Config, dict],
         test_mode: bool = False,
         render_mode: Union[str, None] = None,
         verbose: bool = False,
@@ -51,12 +52,28 @@ class BaseEnvironment(gym.Env, ABC):
         self.test_mode = test_mode
         self.render_mode = render_mode
         self.verbose = verbose
-        self.config = env_config
+
+        # As some RL frameworks (RLlib) requires the config object to be a dictionary,
+        # a workaround for this is wrapping our `Config` object in a dict, while keeping type safety of
+        # using dataclasses for config
+        if isinstance(env_config, dict):
+            self.config = env_config["config"]
+            assert isinstance(self.config, gym_auv.Config), (
+                "Expected config attribute of env_config to be"
+                f"gym_auv.Config, but got type {type(self.config)}!"
+            )
+        elif isinstance(env_config, gym_auv.Config):
+            # Config argument should already be the right type
+            self.config = env_config
+
+        print("self.config", self.config)
+        # print("self.config.vessel", self.config.vessel)
 
         # Setting dimension of observation vector
         self.n_observations = (
             len(Vessel.NAVIGATION_FEATURES)
-            + 3 * self.config.vessel.n_sectors
+            + 3
+            * (self.config.vessel.n_sectors * self.config.vessel.n_sensors_per_sector)
             + self._rewarder_class.N_INSIGHTS
         )
 
@@ -207,6 +224,8 @@ class BaseEnvironment(gym.Env, ABC):
             sector_closenesses, sector_velocities = self.vessel.perceive(self.obstacles)
         else:
             sector_closenesses, sector_velocities = [], []
+
+        sector_velocities = np.concatenate(sector_velocities)
 
         raw_obs = np.concatenate(
             [reward_insight, navigation_states, sector_closenesses, sector_velocities]

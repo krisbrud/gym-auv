@@ -1,6 +1,7 @@
 # Configuration for gym_auv gym environment
 
 from dataclasses import dataclass
+import dataclasses
 from typing import Any, Callable, Union
 
 # import gym_auv
@@ -81,3 +82,6 @@ class Config:
     simulation: SimulationConfig = SimulationConfig()
     vessel: VesselConfig = VesselConfig()
     rendering: RenderingConfig = RenderingConfig()
+
+    def __iter__(self):
+        return iter(dataclasses.fields(self))

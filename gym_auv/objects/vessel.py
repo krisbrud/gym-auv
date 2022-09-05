@@ -691,15 +691,19 @@ class Vessel:
     def req_latest_data(self) -> dict:
         """Returns dictionary containing the most recent perception and navigation
         states."""
-        return {
+        latest_data = {
             "distance_measurements": self._last_sensor_dist_measurements,
             "speed_measurements": self._last_sensor_speed_measurements,
-            "feasible_distances": self._last_sector_feasible_dists,
             "navigation": self._last_navi_state_dict,
             "collision": self._collision,
             "progress": self._progress,
             "reached_goal": self._reached_goal,
         }
+
+        if self.config.vessel.sensor_use_feasibility_pooling:
+            latest_data["feasible_distances"] = self._last_sector_feasible_dists
+
+        return latest_data
 
     def _state_dot(self, state):
         psi = state[2]
