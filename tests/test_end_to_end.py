@@ -4,6 +4,7 @@ import numpy as np
 import gym
 import gym_auv
 
+
 def _make_env(env_name) -> gym.Env:
     return gym.make(env_name)
 
@@ -13,7 +14,7 @@ def test_single_step(scenario_name):
     """Simple end-to-end test of environment"""
     # Do a single non-zero action in the environment, see that the observation changes
     env = _make_env(scenario_name)
-    first_obs = env.reset()  # Reset 
+    first_obs = env.reset()  # Reset
 
     mock_action = np.array([0.5, 0.6])
     obs, reward, done, info = env.step(mock_action)
@@ -27,6 +28,6 @@ def test_single_step(scenario_name):
     assert isinstance(done, bool)
     assert isinstance(info, dict)
 
-    # Check that the new observation is different from the previous one. 
+    # Check that the new observation is different from the previous one.
     # As the observation includes navigation features (velocities etc), this should be true
     assert np.any(first_obs != obs)
