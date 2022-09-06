@@ -9,6 +9,7 @@ from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.rewarder import ColavRewarder
 import gym_auv.rendering.render2d as render2d
 import gym_auv.rendering.render3d as render3d
+import gym.spaces
 from abc import ABC, abstractmethod
 
 
@@ -69,14 +70,6 @@ class BaseEnvironment(gym.Env, ABC):
         print("self.config", self.config)
         # print("self.config.vessel", self.config.vessel)
 
-        # Setting dimension of observation vector
-        self.n_observations = (
-            len(Vessel.NAVIGATION_FEATURES)
-            + 3
-            * (self.config.vessel.n_sectors * self.config.vessel.n_sensors_per_sector)
-            + self._rewarder_class.N_INSIGHTS
-        )
-
         self.episode = 0
         self.total_t_steps = 0
         self.t_step = 0
@@ -105,11 +98,40 @@ class BaseEnvironment(gym.Env, ABC):
             high=np.array([1, 1]),
             dtype=np.float32,
         )
-        self._observation_space = gym.spaces.Box(
-            low=np.array([-1] * self.n_observations),
-            high=np.array([1] * self.n_observations),
-            dtype=np.float32,
+        # Setting dimension of observation vector
+        self.n_observations = (
+            len(Vessel.NAVIGATION_FEATURES)
+            + 3
+            * (self.config.vessel.n_sectors * self.config.vessel.n_sensors_per_sector)
+            + self._rewarder_class.N_INSIGHTS
         )
+        if self.config.vessel.use_dict_observation:
+            # Use a dictionary observation, as we want to encode the proprioceptive sensors (velocities etc)
+            # and LiDAR measurements differently, and keep the lidar measurements as a multi-channel "image",
+            # making it easier to apply Convolutional NNs etc. to
+            n_navigation_observations = len(Vessel.NAVIGATION_FEATURES)
+
+            # The LiDAR has a distance/closeness measurements, as well as two measurements
+            # that correspond to the planar velocity of an object obstructing the sensor (if there is one).
+            lidar_shape = (3, self.config.vessel.n_sensors)
+
+            self._observation_space = gym.spaces.Dict(
+                {
+                    "proprioceptive": gym.spaces.Box(
+                        low=-1.0,
+                        high=1.0,
+                        shape=(n_navigation_observations,),
+                        dtype=np.float32,
+                    ),
+                    "lidar": gym.spaces.Box(low=-1.0, high=1.0, shape=lidar_shape),
+                }
+            )
+        else:
+            self._observation_space = gym.spaces.Box(
+                low=np.array([-1] * self.n_observations),
+                high=np.array([1] * self.n_observations),
+                dtype=np.float32,
+            )
 
         # Initializing rendering
         self._viewer2d = None
