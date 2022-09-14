@@ -409,7 +409,7 @@ class Vessel:
         self._last_sensor_dist_measurements = (
             np.ones((self._n_sensors,)) * self.config.vessel.sensor_range
         )
-        self._last_sensor_speed_measurements = np.zeros((self._n_sensors, 2))
+        self._last_sensor_speed_measurements = np.zeros((2, self._n_sensors))
         if self._use_feasibility_pooling:
             self._last_sector_dist_measurements = np.zeros((self._n_sectors,))
             self._last_sector_feasible_dists = np.zeros((self._n_sectors,))
@@ -550,7 +550,6 @@ class Vessel:
                 output_velocities = sector_velocities
             else:
                 # Don't apply dimensionality reduction/feasibility pooling
-                # Outputs are TK inputs
 
                 distances = sensor_dist_measurements
                 output_velocities = sensor_speed_measurements
@@ -607,7 +606,7 @@ class Vessel:
             sensor_blocked_arr.append(blocked)
 
         sensor_dist_measurements = np.array(sensor_dist_measurements)
-        sensor_speed_measurements = np.array(sensor_speed_measurements)
+        sensor_speed_measurements = np.array(sensor_speed_measurements).T
 
         return (sensor_dist_measurements, sensor_speed_measurements, sensor_blocked_arr)
 

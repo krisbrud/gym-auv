@@ -248,10 +248,6 @@ class BaseEnvironment(gym.Env, ABC):
         else:
             sector_closenesses, sector_velocities = [], []
 
-        # sector_velocities = np.concatenate(
-        #     sector_velocities
-        # )  # TODO Fix so it becomes a 2 x 180
-        sector_velocities = sector_velocities.T
         sector_closenesses = sector_closenesses.reshape(1, -1)  # Add leading axis
 
         # Clamp/clip the observation to the valid domain as specified by the Space
@@ -272,11 +268,7 @@ class BaseEnvironment(gym.Env, ABC):
         elif isinstance(self.observation_space, gym.spaces.Dict):
             raw_lidar_obs = np.vstack((sector_closenesses, sector_velocities))
             raw_obs = {
-                "proprioceptive": np.clip(
-                    navigation_states,
-                    self.observation_space["proprioceptive"].low,
-                    self.observation_space["proprioceptive"].high,
-                ),
+                "proprioceptive": navigation_states,
                 "lidar": raw_lidar_obs,
             }
             obs = clip_to_space(raw_obs, self.observation_space)

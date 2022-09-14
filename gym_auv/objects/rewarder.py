@@ -107,7 +107,7 @@ class ColavRewarder(BaseRewarder):
             for isensor in range(self._vessel.n_sensors):
                 angle = self._vessel.sensor_angles[isensor]
                 x = measured_distances[isensor]
-                speed_vec = measured_speeds[isensor]
+                speed_vec = measured_speeds[:, isensor]
                 weight = 1 / (1 + np.abs(self.params["gamma_theta"] * angle))
                 raw_penalty = self._vessel.config.vessel.sensor_range * np.exp(
                     -self.params["gamma_x"] * x
@@ -209,7 +209,7 @@ class ColregRewarder(BaseRewarder):
             for isensor in range(self._vessel.n_sensors):
                 angle = self._vessel.sensor_angles[isensor]
                 x = measured_distances[isensor]
-                speed_vec = measured_speeds[isensor]
+                speed_vec = measured_speeds[isensor]  # TODO
 
                 if speed_vec.any():
 

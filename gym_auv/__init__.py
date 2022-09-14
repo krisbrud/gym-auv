@@ -1,6 +1,15 @@
 import numpy as np
 from gym.envs.registration import register
 from gym_auv.config import Config
+from gym_auv.envs import (
+    TestCrossing,
+    TestCrossing1,
+    TestScenario1,
+    TestScenario2,
+    TestScenario3,
+    TestScenario4,
+)
+from gym_auv.envs.testscenario import DebugScenario, EmptyScenario, TestHeadOn
 
 # import gym_auv.config.Config
 
@@ -29,38 +38,47 @@ REALWORLD_CONFIG = Config()
 SCENARIOS = {
     "TestScenario1-v0": {
         "entry_point": "gym_auv.envs:TestScenario1",
+        "constructor": TestScenario1,
         "config": DEFAULT_CONFIG,
     },
     "TestScenario2-v0": {
         "entry_point": "gym_auv.envs:TestScenario2",
+        "constructor": TestScenario2,
         "config": DEFAULT_CONFIG,
     },
     "TestScenario3-v0": {
         "entry_point": "gym_auv.envs:TestScenario3",
+        "constructor": TestScenario3,
         "config": DEFAULT_CONFIG,
     },
     "TestScenario4-v0": {
         "entry_point": "gym_auv.envs:TestScenario4",
+        "constructor": TestScenario4,
         "config": DEFAULT_CONFIG,
     },
     "TestHeadOn-v0": {
         "entry_point": "gym_auv.envs:TestHeadOn",
+        "constructor": TestHeadOn,
         "config": DEFAULT_CONFIG,
     },
     "TestCrossing-v0": {
         "entry_point": "gym_auv.envs:TestCrossing",
+        "constructor": TestCrossing,
         "config": DEFAULT_CONFIG,
     },
     "TestCrossing1-v0": {
         "entry_point": "gym_auv.envs:TestCrossing1",
+        "constructor": TestCrossing1,
         "config": DEFAULT_CONFIG,
     },
     "DebugScenario-v0": {
         "entry_point": "gym_auv.envs:DebugScenario",
+        "constructor": DebugScenario,
         "config": DEBUG_CONFIG,
     },
     "EmptyScenario-v0": {
         "entry_point": "gym_auv.envs:EmptyScenario",
+        "constructor": EmptyScenario,
         "config": DEBUG_CONFIG,
     },
     # 'Sorbuoya-v0': {
