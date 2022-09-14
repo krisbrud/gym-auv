@@ -9,6 +9,7 @@ from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.rewarder import ColavRewarder
 import gym_auv.rendering.render2d as render2d
 import gym_auv.rendering.render3d as render3d
+from gym_auv.utils.clip_to_space import clip_to_space
 import gym.spaces
 from abc import ABC, abstractmethod
 
@@ -247,16 +248,38 @@ class BaseEnvironment(gym.Env, ABC):
         else:
             sector_closenesses, sector_velocities = [], []
 
-        sector_velocities = np.concatenate(sector_velocities)
-
-        raw_obs = np.concatenate(
-            [reward_insight, navigation_states, sector_closenesses, sector_velocities]
-        )
+        # sector_velocities = np.concatenate(
+        #     sector_velocities
+        # )  # TODO Fix so it becomes a 2 x 180
+        sector_velocities = sector_velocities.T
+        sector_closenesses = sector_closenesses.reshape(1, -1)  # Add leading axis
 
         # Clamp/clip the observation to the valid domain as specified by the Space
-        obs = np.clip(
-            raw_obs, a_min=self.observation_space.low, a_max=self.observation_space.high
-        )
+        if isinstance(self.observation_space, gym.spaces.Box):
+            raw_obs = np.concatenate(
+                [
+                    reward_insight,
+                    navigation_states,
+                    sector_closenesses,
+                    sector_velocities,
+                ]
+            )
+            obs = np.clip(
+                raw_obs,
+                a_min=self.observation_space.low,
+                a_max=self.observation_space.high,
+            )
+        elif isinstance(self.observation_space, gym.spaces.Dict):
+            raw_lidar_obs = np.vstack((sector_closenesses, sector_velocities))
+            raw_obs = {
+                "proprioceptive": np.clip(
+                    navigation_states,
+                    self.observation_space["proprioceptive"].low,
+                    self.observation_space["proprioceptive"].high,
+                ),
+                "lidar": raw_lidar_obs,
+            }
+            obs = clip_to_space(raw_obs, self.observation_space)
 
         return obs
 
