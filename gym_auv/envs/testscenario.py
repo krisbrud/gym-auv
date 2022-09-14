@@ -289,7 +289,8 @@ class DebugScenario(BaseEnvironment):
         self.vessel = Vessel(
             self.config,
             np.hstack([init_state, init_angle]),
-            width=self.config["vessel_width"],
+            # width=self.config["vessel_width"],
+            width=self.config.vessel.vessel_width,
         )
         prog = self.path.get_closest_arclength(self.vessel.position)
         self.path_prog_hist = np.array([prog])

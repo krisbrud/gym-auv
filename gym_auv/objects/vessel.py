@@ -409,7 +409,7 @@ class Vessel:
         self._last_sensor_dist_measurements = (
             np.ones((self._n_sensors,)) * self.config.vessel.sensor_range
         )
-        self._last_sensor_speed_measurements = np.zeros((self._n_sensors, 2))
+        self._last_sensor_speed_measurements = np.zeros((2, self._n_sensors))
         if self._use_feasibility_pooling:
             self._last_sector_dist_measurements = np.zeros((self._n_sectors,))
             self._last_sector_feasible_dists = np.zeros((self._n_sectors,))
@@ -479,10 +479,32 @@ class Vessel:
             self._last_sensor_dist_measurements = (
                 np.ones((self._n_sensors,)) * sensor_range
             )
-            sector_feasible_distances = np.ones((self._n_sectors,)) * sensor_range
-            sector_closenesses = np.zeros((self._n_sectors,))
-            sector_velocities = np.zeros((2 * self._n_sectors,))
+
             collision = False
+
+            if self.config.vessel.sensor_use_feasibility_pooling:
+                sector_feasible_distances = np.ones((self._n_sectors,)) * sensor_range
+                sector_closenesses = np.zeros((self._n_sectors,))
+                sector_velocities = np.zeros(
+                    (
+                        2,
+                        self._n_sectors,
+                    )
+                )
+                output_closenesses = sector_closenesses
+                output_velocities = sector_velocities
+            else:
+                n_sensors = (
+                    self.config.vessel.n_sectors
+                    * self.config.vessel.n_sensors_per_sector
+                )
+                output_closenesses = np.zeros((n_sensors,))
+                output_velocities = np.zeros(
+                    (
+                        2,
+                        n_sensors,
+                    )
+                )
 
         else:
             should_observe = (
@@ -528,7 +550,6 @@ class Vessel:
                 output_velocities = sector_velocities
             else:
                 # Don't apply dimensionality reduction/feasibility pooling
-                # Outputs are TK inputs
 
                 distances = sensor_dist_measurements
                 output_velocities = sensor_speed_measurements
@@ -585,7 +606,7 @@ class Vessel:
             sensor_blocked_arr.append(blocked)
 
         sensor_dist_measurements = np.array(sensor_dist_measurements)
-        sensor_speed_measurements = np.array(sensor_speed_measurements)
+        sensor_speed_measurements = np.array(sensor_speed_measurements).T
 
         return (sensor_dist_measurements, sensor_speed_measurements, sensor_blocked_arr)
 

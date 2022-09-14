@@ -10,6 +10,7 @@ Created by Haakon Robinson, based on OpenAI's gym.base_env.classical.rendering.p
 """
 
 import os
+from typing import Union
 import six
 import sys
 import pyglet
@@ -45,6 +46,11 @@ env_bg_h = int(2 * PLAYFIELD)
 env_bg_w = int(2 * PLAYFIELD)
 
 RAD2DEG = 57.29577951308232
+
+
+def rad2deg(rad: Union[float, np.array]) -> float:
+    return rad * 180 / np.pi
+
 
 env_bg = None
 bg = None
@@ -287,7 +293,7 @@ class Transform(Attr):
         gl.glTranslatef(
             self.translation[0], self.translation[1], 0
         )  # translate to GL loc ppint
-        gl.glRotatef(RAD2DEG * self.rotation, 0, 0, 1.0)
+        gl.glRotatef(rad2deg(self.rotation), 0, 0, 1.0)
         gl.glScalef(self.scale[0], self.scale[1], 1)
 
     def disable(self):
@@ -513,7 +519,8 @@ def _render_sensors(env):  # : BaseEnvironment):
             p0[1] + np.sin(sensor_angle + env.vessel.heading) * distance,
         )
 
-        closeness = env.vessel._last_sector_dist_measurements[isector]
+        # closeness = env.vessel._last_sector_dist_measurements[isector]
+        closeness = env.vessel._last_sensor_dist_measurements[isensor]
         redness = 0.5 + 0.5 * max(0, closeness)
         greenness = 1 - max(0, closeness)
         blueness = (

@@ -32,8 +32,9 @@ SKY_COLOR = (109 / 255, 173 / 255, 255 / 255, 1)
 ENABLE_LIGHT = True
 X_SHIFT = -170
 
-platform = pyglet.window.get_platform()
-display = platform.get_default_display()
+# platform = pyglet.window.get_platform()
+# display = platform.get_default_display()
+display = pyglet.canvas.get_display()
 screen = display.get_default_screen()
 screen_width = screen.width
 screen_height = screen.height

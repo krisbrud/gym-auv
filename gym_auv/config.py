@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 import dataclasses
+from functools import cached_property
 from typing import Any, Callable, Union
 
 # import gym_auv
@@ -64,6 +65,12 @@ class VesselConfig:
     # or if a virtual obstacle based on the latest reading should be used (False).
     # This represents a trade-off between sensor accuracy and computation speed.
     # With real-world terrain, using virtual obstacles is critical for performance.
+    use_dict_observation: bool = True
+
+    @cached_property
+    def n_sensors(self) -> int:
+        # Calculates the number of sensors in total
+        return self.n_sensors_per_sector * self.n_sectors
 
 
 @dataclass
