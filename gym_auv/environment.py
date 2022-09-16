@@ -21,7 +21,7 @@ class BaseEnvironment(gym.Env, ABC):
 
     metadata = {
         "render.modes": ["human", "rgb_array", "state_pixels"],
-        # "video.frames_per_second": render2d.FPS,
+        "video.frames_per_second": render2d.FPS,
     }
 
     def __init__(
@@ -139,8 +139,8 @@ class BaseEnvironment(gym.Env, ABC):
         self._viewer2d = None
         self._viewer3d = None
         if self.render_mode == "2d" or self.render_mode == "both":
-            pass
-            # render2d.init_env_viewer(self)
+            # pass
+            render2d.init_env_viewer(self)
         if self.render_mode == "3d" or self.render_mode == "both":
             if self.config.vessel.render_distance == "random":
                 self.render_distance = self.rng.randint(300, 2000)
@@ -375,10 +375,10 @@ class BaseEnvironment(gym.Env, ABC):
         """Render one frame of the environment.
         The default mode will do something human friendly, such as pop up a window."""
         image_arr = None
+        # print("inside env.render()!")
         try:
-            pass
-            # if self.render_mode == "2d" or self.render_mode == "both":
-            #     image_arr = render2d.render_env(self, mode)
+            if self.render_mode == "2d" or self.render_mode == "both":
+                image_arr = render2d.render_env(self, mode)
             # if self.render_mode == "3d" or self.render_mode == "both":
             #     image_arr = render3d.render_env(
             #         self, mode, self.config.simulation.t_step_size

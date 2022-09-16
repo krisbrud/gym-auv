@@ -655,6 +655,8 @@ def _render_indicators(env, W, H):
 def render_env(env, mode):
     global rot_angle
 
+    # print("Render env called!")
+
     def render_objects():
         t = env._viewer2d.transform
         t.enable()
@@ -663,7 +665,7 @@ def render_env(env, mode):
         if env.path is not None:
             _render_path(env)
         _render_vessel(env)
-        _render_tiles(env, win)
+        # _render_tiles(env, win)
         _render_obstacles(env)
         if env.path is not None:
             _render_progress(env)
