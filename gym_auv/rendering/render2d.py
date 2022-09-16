@@ -48,6 +48,18 @@ env_bg_w = int(2 * PLAYFIELD)
 RAD2DEG = 57.29577951308232
 
 
+"""
+TODO: Refactor.
+Environment dependencies of Render2d
+- path
+- vessel
+- sensor_obst_intercepts_transformed_hist
+- time_step
+- config:
+  - sector partition function
+"""
+
+
 def rad2deg(rad: Union[float, np.array]) -> float:
     return rad * 180 / np.pi
 
