@@ -7,8 +7,9 @@ from gym_auv.config import Config
 
 from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.rewarder import ColavRewarder
-import gym_auv.rendering.render2d as render2d
-import gym_auv.rendering.render3d as render3d
+
+# import gym_auv.rendering.render2d as render2d
+# import gym_auv.rendering.render3d as render3d
 from gym_auv.utils.clip_to_space import clip_to_space
 import gym.spaces
 from abc import ABC, abstractmethod
@@ -19,7 +20,7 @@ class BaseEnvironment(gym.Env, ABC):
 
     metadata = {
         "render.modes": ["human", "rgb_array", "state_pixels"],
-        "video.frames_per_second": render2d.FPS,
+        # "video.frames_per_second": render2d.FPS,
     }
 
     def __init__(
@@ -102,8 +103,7 @@ class BaseEnvironment(gym.Env, ABC):
         # Setting dimension of observation vector
         self.n_observations = (
             len(Vessel.NAVIGATION_FEATURES)
-            + 3
-            * (self.config.vessel.n_sectors * self.config.vessel.n_sensors_per_sector)
+            + 3 * (self.config.vessel.n_sensors)
             + self._rewarder_class.N_INSIGHTS
         )
         if self.config.vessel.use_dict_observation:
@@ -138,17 +138,18 @@ class BaseEnvironment(gym.Env, ABC):
         self._viewer2d = None
         self._viewer3d = None
         if self.render_mode == "2d" or self.render_mode == "both":
-            render2d.init_env_viewer(self)
+            pass
+            # render2d.init_env_viewer(self)
         if self.render_mode == "3d" or self.render_mode == "both":
             if self.config.vessel.render_distance == "random":
                 self.render_distance = self.rng.randint(300, 2000)
             else:
                 self.render_distance = self.config.vessel.render_distance
-            render3d.init_env_viewer(
-                self,
-                autocamera=self.config.rendering.autocamera3d,
-                render_dist=self.render_distance,
-            )
+            # render3d.init_env_viewer(
+            #     self,
+            #     autocamera=self.config.rendering.autocamera3d,
+            #     render_dist=self.render_distance,
+            # )
 
         self.reset()
 
@@ -215,9 +216,9 @@ class BaseEnvironment(gym.Env, ABC):
             print("Generated scenario")
 
         # Initializing 3d viewer
-        if self.render_mode == "3d":
-            render3d.init_boat_model(self)
-            # self._viewer3d.create_path(self.path)
+        # if self.render_mode == "3d":
+        # render3d.init_boat_model(self)
+        # self._viewer3d.create_path(self.path)
 
         # Getting initial observation vector
         obs = self.observe()
@@ -256,8 +257,8 @@ class BaseEnvironment(gym.Env, ABC):
                 [
                     reward_insight,
                     navigation_states,
-                    sector_closenesses,
-                    sector_velocities,
+                    sector_closenesses.flatten(),
+                    sector_velocities.flatten(),
                 ]
             )
             obs = np.clip(
@@ -331,8 +332,8 @@ class BaseEnvironment(gym.Env, ABC):
         self._save_latest_step()
 
         self.t_step += 1
-        if self.t_step % 50 == 1:
-            print("timestep:", self.t_step)
+        # if self.t_step % 50 == 1:
+        print("timestep:", self.t_step)
 
         return (obs, reward, done, info)
 
@@ -374,12 +375,13 @@ class BaseEnvironment(gym.Env, ABC):
         The default mode will do something human friendly, such as pop up a window."""
         image_arr = None
         try:
-            if self.render_mode == "2d" or self.render_mode == "both":
-                image_arr = render2d.render_env(self, mode)
-            if self.render_mode == "3d" or self.render_mode == "both":
-                image_arr = render3d.render_env(
-                    self, mode, self.config.simulation.t_step_size
-                )
+            pass
+            # if self.render_mode == "2d" or self.render_mode == "both":
+            #     image_arr = render2d.render_env(self, mode)
+            # if self.render_mode == "3d" or self.render_mode == "both":
+            #     image_arr = render3d.render_env(
+            #         self, mode, self.config.simulation.t_step_size
+            #     )
         except OSError:
             image_arr = self._last_image_frame
 

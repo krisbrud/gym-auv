@@ -65,7 +65,7 @@ class VesselConfig:
     # or if a virtual obstacle based on the latest reading should be used (False).
     # This represents a trade-off between sensor accuracy and computation speed.
     # With real-world terrain, using virtual obstacles is critical for performance.
-    use_dict_observation: bool = True
+    use_dict_observation: bool = False  # True
 
     @cached_property
     def n_sensors(self) -> int:
