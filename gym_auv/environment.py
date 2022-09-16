@@ -8,7 +8,8 @@ from gym_auv.config import Config
 from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.rewarder import ColavRewarder
 
-# import gym_auv.rendering.render2d as render2d
+import gym_auv.rendering.render2d as render2d
+
 # import gym_auv.rendering.render3d as render3d
 from gym_auv.utils.clip_to_space import clip_to_space
 import gym.spaces
