@@ -48,6 +48,18 @@ env_bg_w = int(2 * PLAYFIELD)
 RAD2DEG = 57.29577951308232
 
 
+"""
+TODO: Refactor.
+Environment dependencies of Render2d
+- path
+- vessel
+- sensor_obst_intercepts_transformed_hist
+- time_step
+- config:
+  - sector partition function
+"""
+
+
 def rad2deg(rad: Union[float, np.array]) -> float:
     return rad * 180 / np.pi
 
@@ -655,6 +667,8 @@ def _render_indicators(env, W, H):
 def render_env(env, mode):
     global rot_angle
 
+    # print("Render env called!")
+
     def render_objects():
         t = env._viewer2d.transform
         t.enable()
@@ -663,7 +677,7 @@ def render_env(env, mode):
         if env.path is not None:
             _render_path(env)
         _render_vessel(env)
-        _render_tiles(env, win)
+        # _render_tiles(env, win)
         _render_obstacles(env)
         if env.path is not None:
             _render_progress(env)

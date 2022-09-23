@@ -56,3 +56,7 @@ def test_single_step(scenario_name):
                 is_different = True
 
         assert is_different
+
+
+if __name__ == "__main__":
+    test_single_step("TestScenario1-v0")
