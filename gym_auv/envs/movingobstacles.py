@@ -60,8 +60,8 @@ class MovingObstacles(BaseEnvironment):
             )
             obst_direction = self.rng.rand() * 2 * np.pi
 
-            min_speed = 2  # m/s
-            max_speed = 5
+            min_speed = 1  # m/s
+            max_speed = 3
             obst_speed = np.random.uniform(low=min_speed, high=max_speed)
 
             for i in range(10000):

@@ -618,6 +618,13 @@ def _render_tiles(env, win):
     env_bg.draw()
 
 
+def _render_blue_background(W=env_bg_w, H=env_bg_h):
+    print("in render blue background")
+    color = (37, 150, 190)  # "#2596be" Semi-dark blue
+    background = pyglet.shapes.Rectangle(x=0, y=0, width=W, height=H, color=color)
+    background.draw()
+
+
 def _render_indicators(env, W, H):
 
     prog = W / 40.0
@@ -736,6 +743,7 @@ def render_env(env, mode):
     x = win.dispatch_events()
     win.clear()
     gl.glViewport(0, 0, WINDOW_W, WINDOW_H)
+    _render_blue_background()
     render_objects()
     arr = None
 
