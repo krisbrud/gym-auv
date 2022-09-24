@@ -97,14 +97,14 @@ SCENARIOS = {
     #     'entry_point': 'gym_auv.envs:Trondheimsfjorden',
     #     'config': REALWORLD_CONFIG
     # },
-    # 'MovingObstaclesNoRules-v0': {
-    #     'entry_point': 'gym_auv.envs:MovingObstaclesNoRules',
-    #     'config': MOVING_CONFIG
-    # },
-    # 'MovingObstaclesColreg-v0': {
-    #     'entry_point': 'gym_auv.envs:MovingObstaclesColreg',
-    #     'config': MOVING_CONFIG
-    # },
+    "MovingObstaclesNoRules-v0": {
+        "entry_point": "gym_auv.envs:MovingObstaclesNoRules",
+        "config": MOVING_CONFIG,
+    },
+    "MovingObstaclesColreg-v0": {
+        "entry_point": "gym_auv.envs:MovingObstaclesColreg",
+        "config": MOVING_CONFIG,
+    },
     # 'FilmScenario-v0':  {
     #     'entry_point': 'gym_auv.envs:FilmScenario',
     #     'config': REALWORLD_CONFIG

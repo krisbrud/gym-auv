@@ -13,9 +13,6 @@ import os
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-vessel_speed_vals = None
-vessel_speed_density = None
-
 
 class MovingObstacles(BaseEnvironment):
     def __init__(self, *args, **kwargs) -> None:
@@ -48,14 +45,6 @@ class MovingObstacles(BaseEnvironment):
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
 
-        # Use lasy loading for external files so the code doesn't crash if they don't exist during import
-        global vessel_speed_vals
-        global vessel_speed_density
-        if vessel_speed_vals is None:
-            vessel_speed_vals = np.loadtxt("../resources/speed_vals.txt")
-        if vessel_speed_density is None:
-            vessel_speed_density = np.loadtxt("../resources/speed_density.txt")
-
         self.obstacles = []
 
         # Adding moving obstacles
@@ -70,7 +59,10 @@ class MovingObstacles(BaseEnvironment):
                 displacement_dist_std=500,
             )
             obst_direction = self.rng.rand() * 2 * np.pi
-            obst_speed = np.random.choice(vessel_speed_vals, p=vessel_speed_density)
+
+            min_speed = 2  # m/s
+            max_speed = 5
+            obst_speed = np.random.uniform(low=min_speed, high=max_speed)
 
             for i in range(10000):
                 other_vessel_trajectory.append(
