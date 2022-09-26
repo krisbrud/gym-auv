@@ -13,8 +13,10 @@ import os
 from typing import List, Union
 import six
 import sys
-import pyglet
-from pyglet import gl
+
+# import pyglet
+# from pyglet import gl
+import pygame
 import numpy as np
 import math
 from numpy import sin, cos, arctan2
@@ -35,15 +37,15 @@ from gym_auv.utils.sector_partitioning import sector_partition_fun
 from gym_auv.config import RenderingConfig
 
 from gym_auv.rendering.render2d.geometry import (
+    Circle,
     Line,
     Transform,
-    make_capsule,
     make_circle,
     _add_attrs,
     make_polygon,
     make_polyline,
 )
-from gym_auv.rendering.render2d.objects import render_blue_background, render_objects
+from gym_auv.rendering.render2d.renderer import render_blue_background, render_objects
 
 
 if "Apple" in sys.version:
@@ -116,11 +118,11 @@ class Viewer2D(object):
         self.width = width
         self.height = height
         self.mode = mode
-        if self.mode == "human":
-            self.window = pyglet.window.Window(
-                width=width, height=height, display=display
-            )
-            self.window.on_close = self.window_closed_by_user
+        # if self.mode == "human":
+        # self.window = pyglet.window.Window(
+        #     width=width, height=height, display=display
+        # )
+        # self.window.on_close = self.window_closed_by_user
         self.isopen = True
         self.geoms = []
         self.onetime_geoms = []
@@ -128,140 +130,142 @@ class Viewer2D(object):
         self.transform = Transform()
         self.camera_zoom = 1.5
 
-        gl.glEnable(gl.GL_BLEND)
-        gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+        self.screen = None
+
+        # gl.glEnable(gl.GL_BLEND)
+        # gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
         # Initialize text fields
-        self.reward_text_field = pyglet.text.Label(
-            "0000",
-            font_size=10,
-            x=20,
-            y=WINDOW_H - 30.00,
-            anchor_x="left",
-            anchor_y="center",
-            color=(0, 0, 0, 255),
-        )
-        self.reward_value_field = pyglet.text.Label(
-            "0000",
-            font_size=10,
-            x=260,
-            y=WINDOW_H - 30.00,
-            anchor_x="right",
-            anchor_y="center",
-            color=(0, 0, 0, 255),
-        )
+        # self.reward_text_field = pyglet.text.Label(
+        #     "0000",
+        #     font_size=10,
+        #     x=20,
+        #     y=WINDOW_H - 30.00,
+        #     anchor_x="left",
+        #     anchor_y="center",
+        #     color=(0, 0, 0, 255),
+        # )
+        # self.reward_value_field = pyglet.text.Label(
+        #     "0000",
+        #     font_size=10,
+        #     x=260,
+        #     y=WINDOW_H - 30.00,
+        #     anchor_x="right",
+        #     anchor_y="center",
+        #     color=(0, 0, 0, 255),
+        # )
 
-        self.cum_reward_text_field = pyglet.text.Label(
-            "0000",
-            font_size=10,
-            x=20,
-            y=WINDOW_H - 50.00,
-            anchor_x="left",
-            anchor_y="center",
-            color=(0, 0, 0, 255),
-        )
+        # self.cum_reward_text_field = pyglet.text.Label(
+        #     "0000",
+        #     font_size=10,
+        #     x=20,
+        #     y=WINDOW_H - 50.00,
+        #     anchor_x="left",
+        #     anchor_y="center",
+        #     color=(0, 0, 0, 255),
+        # )
 
-        self.cum_reward_value_field = pyglet.text.Label(
-            "0000",
-            font_size=10,
-            x=260,
-            y=WINDOW_H - 50.00,
-            anchor_x="right",
-            anchor_y="center",
-            color=(0, 0, 0, 255),
-        )
+        # self.cum_reward_value_field = pyglet.text.Label(
+        #     "0000",
+        #     font_size=10,
+        #     x=260,
+        #     y=WINDOW_H - 50.00,
+        #     anchor_x="right",
+        #     anchor_y="center",
+        #     color=(0, 0, 0, 255),
+        # )
 
-        self.time_step_text_field = pyglet.text.Label(
-            "0000",
-            font_size=10,
-            x=20,
-            y=WINDOW_H - 70.00,
-            anchor_x="left",
-            anchor_y="center",
-            color=(0, 0, 0, 255),
-        )
-        self.time_step_value_field = pyglet.text.Label(
-            "0000",
-            font_size=10,
-            x=260,
-            y=WINDOW_H - 70.00,
-            anchor_x="right",
-            anchor_y="center",
-            color=(0, 0, 0, 255),
-        )
+        # self.time_step_text_field = pyglet.text.Label(
+        #     "0000",
+        #     font_size=10,
+        #     x=20,
+        #     y=WINDOW_H - 70.00,
+        #     anchor_x="left",
+        #     anchor_y="center",
+        #     color=(0, 0, 0, 255),
+        # )
+        # self.time_step_value_field = pyglet.text.Label(
+        #     "0000",
+        #     font_size=10,
+        #     x=260,
+        #     y=WINDOW_H - 70.00,
+        #     anchor_x="right",
+        #     anchor_y="center",
+        #     color=(0, 0, 0, 255),
+        # )
 
-        self.episode_text_field = pyglet.text.Label(
-            "0000",
-            font_size=10,
-            x=20,
-            y=WINDOW_H - 90.00,
-            anchor_x="left",
-            anchor_y="center",
-            color=(0, 0, 0, 255),
-        )
-        self.episode_value_field = pyglet.text.Label(
-            "0000",
-            font_size=10,
-            x=260,
-            y=WINDOW_H - 90.00,
-            anchor_x="right",
-            anchor_y="center",
-            color=(0, 0, 0, 255),
-        )
+        # self.episode_text_field = pyglet.text.Label(
+        #     "0000",
+        #     font_size=10,
+        #     x=20,
+        #     y=WINDOW_H - 90.00,
+        #     anchor_x="left",
+        #     anchor_y="center",
+        #     color=(0, 0, 0, 255),
+        # )
+        # self.episode_value_field = pyglet.text.Label(
+        #     "0000",
+        #     font_size=10,
+        #     x=260,
+        #     y=WINDOW_H - 90.00,
+        #     anchor_x="right",
+        #     anchor_y="center",
+        #     color=(0, 0, 0, 255),
+        # )
 
-        self.lambda_text_field = pyglet.text.Label(
-            "0000",
-            font_size=10,
-            x=20,
-            y=WINDOW_H - 110.00,
-            anchor_x="left",
-            anchor_y="center",
-            color=(0, 0, 0, 255),
-        )
-        self.lambda_value_field = pyglet.text.Label(
-            "0000",
-            font_size=10,
-            x=260,
-            y=WINDOW_H - 110.00,
-            anchor_x="right",
-            anchor_y="center",
-            color=(0, 0, 0, 255),
-        )
+        # self.lambda_text_field = pyglet.text.Label(
+        #     "0000",
+        #     font_size=10,
+        #     x=20,
+        #     y=WINDOW_H - 110.00,
+        #     anchor_x="left",
+        #     anchor_y="center",
+        #     color=(0, 0, 0, 255),
+        # )
+        # self.lambda_value_field = pyglet.text.Label(
+        #     "0000",
+        #     font_size=10,
+        #     x=260,
+        #     y=WINDOW_H - 110.00,
+        #     anchor_x="right",
+        #     anchor_y="center",
+        #     color=(0, 0, 0, 255),
+        # )
 
-        self.eta_text_field = pyglet.text.Label(
-            "0000",
-            font_size=10,
-            x=20,
-            y=WINDOW_H - 130.00,
-            anchor_x="left",
-            anchor_y="center",
-            color=(0, 0, 0, 255),
-        )
-        self.eta_value_field = pyglet.text.Label(
-            "0000",
-            font_size=10,
-            x=260,
-            y=WINDOW_H - 130.00,
-            anchor_x="right",
-            anchor_y="center",
-            color=(0, 0, 0, 255),
-        )
+        # self.eta_text_field = pyglet.text.Label(
+        #     "0000",
+        #     font_size=10,
+        #     x=20,
+        #     y=WINDOW_H - 130.00,
+        #     anchor_x="left",
+        #     anchor_y="center",
+        #     color=(0, 0, 0, 255),
+        # )
+        # self.eta_value_field = pyglet.text.Label(
+        #     "0000",
+        #     font_size=10,
+        #     x=260,
+        #     y=WINDOW_H - 130.00,
+        #     anchor_x="right",
+        #     anchor_y="center",
+        #     color=(0, 0, 0, 255),
+        # )
 
-        print("Initialized 2D viewer")
+        # print("Initialized 2D viewer")
 
-    def close(self):
-        self.window.close()
+    # def close(self):
+    #     self.window.close()
 
-    def window_closed_by_user(self):
-        self.isopen = False
+    # def window_closed_by_user(self):
+    #     self.isopen = False
 
-    def set_bounds(self, left, right, bottom, top):
-        assert right > left and top > bottom
-        scalex = self.width / (right - left)
-        scaley = self.height / (top - bottom)
-        self.transform = Transform(
-            translation=(-left * scalex, -bottom * scaley), scale=(scalex, scaley)
-        )
+    # def set_bounds(self, left, right, bottom, top):
+    #     assert right > left and top > bottom
+    #     scalex = self.width / (right - left)
+    #     scaley = self.height / (top - bottom)
+    #     self.transform = Transform(
+    #         translation=(-left * scalex, -bottom * scaley), scale=(scalex, scaley)
+    #     )
 
     def add_geom(self, geom):
         self.geoms.append(geom)
@@ -273,11 +277,24 @@ class Viewer2D(object):
         self.fixed_geoms.append(geom)
 
     def render(self, return_rgb_array=False):
-        gl.glClearColor(1, 1, 1, 1)
+        # gl.glClearColor(1, 1, 1, 1)
 
-        self.window.clear()
-        self.window.switch_to()
-        self.window.dispatch_events()
+        # TODO: Move to init
+        if self.screen is None:
+            pygame.init()
+            if self.render_mode == "human":
+                pygame.display.init()
+                self.screen = pygame.display.set_mode(
+                    (self.screen_width, self.screen_height)
+                )
+            else:  # mode == "rgb_array":
+                self.screen = pygame.Surface((self.screen_width, self.screen_height))
+        if self.clock is None:
+            self.clock = pygame.time.Clock()
+
+        # self.window.clear()
+        # self.window.switch_to()
+        # self.window.dispatch_events()
         self.transform.enable()
         for geom in self.geoms:
             geom.render()
@@ -287,19 +304,30 @@ class Viewer2D(object):
         for geom in self.fixed_geoms:
             geom.render()
         arr = None
+
+        if self.render_mode == "human":
+            pygame.event.pump()
+            self.clock.tick(self.metadata["render_fps"])
+            pygame.display.flip()
+
+        elif self.render_mode == "rgb_array":
+            return np.transpose(
+                np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2)
+            )
         if return_rgb_array:
-            buffer = pyglet.image.get_buffer_manager().get_color_buffer()
-            image_data = buffer.get_image_data()
-            arr = np.fromstring(image_data.data, dtype=np.uint8, sep="")
-            arr = arr.reshape(buffer.height, buffer.width, 4)
-            arr = arr[::-1, :, 0:3]
-        self.window.flip()
+            # buffer = pyglet.image.get_buffer_manager().get_color_buffer()
+            # image_data = buffer.get_image_data()
+            # arr = np.fromstring(image_data.data, dtype=np.uint8, sep="")
+            # arr = arr.reshape(buffer.height, buffer.width, 4)
+            # arr = arr[::-1, :, 0:3]
+            pass
+        # self.window.flip()
         self.onetime_geoms = []
         return arr if return_rgb_array else self.isopen
 
     def draw_circle(
         self,
-        origin=(0, 0),
+        center=(0, 0),
         radius=10,
         res=30,
         filled=True,
@@ -308,20 +336,13 @@ class Viewer2D(object):
         end_angle=2 * np.pi,
         **attrs
     ):
-        geom = make_circle(
-            origin=origin,
-            radius=radius,
-            res=res,
-            filled=filled,
-            start_angle=start_angle,
-            end_angle=end_angle,
-        )
+        geom = Circle(origin=center, radius=radius)
         _add_attrs(geom, attrs)
         self.add_onetime(geom)
-        if filled and outline:
-            outl = make_circle(origin=origin, radius=radius, res=res, filled=False)
-            _add_attrs(outl, {"color": (0, 0, 0), "linewidth": 1})
-            self.add_onetime(outl)
+        # if filled and outline:
+        #     outl = make_circle(center=center, radius=radius, res=res, filled=False)
+        #     _add_attrs(outl, {"color": (0, 0, 0), "linewidth": 1})
+        #     self.add_onetime(outl)
         return geom
 
     def draw_polygon(self, v, filled=True, **attrs):
@@ -343,15 +364,15 @@ class Viewer2D(object):
         self.add_onetime(geom)
         return geom
 
-    def get_array(self):
-        self.window.flip()
-        image_data = (
-            pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
-        )
-        self.window.flip()
-        arr = np.fromstring(image_data.data, dtype=np.uint8, sep="")
-        arr = arr.reshape(self.height, self.width, 4)
-        return arr[::-1, :, 0:3]
+    # def get_array(self):
+    #     self.window.flip()
+    #     image_data = (
+    #         pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
+    #     )
+    #     self.window.flip()
+    #     arr = np.fromstring(image_data.data, dtype=np.uint8, sep="")
+    #     arr = arr.reshape(self.height, self.width, 4)
+    #     return arr[::-1, :, 0:3]
 
     def transform_vertices(self, points, translation, rotation, scale=1):
         res = []
@@ -375,28 +396,28 @@ class Viewer2D(object):
         self.draw_polyline([base, head], linewidth=2, **attrs)
         self.draw_polygon(tri, **attrs)
 
-    def draw_shape(
-        self,
-        vertices,
-        position=None,
-        angle=None,
-        color=(1, 1, 1),
-        filled=True,
-        border=True,
-    ):
-        if position is not None:
-            poly_path = self.transform_vertices(vertices, position, angle)
-        else:
-            poly_path = vertices
-        if filled:
-            self.draw_polygon(poly_path + [poly_path[0]], color=color)
-        if border:
-            border_color = (0, 0, 0) if type(border) == bool else border
-            self.draw_polyline(
-                poly_path + [poly_path[0]],
-                linewidth=1,
-                color=border_color if filled else color,
-            )
+    # def draw_shape(
+    #     self,
+    #     vertices,
+    #     position=None,
+    #     angle=None,
+    #     color=(1, 1, 1),
+    #     filled=True,
+    #     border=True,
+    # ):
+    #     if position is not None:
+    #         poly_path = self.transform_vertices(vertices, position, angle)
+    #     else:
+    #         poly_path = vertices
+    #     if filled:
+    #         self.draw_polygon(poly_path + [poly_path[0]], color=color)
+    #     if border:
+    #         border_color = (0, 0, 0) if type(border) == bool else border
+    #         self.draw_polyline(
+    #             poly_path + [poly_path[0]],
+    #             linewidth=1,
+    #             color=border_color if filled else color,
+    #         )
 
     def __del__(self):
         self.close()
@@ -417,47 +438,47 @@ class Viewer2D(object):
 
         if DYNAMIC_ZOOM:
             if int(state.t_step / 1000) % 2 == 0:
-                viewer.camera_zoom = 0.999 * viewer.camera_zoom + 0.001 * (
-                    ZOOM - viewer.camera_zoom
+                self.camera_zoom = 0.999 * self.camera_zoom + 0.001 * (
+                    ZOOM - self.camera_zoom
                 )
             else:
-                viewer.camera_zoom = 0.999 * viewer.camera_zoom + 0.001 * (
-                    1 - viewer.camera_zoom
+                self.camera_zoom = 0.999 * self.camera_zoom + 0.001 * (
+                    1 - self.camera_zoom
                 )
 
-        viewer.transform.set_scale(viewer.camera_zoom, viewer.camera_zoom)
-        viewer.transform.set_translation(
+        self.transform.set_scale(self.camera_zoom, self.camera_zoom)
+        self.transform.set_translation(
             WINDOW_W / 2
             - (
-                scroll_x * viewer.camera_zoom * cos(rot_angle)
-                - scroll_y * viewer.camera_zoom * sin(rot_angle)
+                scroll_x * self.camera_zoom * cos(rot_angle)
+                - scroll_y * self.camera_zoom * sin(rot_angle)
             ),
             WINDOW_H / 2
             - (
-                scroll_x * viewer.camera_zoom * sin(rot_angle)
-                + scroll_y * viewer.camera_zoom * cos(rot_angle)
+                scroll_x * self.camera_zoom * sin(rot_angle)
+                + scroll_y * self.camera_zoom * cos(rot_angle)
             ),
         )
-        viewer.transform.set_rotation(rot_angle)
+        self.transform.set_rotation(rot_angle)
 
-        win = viewer.window
-        win.switch_to()
-        x = win.dispatch_events()
-        win.clear()
-        gl.glViewport(0, 0, WINDOW_W, WINDOW_H)
+        # win = viewer.window
+        # win.switch_to()
+        # x = win.dispatch_events()
+        # win.clear()
+        # gl.glViewport(0, 0, WINDOW_W, WINDOW_H)
         render_blue_background()
         render_objects(viewer=viewer, state=state)
         arr = None
 
-        if mode == "rgb_array":
-            image_data = (
-                pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
-            )
-            arr = np.fromstring(image_data.data, dtype=np.uint8, sep="")
-            arr = arr.reshape(WINDOW_H, WINDOW_W, 4)
-            arr = arr[::-1, :, 0:3]
+        # if mode == "rgb_array":
+        #     image_data = (
+        #         pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
+        #     )
+        #     arr = np.fromstring(image_data.data, dtype=np.uint8, sep="")
+        #     arr = arr.reshape(WINDOW_H, WINDOW_W, 4)
+        #     arr = arr[::-1, :, 0:3]
 
-        win.flip()
+        # win.flip()
 
         viewer.onetime_geoms = []
 

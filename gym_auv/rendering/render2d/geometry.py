@@ -1,3 +1,12 @@
+import math
+from tkinter import CENTER
+from turtle import circle
+from typing import List
+
+import numpy as np
+import pygame
+
+
 def _add_attrs(geom, attrs):
     if "color" in attrs:
         geom.set_color(*attrs["color"])
@@ -5,10 +14,10 @@ def _add_attrs(geom, attrs):
         geom.set_linewidth(attrs["linewidth"])
 
 
-class Geom(object):
+class Geom:
     def __init__(self):
         self._color = Color((0, 0, 0, 1.0))
-        self.attrs = [self._color]
+        self.attrs: List[Attr] = [self._color]
 
     def render(self):
         for attr in reversed(self.attrs):
@@ -16,6 +25,10 @@ class Geom(object):
         self.render1()
         for attr in self.attrs:
             attr.disable()
+
+    @property
+    def color(self):
+        return self._color
 
     def render1(self):
         raise NotImplementedError
@@ -70,34 +83,34 @@ class Color(Attr):
         gl.glColor4f(*self.vec4)
 
 
-class LineStyle(Attr):
-    def __init__(self, style):
-        self.style = style
+# class LineStyle(Attr):
+#     def __init__(self, style):
+#         self.style = style
 
-    def enable(self):
-        gl.glEnable(gl.GL_LINE_STIPPLE)
-        gl.glLineStipple(1, self.style)
+#     def enable(self):
+#         gl.glEnable(gl.GL_LINE_STIPPLE)
+#         gl.glLineStipple(1, self.style)
 
-    def disable(self):
-        gl.glDisable(gl.GL_LINE_STIPPLE)
-
-
-class LineWidth(Attr):
-    def __init__(self, stroke):
-        self.stroke = stroke
-
-    def enable(self):
-        gl.glLineWidth(self.stroke)
+#     def disable(self):
+#         gl.glDisable(gl.GL_LINE_STIPPLE)
 
 
-class Point(Geom):
-    def __init__(self):
-        Geom.__init__(self)
+# class LineWidth(Attr):
+#     def __init__(self, stroke):
+#         self.stroke = stroke
 
-    def render1(self):
-        gl.glBegin(gl.GL_POINTS)  # draw point
-        gl.glVertex3f(0.0, 0.0, 0.0)
-        gl.glEnd()
+#     def enable(self):
+#         gl.glLineWidth(self.stroke)
+
+
+# class Point(Geom):
+#     def __init__(self):
+#         Geom.__init__(self)
+
+#     def render1(self):
+#         gl.glBegin(gl.GL_POINTS)  # draw point
+#         gl.glVertex3f(0.0, 0.0, 0.0)
+#         gl.glEnd()
 
 
 class FilledPolygon(Geom):
@@ -105,40 +118,30 @@ class FilledPolygon(Geom):
         Geom.__init__(self)
         self.v = v
 
-    def render1(self):
-        if len(self.v) == 4:
-            gl.glBegin(gl.GL_QUADS)
-        elif len(self.v) > 4:
-            gl.glBegin(gl.GL_POLYGON)
-        else:
-            gl.glBegin(gl.GL_TRIANGLES)
-        for p in self.v:
-            gl.glVertex3f(p[0], p[1], 0)  # draw each vertex
-        gl.glEnd()
+    def render(self, surf):
+        pygame.draw.polygon(surf, color=self.color, points=self.v)
+
+        # if len(self.v) == 4:
+        #     gl.glBegin(gl.GL_QUADS)
+        # elif len(self.v) > 4:
+        #     gl.glBegin(gl.GL_POLYGON)
+        # else:
+        #     gl.glBegin(gl.GL_TRIANGLES)
+        # for p in self.v:
+        #     gl.glVertex3f(p[0], p[1], 0)  # draw each vertex
+        # gl.glEnd()
 
 
-def make_circle(
-    origin=(0, 0),
-    radius=10,
-    res=30,
-    filled=True,
-    start_angle=0,
-    end_angle=2 * np.pi,
-    return_points=False,
-):
-    points = []
-    for i in range(res + 1):
-        ang = start_angle + i * (end_angle - start_angle) / res
-        points.append(
-            (math.cos(ang) * radius + origin[0], math.sin(ang) * radius + origin[1])
+class Circle(Geom):
+    def __init__(self, center: float = 0.0, radius: float = 10):
+        Geom.__init__(self)
+        self.center = center
+        self.radius = radius
+
+    def render(self, surf):
+        pygame.draw.circle(
+            surf, color=self.color, center=self.center, radius=self.radius
         )
-    if return_points:
-        return points
-    else:
-        if filled:
-            return FilledPolygon(points)
-        else:
-            return PolyLine(points, True)
 
 
 def make_polygon(v, filled=True):
@@ -153,10 +156,11 @@ def make_polyline(v):
 
 
 def make_capsule(length, width):
+    # TODO: Remove
     l, r, t, b = 0, length, width / 2, -width / 2
     box = make_polygon([(l, b), (l, t), (r, t), (r, b)])
-    circ0 = make_circle(width / 2)
-    circ1 = make_circle(width / 2)
+    circ0 = Circle(width / 2)
+    circ1 = Circle(width / 2)
     circ1.add_attr(Transform(translation=(length, 0)))
     geom = Compound([box, circ0, circ1])
     return geom
@@ -169,9 +173,11 @@ class Compound(Geom):
         for g in self.gs:
             g.attrs = [a for a in g.attrs if not isinstance(a, Color)]
 
-    def render1(self):
+    def render(self, surf: pygame.Surface):
         for g in self.gs:
-            g.render()
+            surf = g.render()
+
+        return surf
 
 
 class PolyLine(Geom):
@@ -179,17 +185,12 @@ class PolyLine(Geom):
         Geom.__init__(self)
         self.v = v
         self.close = close
-        self.linewidth = LineWidth(1)
+        # self.linewidth = LineWidth(1)
         self.add_attr(self.linewidth)
 
-    def render1(self):
-        gl.glBegin(gl.GL_LINE_LOOP if self.close else gl.GL_LINE_STRIP)
-        for p in self.v:
-            gl.glVertex3f(p[0], p[1], 0)  # draw each vertex
-        gl.glEnd()
-
-    def set_linewidth(self, x):
-        self.linewidth.stroke = x
+    def render(self, surf: pygame.Surface):
+        gray = (127, 127, 127)
+        return pygame.draw.lines(surface=surf, points=self.v, color=gray)
 
 
 class Line(Geom):
@@ -197,26 +198,12 @@ class Line(Geom):
         Geom.__init__(self)
         self.start = start
         self.end = end
-        self.linewidth = LineWidth(linewidth)
+        # self.linewidth = LineWidth(linewidth)
         self.add_attr(self.linewidth)
 
-    def render1(self):
-        gl.glBegin(gl.GL_LINES)
-        gl.glVertex2f(*self.start)
-        gl.glVertex2f(*self.end)
-        gl.glEnd()
+    def render(self, surf: pygame.Surface):
+        gray = (127, 127, 127)
+        start = pygame.Vector2(*self.start)
+        end = pygame.Vector2(*self.end)
 
-
-class Image(Geom):
-    def __init__(self, fname, width, height):
-        Geom.__init__(self)
-        self.width = width
-        self.height = height
-        img = pyglet.image.load(fname)
-        self.img = img
-        self.flip = False
-
-    def render1(self):
-        self.img.blit(
-            -self.width / 2, -self.height / 2, width=self.width, height=self.height
-        )
+        return pygame.draw.line(surf, gray, start, end)
