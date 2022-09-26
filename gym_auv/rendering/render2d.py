@@ -88,7 +88,7 @@ def get_display(spec):
 
 
 class Viewer2D(object):
-    def __init__(self, width, height, display=None):
+    def __init__(self, width=WINDOW_W, height=WINDOW_H, display=None):
         display = get_display(display)
 
         self.width = width
@@ -617,23 +617,6 @@ def _render_vessel(viewer: Viewer2D, vessel):
     viewer.draw_shape(vertices, vessel.position, vessel.heading, color=(0, 0, 0.8))
 
 
-def _render_interceptions(env):
-    for t, obst_intercept_array in enumerate(
-        env.sensor_obst_intercepts_transformed_hist
-    ):
-        for obst_intercept in obst_intercept_array:
-            env._viewer2d.draw_circle(
-                origin=obst_intercept,
-                radius=1.0 - t / len(env.sensor_obst_intercepts_transformed_hist),
-                res=30,
-                color=(
-                    0.3,
-                    1.0 - t / len(env.sensor_obst_intercepts_transformed_hist),
-                    0.3,
-                ),
-            )
-
-
 def _render_sensors(env):  # : BaseEnvironment):
     for isensor, sensor_angle in enumerate(env.vessel._sensor_angles):
         isector = env.config.vessel.sector_partition_fun(
@@ -753,14 +736,14 @@ def render_env(env, mode):
 
     # print("Render env called!")
 
-    def render_objects():
+    def render_objects(viewer: Viewer2D, env):
         t = env._viewer2d.transform
         t.enable()
         _render_sensors(env)
         # _render_interceptions(env)
         if env.path is not None:
-            _render_path(env)
-        _render_vessel(env)
+            _render_path(viewer, path_points=env.path._points)
+        _render_vessel(viewer, env.vessel)
         # _render_tiles(env, win)
         _render_obstacles(env)
         if env.path is not None:
@@ -831,7 +814,7 @@ def render_env(env, mode):
     win.clear()
     gl.glViewport(0, 0, WINDOW_W, WINDOW_H)
     _render_blue_background()
-    render_objects()
+    render_objects(viewer=env._viewer2d, env=env)
     arr = None
 
     if mode == "rgb_array":

@@ -140,7 +140,7 @@ class BaseEnvironment(gym.Env, ABC):
         self._viewer3d = None
         if self.render_mode == "2d" or self.render_mode == "both":
             # pass
-            render2d.init_env_viewer(self)
+            self._viewer2d = render2d.Viewer2D()  # TODO
         if self.render_mode == "3d" or self.render_mode == "both":
             if self.config.vessel.render_distance == "random":
                 self.render_distance = self.rng.randint(300, 2000)
