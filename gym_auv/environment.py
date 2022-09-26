@@ -7,8 +7,9 @@ from gym_auv.config import Config
 
 from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.rewarder import ColavRewarder
+from gym_auv.rendering.render2d.state import RenderableState
 
-import gym_auv.rendering.render2d as render2d
+import gym_auv.rendering.renderer2d as render2d
 
 # import gym_auv.rendering.render3d as render3d
 from gym_auv.utils.clip_to_space import clip_to_space
@@ -140,7 +141,7 @@ class BaseEnvironment(gym.Env, ABC):
         self._viewer3d = None
         if self.render_mode == "2d" or self.render_mode == "both":
             # pass
-            self._viewer2d = render2d.Viewer2D()  # TODO
+            self._viewer2d = render2d.Viewer2D()
         if self.render_mode == "3d" or self.render_mode == "both":
             if self.config.vessel.render_distance == "random":
                 self.render_distance = self.rng.randint(300, 2000)
@@ -378,7 +379,12 @@ class BaseEnvironment(gym.Env, ABC):
         # print("inside env.render()!")
         try:
             if self.render_mode == "2d" or self.render_mode == "both":
-                image_arr = render2d.render_env(self, mode)
+                image_arr = render2d.render_env(
+                    state=self.renderable_state,
+                    viewer=self._viewer2d,
+                    mode=mode,
+                    render_config=self.config.rendering,
+                )
             # if self.render_mode == "3d" or self.render_mode == "both":
             #     image_arr = render3d.render_env(
             #         self, mode, self.config.simulation.t_step_size
@@ -400,6 +406,21 @@ class BaseEnvironment(gym.Env, ABC):
         """Reseeds the random number generator used in the environment"""
         self.rng, seed = seeding.np_random(seed)
         return [seed]
+
+    @property
+    def renderable_state(self) -> RenderableState:
+        renderable_state = RenderableState(
+            last_reward=self.last_reward,
+            cumulative_reward=self.cumulative_reward,
+            t_step=self.t_step,
+            episode=self.episode,
+            lambda_tradeoff=self.rewarder.params["lambda"],
+            eta=self.rewarder.params["eta"],
+            obstacles=self.obstacles,
+            path=self.path,
+            vessel=self.vessel,
+        )
+        return renderable_state
 
     def _save_latest_step(self):
         latest_data = self.vessel.req_latest_data()

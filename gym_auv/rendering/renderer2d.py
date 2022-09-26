@@ -627,16 +627,8 @@ def _render_vessel(viewer: Viewer2D, vessel: Vessel):
     viewer.draw_shape(vertices, vessel.position, vessel.heading, color=(0, 0, 0.8))
 
 
-def _render_sensors(
-    env,
-    vessel: Vessel,
-    sensor_rotation: bool = False,
-    sector_partition_function=sector_partition_fun,
-):  # : BaseEnvironment):
-    for isensor, sensor_angle in enumerate(env.vessel._sensor_angles):
-        isector = sector_partition_function(
-            env, isensor
-        )  # isensor // env.config["n_sensors_per_sector"]
+def _render_sensors(viewer: Viewer2D, vessel: Vessel):
+    for isensor, sensor_angle in enumerate(vessel._sensor_angles):
         distance = vessel._last_sensor_dist_measurements[isensor]
         p0 = vessel.position
         p1 = (
@@ -648,15 +640,9 @@ def _render_sensors(
         closeness = vessel._last_sensor_dist_measurements[isensor]
         redness = 0.5 + 0.5 * max(0, closeness)
         greenness = 1 - max(0, closeness)
-        blueness = (
-            0.5
-            if abs(isector - int(np.floor(env.config.vessel.n_sectors / 2) + 1)) % 2
-            == 0
-            and not sensor_rotation
-            else 1
-        )
+        blueness = 1
         alpha = 0.5
-        env._viewer2d.draw_line(p0, p1, color=(redness, greenness, blueness, alpha))
+        viewer.draw_line(p0, p1, color=(redness, greenness, blueness, alpha))
 
 
 def _render_progress(viewer: Viewer2D, path: Path, vessel: Vessel):
@@ -743,16 +729,16 @@ def _render_indicators(
 
 # def render_env(env: BaseEnvironment, mode):
 def render_env(
-    env, viewer: Viewer2D, mode, state: RenderableState, render_config: RenderingConfig
+    viewer: Viewer2D, mode, state: RenderableState, render_config: RenderingConfig
 ):
     global rot_angle
 
     # print("Render env called!")
 
-    def render_objects(viewer: Viewer2D, env):
+    def render_objects(viewer: Viewer2D):
         t = viewer.transform
         t.enable()
-        _render_sensors(env, vessel=state.vessel)
+        _render_sensors(viewer, vessel=state.vessel)
         # _render_interceptions(env)
         if state.path is not None:
             _render_path(viewer, path=state.path)
@@ -826,7 +812,7 @@ def render_env(
     win.clear()
     gl.glViewport(0, 0, WINDOW_W, WINDOW_H)
     _render_blue_background()
-    render_objects(viewer=viewer, env=env)
+    render_objects(viewer=viewer)
     arr = None
 
     if mode == "rgb_array":
