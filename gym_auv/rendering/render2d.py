@@ -572,52 +572,6 @@ def _render_obstacles(env):
             env._viewer2d.draw_shape(list(obst.boundary.exterior.coords), color=c)
 
 
-def _render_tiles(env, win):
-    global env_bg
-    global bg
-
-    if env_bg is None:
-        # Initialise background
-        from pyglet.gl.gl import GLubyte
-
-        data = np.zeros((env_bg_h, env_bg_w, 3))
-        k = env_bg_h // 100
-        for x in range(0, data.shape[0], k):
-            for y in range(0, data.shape[1], k):
-                data[x : x + k, y : y + k, :] = np.array(
-                    (
-                        int(255 * min(1.0, 0.3 + 0.025 * (np.random.random() - 0.5))),
-                        int(255 * min(1.0, 0.7 + 0.025 * (np.random.random() - 0.5))),
-                        int(255 * min(1.0, 0.8 + 0.025 * (np.random.random() - 0.5))),
-                    )
-                )
-
-        pixels = data.flatten().astype("int").tolist()
-        raw_data = (GLubyte * len(pixels))(*pixels)
-        bg = pyglet.image.ImageData(
-            width=env_bg_w, height=env_bg_h, format="RGB", data=raw_data
-        )
-        if not os.path.exists("./resources"):
-            os.mkdir("./resources")
-        bg.save("./resources/bg.png")
-        env_bg = pyglet.sprite.Sprite(
-            bg,
-            x=env.vessel.position[0] - env_bg_w / 2,
-            y=env.vessel.position[1] - env_bg_h / 2,
-        )
-        env_bg.scale = 1
-
-    if env.t_step % 250 == 0:
-        env_bg = pyglet.sprite.Sprite(
-            bg,
-            x=env.vessel.position[0] - env_bg_w / 2,
-            y=env.vessel.position[1] - env_bg_h / 2,
-        )
-        env_bg.scale = 1
-
-    env_bg.draw()
-
-
 def _render_blue_background(W=env_bg_w, H=env_bg_h):
     print("in render blue background")
     color = (37, 150, 190)  # "#2596be" Semi-dark blue
