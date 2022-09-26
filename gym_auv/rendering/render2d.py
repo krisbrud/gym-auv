@@ -598,25 +598,23 @@ class Image(Geom):
         )
 
 
-def _render_path(env):
-    env._viewer2d.draw_polyline(env.path._points, linewidth=1, color=(0.3, 1.0, 0.3))
+def _render_path(viewer: Viewer2D, path_points):
+    viewer.draw_polyline(path_points, linewidth=1, color=(0.3, 1.0, 0.3))
 
 
-def _render_vessel(env):
-    env._viewer2d.draw_polyline(
-        env.vessel.path_taken, linewidth=1, color=(0.8, 0, 0)
+def _render_vessel(viewer: Viewer2D, vessel):
+    viewer.draw_polyline(
+        vessel.path_taken, linewidth=1, color=(0.8, 0, 0)
     )  # previous positions
     vertices = [
-        (-env.vessel.width / 2, -env.vessel.width / 2),
-        (-env.vessel.width / 2, env.vessel.width / 2),
-        (env.vessel.width / 2, env.vessel.width / 2),
-        (3 / 2 * env.vessel.width, 0),
-        (env.vessel.width / 2, -env.vessel.width / 2),
+        (-vessel.width / 2, -vessel.width / 2),
+        (-vessel.width / 2, vessel.width / 2),
+        (vessel.width / 2, vessel.width / 2),
+        (3 / 2 * vessel.width, 0),
+        (vessel.width / 2, -vessel.width / 2),
     ]
 
-    env._viewer2d.draw_shape(
-        vertices, env.vessel.position, env.vessel.heading, color=(0, 0, 0.8)
-    )
+    viewer.draw_shape(vertices, vessel.position, vessel.heading, color=(0, 0, 0.8))
 
 
 def _render_interceptions(env):
