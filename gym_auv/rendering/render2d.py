@@ -579,7 +579,17 @@ def _render_blue_background(W=env_bg_w, H=env_bg_h):
     background.draw()
 
 
-def _render_indicators(env, W, H):
+def _render_indicators(
+    viewer: Viewer2D,
+    W: int,
+    H: int,
+    last_reward: float,
+    cumulative_reward: float,
+    t_step: int,
+    episode: int,
+    lambda_tradeoff: float,
+    eta: float,
+):
 
     prog = W / 40.0
     h = H / 40.0
@@ -591,37 +601,35 @@ def _render_indicators(env, W, H):
     gl.glVertex3f(0, 0, 0)
     gl.glEnd()
 
-    env._viewer2d.reward_text_field.text = "Current Reward:"
-    env._viewer2d.reward_text_field.draw()
-    env._viewer2d.reward_value_field.text = "{:2.3f}".format(env.last_reward)
-    env._viewer2d.reward_value_field.draw()
+    viewer.reward_text_field.text = "Current Reward:"
+    viewer.reward_text_field.draw()
+    viewer.reward_value_field.text = "{:2.3f}".format(last_reward)
+    viewer.reward_value_field.draw()
 
-    env._viewer2d.cum_reward_text_field.text = "Cumulative Reward:"
-    env._viewer2d.cum_reward_text_field.draw()
-    env._viewer2d.cum_reward_value_field.text = "{:2.3f}".format(env.cumulative_reward)
-    env._viewer2d.cum_reward_value_field.draw()
+    viewer.cum_reward_text_field.text = "Cumulative Reward:"
+    viewer.cum_reward_text_field.draw()
+    viewer.cum_reward_value_field.text = "{:2.3f}".format(cumulative_reward)
+    viewer.cum_reward_value_field.draw()
 
-    env._viewer2d.time_step_text_field.text = "Time Step:"
-    env._viewer2d.time_step_text_field.draw()
-    env._viewer2d.time_step_value_field.text = str(env.t_step)
-    env._viewer2d.time_step_value_field.draw()
+    viewer.time_step_text_field.text = "Time Step:"
+    viewer.time_step_text_field.draw()
+    viewer.time_step_value_field.text = str(t_step)
+    viewer.time_step_value_field.draw()
 
-    env._viewer2d.episode_text_field.text = "Episode:"
-    env._viewer2d.episode_text_field.draw()
-    env._viewer2d.episode_value_field.text = str(env.episode)
-    env._viewer2d.episode_value_field.draw()
+    viewer.episode_text_field.text = "Episode:"
+    viewer.episode_text_field.draw()
+    viewer.episode_value_field.text = str(episode)
+    viewer.episode_value_field.draw()
 
-    env._viewer2d.lambda_text_field.text = "Log10 Lambda:"
-    env._viewer2d.lambda_text_field.draw()
-    env._viewer2d.lambda_value_field.text = "{:2.2f}".format(
-        np.log10(env.rewarder.params["lambda"])
-    )
-    env._viewer2d.lambda_value_field.draw()
+    viewer.lambda_text_field.text = "Log10 Lambda:"
+    viewer.lambda_text_field.draw()
+    viewer.lambda_value_field.text = "{:2.2f}".format(np.log10(lambda_tradeoff))
+    viewer.lambda_value_field.draw()
 
-    env._viewer2d.eta_text_field.text = "Eta:"
-    env._viewer2d.eta_text_field.draw()
-    env._viewer2d.eta_value_field.text = "{:2.2f}".format(env.rewarder.params["eta"])
-    env._viewer2d.eta_value_field.draw()
+    viewer.eta_text_field.text = "Eta:"
+    viewer.eta_text_field.draw()
+    viewer.eta_value_field.text = "{:2.2f}".format(eta)
+    viewer.eta_value_field.draw()
 
 
 # def render_env(env: BaseEnvironment, mode):
@@ -655,7 +663,17 @@ def render_env(env, mode):
         t.disable()
 
         if env.config.rendering.show_indicators:
-            _render_indicators(env, WINDOW_W, WINDOW_H)
+            _render_indicators(
+                viewer=env._viewer2d,
+                W=WINDOW_W,
+                H=WINDOW_H,
+                last_reward=env.last_reward,
+                cumulative_reward=env.cumulative_reward,
+                t_step=env.t_step,
+                episode=env.episode,
+                lambda_tradeoff=env.rewarder.params["lambda"],
+                eta=env.rewarder.params["eta"],
+            )
 
     scroll_x = env.vessel.position[0]
     scroll_y = env.vessel.position[1]
