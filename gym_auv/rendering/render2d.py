@@ -105,6 +105,123 @@ class Viewer2D(object):
         gl.glEnable(gl.GL_BLEND)
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
+        # Initialize text fields
+        self.reward_text_field = pyglet.text.Label(
+            "0000",
+            font_size=10,
+            x=20,
+            y=WINDOW_H - 30.00,
+            anchor_x="left",
+            anchor_y="center",
+            color=(0, 0, 0, 255),
+        )
+        self.reward_value_field = pyglet.text.Label(
+            "0000",
+            font_size=10,
+            x=260,
+            y=WINDOW_H - 30.00,
+            anchor_x="right",
+            anchor_y="center",
+            color=(0, 0, 0, 255),
+        )
+
+        self.cum_reward_text_field = pyglet.text.Label(
+            "0000",
+            font_size=10,
+            x=20,
+            y=WINDOW_H - 50.00,
+            anchor_x="left",
+            anchor_y="center",
+            color=(0, 0, 0, 255),
+        )
+        self.cum_reward_value_field = pyglet.text.Label(
+            "0000",
+            font_size=10,
+            x=260,
+            y=WINDOW_H - 50.00,
+            anchor_x="right",
+            anchor_y="center",
+            color=(0, 0, 0, 255),
+        )
+
+        self.time_step_text_field = pyglet.text.Label(
+            "0000",
+            font_size=10,
+            x=20,
+            y=WINDOW_H - 70.00,
+            anchor_x="left",
+            anchor_y="center",
+            color=(0, 0, 0, 255),
+        )
+        self.time_step_value_field = pyglet.text.Label(
+            "0000",
+            font_size=10,
+            x=260,
+            y=WINDOW_H - 70.00,
+            anchor_x="right",
+            anchor_y="center",
+            color=(0, 0, 0, 255),
+        )
+
+        self.episode_text_field = pyglet.text.Label(
+            "0000",
+            font_size=10,
+            x=20,
+            y=WINDOW_H - 90.00,
+            anchor_x="left",
+            anchor_y="center",
+            color=(0, 0, 0, 255),
+        )
+        self.episode_value_field = pyglet.text.Label(
+            "0000",
+            font_size=10,
+            x=260,
+            y=WINDOW_H - 90.00,
+            anchor_x="right",
+            anchor_y="center",
+            color=(0, 0, 0, 255),
+        )
+
+        self.lambda_text_field = pyglet.text.Label(
+            "0000",
+            font_size=10,
+            x=20,
+            y=WINDOW_H - 110.00,
+            anchor_x="left",
+            anchor_y="center",
+            color=(0, 0, 0, 255),
+        )
+        self.lambda_value_field = pyglet.text.Label(
+            "0000",
+            font_size=10,
+            x=260,
+            y=WINDOW_H - 110.00,
+            anchor_x="right",
+            anchor_y="center",
+            color=(0, 0, 0, 255),
+        )
+
+        self.eta_text_field = pyglet.text.Label(
+            "0000",
+            font_size=10,
+            x=20,
+            y=WINDOW_H - 130.00,
+            anchor_x="left",
+            anchor_y="center",
+            color=(0, 0, 0, 255),
+        )
+        self.eta_value_field = pyglet.text.Label(
+            "0000",
+            font_size=10,
+            x=260,
+            y=WINDOW_H - 130.00,
+            anchor_x="right",
+            anchor_y="center",
+            color=(0, 0, 0, 255),
+        )
+
+        print("Initialized 2D viewer")
+
     def close(self):
         self.window.close()
 
@@ -732,123 +849,3 @@ def render_env(env, mode):
     env._viewer2d.onetime_geoms = []
 
     return arr
-
-
-def init_env_viewer(env):
-    env._viewer2d = Viewer2D(WINDOW_W, WINDOW_H)
-
-    env._viewer2d.reward_text_field = pyglet.text.Label(
-        "0000",
-        font_size=10,
-        x=20,
-        y=WINDOW_H - 30.00,
-        anchor_x="left",
-        anchor_y="center",
-        color=(0, 0, 0, 255),
-    )
-    env._viewer2d.reward_value_field = pyglet.text.Label(
-        "0000",
-        font_size=10,
-        x=260,
-        y=WINDOW_H - 30.00,
-        anchor_x="right",
-        anchor_y="center",
-        color=(0, 0, 0, 255),
-    )
-
-    env._viewer2d.cum_reward_text_field = pyglet.text.Label(
-        "0000",
-        font_size=10,
-        x=20,
-        y=WINDOW_H - 50.00,
-        anchor_x="left",
-        anchor_y="center",
-        color=(0, 0, 0, 255),
-    )
-    env._viewer2d.cum_reward_value_field = pyglet.text.Label(
-        "0000",
-        font_size=10,
-        x=260,
-        y=WINDOW_H - 50.00,
-        anchor_x="right",
-        anchor_y="center",
-        color=(0, 0, 0, 255),
-    )
-
-    env._viewer2d.time_step_text_field = pyglet.text.Label(
-        "0000",
-        font_size=10,
-        x=20,
-        y=WINDOW_H - 70.00,
-        anchor_x="left",
-        anchor_y="center",
-        color=(0, 0, 0, 255),
-    )
-    env._viewer2d.time_step_value_field = pyglet.text.Label(
-        "0000",
-        font_size=10,
-        x=260,
-        y=WINDOW_H - 70.00,
-        anchor_x="right",
-        anchor_y="center",
-        color=(0, 0, 0, 255),
-    )
-
-    env._viewer2d.episode_text_field = pyglet.text.Label(
-        "0000",
-        font_size=10,
-        x=20,
-        y=WINDOW_H - 90.00,
-        anchor_x="left",
-        anchor_y="center",
-        color=(0, 0, 0, 255),
-    )
-    env._viewer2d.episode_value_field = pyglet.text.Label(
-        "0000",
-        font_size=10,
-        x=260,
-        y=WINDOW_H - 90.00,
-        anchor_x="right",
-        anchor_y="center",
-        color=(0, 0, 0, 255),
-    )
-
-    env._viewer2d.lambda_text_field = pyglet.text.Label(
-        "0000",
-        font_size=10,
-        x=20,
-        y=WINDOW_H - 110.00,
-        anchor_x="left",
-        anchor_y="center",
-        color=(0, 0, 0, 255),
-    )
-    env._viewer2d.lambda_value_field = pyglet.text.Label(
-        "0000",
-        font_size=10,
-        x=260,
-        y=WINDOW_H - 110.00,
-        anchor_x="right",
-        anchor_y="center",
-        color=(0, 0, 0, 255),
-    )
-
-    env._viewer2d.eta_text_field = pyglet.text.Label(
-        "0000",
-        font_size=10,
-        x=20,
-        y=WINDOW_H - 130.00,
-        anchor_x="left",
-        anchor_y="center",
-        color=(0, 0, 0, 255),
-    )
-    env._viewer2d.eta_value_field = pyglet.text.Label(
-        "0000",
-        font_size=10,
-        x=260,
-        y=WINDOW_H - 130.00,
-        anchor_x="right",
-        anchor_y="center",
-        color=(0, 0, 0, 255),
-    )
-
-    print("Initialized 2D viewer")
