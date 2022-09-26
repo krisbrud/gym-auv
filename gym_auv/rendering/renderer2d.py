@@ -422,7 +422,20 @@ class Viewer2D(object):
     def __del__(self):
         self.close()
 
-    def render_env(self, mode, state: RenderableState, render_config: RenderingConfig):
+    def render_env(
+        self, mode: str, state: RenderableState, render_config: RenderingConfig
+    ):
+        # TODO:
+        # Draw objects to world surface
+        # Transform world surface to body coordinates
+        # Make world surface
+        # Blit world surface to body
+        # Render body-centered coordinates
+        pass
+
+    def render_env_old(
+        self, mode, state: RenderableState, render_config: RenderingConfig
+    ):
         global rot_angle
 
         # print("Render env called!")
@@ -435,16 +448,6 @@ class Viewer2D(object):
             rot_angle = ship_angle
         else:
             rot_angle += CAMERA_ROTATION_SPEED * geom.princip(ship_angle - rot_angle)
-
-        if DYNAMIC_ZOOM:
-            if int(state.t_step / 1000) % 2 == 0:
-                self.camera_zoom = 0.999 * self.camera_zoom + 0.001 * (
-                    ZOOM - self.camera_zoom
-                )
-            else:
-                self.camera_zoom = 0.999 * self.camera_zoom + 0.001 * (
-                    1 - self.camera_zoom
-                )
 
         self.transform.set_scale(self.camera_zoom, self.camera_zoom)
         self.transform.set_translation(

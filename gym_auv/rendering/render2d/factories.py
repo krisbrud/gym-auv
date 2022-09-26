@@ -63,51 +63,51 @@ def render_blue_background(W=env_bg_w, H=env_bg_h):
     background.draw()
 
 
-def _render_indicators(
-    viewer: Viewer2D,
-    W: int,
-    H: int,
-    last_reward: float,
-    cumulative_reward: float,
-    t_step: int,
-    episode: int,
-    lambda_tradeoff: float,
-    eta: float,
-):
-    viewer.reward_text_field.text = "Current Reward:"
-    viewer.reward_text_field.draw()
-    viewer.reward_value_field.text = "{:2.3f}".format(last_reward)
-    viewer.reward_value_field.draw()
+# def _render_indicators(
+#     viewer: Viewer2D,
+#     W: int,
+#     H: int,
+#     last_reward: float,
+#     cumulative_reward: float,
+#     t_step: int,
+#     episode: int,
+#     lambda_tradeoff: float,
+#     eta: float,
+# ):
+#     viewer.reward_text_field.text = "Current Reward:"
+#     viewer.reward_text_field.draw()
+#     viewer.reward_value_field.text = "{:2.3f}".format(last_reward)
+#     viewer.reward_value_field.draw()
 
-    viewer.cum_reward_text_field.text = "Cumulative Reward:"
-    viewer.cum_reward_text_field.draw()
-    viewer.cum_reward_value_field.text = "{:2.3f}".format(cumulative_reward)
-    viewer.cum_reward_value_field.draw()
+#     viewer.cum_reward_text_field.text = "Cumulative Reward:"
+#     viewer.cum_reward_text_field.draw()
+#     viewer.cum_reward_value_field.text = "{:2.3f}".format(cumulative_reward)
+#     viewer.cum_reward_value_field.draw()
 
-    viewer.time_step_text_field.text = "Time Step:"
-    viewer.time_step_text_field.draw()
-    viewer.time_step_value_field.text = str(t_step)
-    viewer.time_step_value_field.draw()
+#     viewer.time_step_text_field.text = "Time Step:"
+#     viewer.time_step_text_field.draw()
+#     viewer.time_step_value_field.text = str(t_step)
+#     viewer.time_step_value_field.draw()
 
-    viewer.episode_text_field.text = "Episode:"
-    viewer.episode_text_field.draw()
-    viewer.episode_value_field.text = str(episode)
-    viewer.episode_value_field.draw()
+#     viewer.episode_text_field.text = "Episode:"
+#     viewer.episode_text_field.draw()
+#     viewer.episode_value_field.text = str(episode)
+#     viewer.episode_value_field.draw()
 
-    viewer.lambda_text_field.text = "Log10 Lambda:"
-    viewer.lambda_text_field.draw()
-    viewer.lambda_value_field.text = "{:2.2f}".format(np.log10(lambda_tradeoff))
-    viewer.lambda_value_field.draw()
+#     viewer.lambda_text_field.text = "Log10 Lambda:"
+#     viewer.lambda_text_field.draw()
+#     viewer.lambda_value_field.text = "{:2.2f}".format(np.log10(lambda_tradeoff))
+#     viewer.lambda_value_field.draw()
 
-    viewer.eta_text_field.text = "Eta:"
-    viewer.eta_text_field.draw()
-    viewer.eta_value_field.text = "{:2.2f}".format(eta)
-    viewer.eta_value_field.draw()
+#     viewer.eta_text_field.text = "Eta:"
+#     viewer.eta_text_field.draw()
+#     viewer.eta_value_field.text = "{:2.2f}".format(eta)
+#     viewer.eta_value_field.draw()
 
 
 def render_objects(viewer: Viewer2D, state: RenderableState):
     t = viewer.transform
-    t.enable()
+    # t.enable()
     _render_sensors(viewer, vessel=state.vessel)
     # _render_interceptions(env)
     if state.path is not None:
@@ -129,15 +129,15 @@ def render_objects(viewer: Viewer2D, state: RenderableState):
 
     t.disable()
 
-    if state.show_indicators:
-        _render_indicators(
-            viewer=viewer,
-            W=WINDOW_W,
-            H=WINDOW_H,
-            last_reward=state.last_reward,
-            cumulative_reward=state.cumulative_reward,
-            t_step=state.t_step,
-            episode=state.episode,
-            lambda_tradeoff=state.lambda_tradeoff,
-            eta=state.eta,
-        )
+    # if state.show_indicators:
+    #     _render_indicators(
+    #         viewer=viewer,
+    #         W=WINDOW_W,
+    #         H=WINDOW_H,
+    #         last_reward=state.last_reward,
+    #         cumulative_reward=state.cumulative_reward,
+    #         t_step=state.t_step,
+    #         episode=state.episode,
+    #         lambda_tradeoff=state.lambda_tradeoff,
+    #         eta=state.eta,
+    #     )

@@ -48,19 +48,20 @@ class Attr(object):
         pass
 
 
-class Transform(Attr):
+class Transform:
     def __init__(self, translation=(0.0, 0.0), rotation=0.0, scale=(1, 1)):
         self.set_translation(*translation)
         self.set_rotation(rotation)
         self.set_scale(*scale)
 
-    def enable(self):
-        gl.glPushMatrix()
-        gl.glTranslatef(
-            self.translation[0], self.translation[1], 0
-        )  # translate to GL loc ppint
-        gl.glRotatef(rad2deg(self.rotation), 0, 0, 1.0)
-        gl.glScalef(self.scale[0], self.scale[1], 1)
+    def apply(self, geom):
+        pass
+        # gl.glPushMatrix()
+        # gl.glTranslatef(
+        #     self.translation[0], self.translation[1], 0
+        # )  # translate to GL loc ppint
+        # gl.glRotatef(rad2deg(self.rotation), 0, 0, 1.0)
+        # gl.glScalef(self.scale[0], self.scale[1], 1)
 
     def disable(self):
         gl.glPopMatrix()
