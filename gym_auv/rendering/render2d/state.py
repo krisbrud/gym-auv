@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import List
 
 from numpy import ndarray
+from gym_auv.objects.path import Path
 from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.obstacles import BaseObstacle
 
@@ -23,5 +24,7 @@ class RenderableState:
     obstacles: List[BaseObstacle]
 
     # Path
-    path_points: ndarray
-    path_taken: ndarray
+    path: Path
+
+    # Config
+    show_indicators: bool
