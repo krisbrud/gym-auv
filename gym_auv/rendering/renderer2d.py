@@ -685,17 +685,6 @@ def _render_indicators(
     lambda_tradeoff: float,
     eta: float,
 ):
-
-    prog = W / 40.0
-    h = H / 40.0
-    gl.glBegin(gl.GL_QUADS)
-    gl.glColor4f(0, 0, 0, 1)
-    gl.glVertex3f(W, 0, 0)
-    gl.glVertex3f(W, 5 * h, 0)
-    gl.glVertex3f(0, 5 * h, 0)
-    gl.glVertex3f(0, 0, 0)
-    gl.glEnd()
-
     viewer.reward_text_field.text = "Current Reward:"
     viewer.reward_text_field.draw()
     viewer.reward_value_field.text = "{:2.3f}".format(last_reward)
