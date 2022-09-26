@@ -54,6 +54,10 @@ class Path:
         """Coordinates of the path's end point."""
         return self._path_coords(self.length)
 
+    @property
+    def points(self) -> np.ndarray:
+        return self._points
+
     def __call__(self, arclength: float) -> np.ndarray:
         """
         Returns the (x,y) point corresponding to the
