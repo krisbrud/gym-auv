@@ -1,9 +1,26 @@
-def _render_path(viewer: Viewer2D, path: Path):
-    viewer.draw_polyline(path.points, linewidth=1, color=(0.3, 1.0, 0.3))
+import pygame
+import numpy as np
+
+from typing import List
+from gym_auv.rendering.render2d.geometry import Circle, Geom, PolyLine
+from gym_auv.rendering.render2d.state import RenderableState
+from gym_auv.objects.obstacles import (
+    BaseObstacle,
+    CircularObstacle,
+    PolygonObstacle,
+    VesselObstacle,
+)
+from gym_auv.objects.vessel import Vessel
+from gym_auv.objects.path import Path
 
 
-def _render_vessel(viewer: Viewer2D, vessel: Vessel):
-    viewer.draw_polyline(
+def _render_path(path: Path):
+    polyline = draw_polyline(path.points, linewidth=1, color=(0.3, 1.0, 0.3))
+    return polyline
+
+
+def _render_vessel(vessel: Vessel) -> List[Geom]:
+    path_taken_line = draw_polyline(
         vessel.path_taken, linewidth=1, color=(0.8, 0, 0)
     )  # previous positions
     vertices = [
@@ -14,11 +31,15 @@ def _render_vessel(viewer: Viewer2D, vessel: Vessel):
         (vessel.width / 2, -vessel.width / 2),
     ]
 
-    viewer.draw_shape(vertices, vessel.position, vessel.heading, color=(0, 0, 0.8))
-    # vessel_shape =
+    vessel_shape = draw_shape(
+        vertices, vessel.position, vessel.heading, color=(0, 0, 0.8)
+    )
+
+    return [path_taken_line, vessel_shape]
 
 
-def _render_sensors(viewer: Viewer2D, vessel: Vessel):
+def _render_sensors(vessel: Vessel) -> List[Geom]:
+    sensor_lines: List[Geom] = []
     for isensor, sensor_angle in enumerate(vessel._sensor_angles):
         distance = vessel._last_sensor_dist_measurements[isensor]
         p0 = vessel.position
@@ -33,80 +54,52 @@ def _render_sensors(viewer: Viewer2D, vessel: Vessel):
         greenness = 1 - max(0, closeness)
         blueness = 1
         alpha = 0.5
-        viewer.draw_line(p0, p1, color=(redness, greenness, blueness, alpha))
+        sensor_lines.append(
+            draw_line(p0, p1, color=(redness, greenness, blueness, alpha))
+        )
+
+    return sensor_lines
 
 
-def _render_progress(viewer: Viewer2D, path: Path, vessel: Vessel):
+def _render_progress(path: Path, vessel: Vessel) -> List[Geom]:
+    color = pygame.Color(200, 77, 77)
+
+    geoms = []
     ref_point = path(vessel._last_navi_state_dict["vessel_arclength"]).flatten()
-    viewer.draw_circle(origin=ref_point, radius=1, res=30, color=(0.8, 0.3, 0.3))
+    geoms.append(Circle(origin=ref_point, radius=1, res=30, color=color))
 
     target_point = path(vessel._last_navi_state_dict["target_arclength"]).flatten()
-    viewer.draw_circle(origin=target_point, radius=1, res=30, color=(0.3, 0.8, 0.3))
+    geoms.append(Circle(origin=target_point, radius=1, res=30, color=color))
+
+    return geoms
 
 
-def _render_obstacles(viewer: Viewer2D, obstacles: List[BaseObstacle]):
+def _render_obstacles(obstacles: List[BaseObstacle]) -> List[Geom]:
+    geoms = []
     for obst in obstacles:
-        c = (0.8, 0.8, 0.8)
+        c = pygame.Color(200, 200, 200)
 
         if isinstance(obst, CircularObstacle):
-            viewer.draw_circle(obst.position, obst.radius, color=c)
+            geoms.append(Circle(obst.position, obst.radius, color=c))
 
         elif isinstance(obst, PolygonObstacle):
-            viewer.draw_shape(obst.points, color=c)
+            geoms.append(PolyLine(obst.points, color=c))
 
         elif isinstance(obst, VesselObstacle):
-            viewer.draw_shape(list(obst.boundary.exterior.coords), color=c)
+            geoms.append(PolyLine(list(obst.boundary.exterior.coords), color=c))
+
+    return geoms
 
 
-def render_blue_background(W=env_bg_w, H=env_bg_h):
+def make_background(W=env_bg_w, H=env_bg_h) -> Geom:
     color = (37, 150, 190)  # "#2596be" Semi-dark blue
-    background = pyglet.shapes.Rectangle(x=0, y=0, width=W, height=H, color=color)
-    background.draw()
+    # TODO: Change: Potentially by using this example
+    # https://www.geeksforgeeks.org/how-to-change-screen-background-color-in-pygame/
+    # background = pyglet.shapes.Rectangle(x=0, y=0, width=W, height=H, color=color)
+    # background.draw()
 
 
-# def _render_indicators(
-#     viewer: Viewer2D,
-#     W: int,
-#     H: int,
-#     last_reward: float,
-#     cumulative_reward: float,
-#     t_step: int,
-#     episode: int,
-#     lambda_tradeoff: float,
-#     eta: float,
-# ):
-#     viewer.reward_text_field.text = "Current Reward:"
-#     viewer.reward_text_field.draw()
-#     viewer.reward_value_field.text = "{:2.3f}".format(last_reward)
-#     viewer.reward_value_field.draw()
-
-#     viewer.cum_reward_text_field.text = "Cumulative Reward:"
-#     viewer.cum_reward_text_field.draw()
-#     viewer.cum_reward_value_field.text = "{:2.3f}".format(cumulative_reward)
-#     viewer.cum_reward_value_field.draw()
-
-#     viewer.time_step_text_field.text = "Time Step:"
-#     viewer.time_step_text_field.draw()
-#     viewer.time_step_value_field.text = str(t_step)
-#     viewer.time_step_value_field.draw()
-
-#     viewer.episode_text_field.text = "Episode:"
-#     viewer.episode_text_field.draw()
-#     viewer.episode_value_field.text = str(episode)
-#     viewer.episode_value_field.draw()
-
-#     viewer.lambda_text_field.text = "Log10 Lambda:"
-#     viewer.lambda_text_field.draw()
-#     viewer.lambda_value_field.text = "{:2.2f}".format(np.log10(lambda_tradeoff))
-#     viewer.lambda_value_field.draw()
-
-#     viewer.eta_text_field.text = "Eta:"
-#     viewer.eta_text_field.draw()
-#     viewer.eta_value_field.text = "{:2.2f}".format(eta)
-#     viewer.eta_value_field.draw()
-
-
-def render_objects(viewer: Viewer2D, state: RenderableState):
+def make_objects(state: RenderableState):
     t = viewer.transform
     # t.enable()
     _render_sensors(viewer, vessel=state.vessel)

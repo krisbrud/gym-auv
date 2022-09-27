@@ -118,11 +118,6 @@ class Viewer2D(object):
         self.width = width
         self.height = height
         self.mode = mode
-        # if self.mode == "human":
-        # self.window = pyglet.window.Window(
-        #     width=width, height=height, display=display
-        # )
-        # self.window.on_close = self.window_closed_by_user
         self.isopen = True
         self.geoms = []
         self.onetime_geoms = []
@@ -131,141 +126,6 @@ class Viewer2D(object):
         self.camera_zoom = 1.5
 
         self.screen = None
-
-        # gl.glEnable(gl.GL_BLEND)
-        # gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-
-        # Initialize text fields
-        # self.reward_text_field = pyglet.text.Label(
-        #     "0000",
-        #     font_size=10,
-        #     x=20,
-        #     y=WINDOW_H - 30.00,
-        #     anchor_x="left",
-        #     anchor_y="center",
-        #     color=(0, 0, 0, 255),
-        # )
-        # self.reward_value_field = pyglet.text.Label(
-        #     "0000",
-        #     font_size=10,
-        #     x=260,
-        #     y=WINDOW_H - 30.00,
-        #     anchor_x="right",
-        #     anchor_y="center",
-        #     color=(0, 0, 0, 255),
-        # )
-
-        # self.cum_reward_text_field = pyglet.text.Label(
-        #     "0000",
-        #     font_size=10,
-        #     x=20,
-        #     y=WINDOW_H - 50.00,
-        #     anchor_x="left",
-        #     anchor_y="center",
-        #     color=(0, 0, 0, 255),
-        # )
-
-        # self.cum_reward_value_field = pyglet.text.Label(
-        #     "0000",
-        #     font_size=10,
-        #     x=260,
-        #     y=WINDOW_H - 50.00,
-        #     anchor_x="right",
-        #     anchor_y="center",
-        #     color=(0, 0, 0, 255),
-        # )
-
-        # self.time_step_text_field = pyglet.text.Label(
-        #     "0000",
-        #     font_size=10,
-        #     x=20,
-        #     y=WINDOW_H - 70.00,
-        #     anchor_x="left",
-        #     anchor_y="center",
-        #     color=(0, 0, 0, 255),
-        # )
-        # self.time_step_value_field = pyglet.text.Label(
-        #     "0000",
-        #     font_size=10,
-        #     x=260,
-        #     y=WINDOW_H - 70.00,
-        #     anchor_x="right",
-        #     anchor_y="center",
-        #     color=(0, 0, 0, 255),
-        # )
-
-        # self.episode_text_field = pyglet.text.Label(
-        #     "0000",
-        #     font_size=10,
-        #     x=20,
-        #     y=WINDOW_H - 90.00,
-        #     anchor_x="left",
-        #     anchor_y="center",
-        #     color=(0, 0, 0, 255),
-        # )
-        # self.episode_value_field = pyglet.text.Label(
-        #     "0000",
-        #     font_size=10,
-        #     x=260,
-        #     y=WINDOW_H - 90.00,
-        #     anchor_x="right",
-        #     anchor_y="center",
-        #     color=(0, 0, 0, 255),
-        # )
-
-        # self.lambda_text_field = pyglet.text.Label(
-        #     "0000",
-        #     font_size=10,
-        #     x=20,
-        #     y=WINDOW_H - 110.00,
-        #     anchor_x="left",
-        #     anchor_y="center",
-        #     color=(0, 0, 0, 255),
-        # )
-        # self.lambda_value_field = pyglet.text.Label(
-        #     "0000",
-        #     font_size=10,
-        #     x=260,
-        #     y=WINDOW_H - 110.00,
-        #     anchor_x="right",
-        #     anchor_y="center",
-        #     color=(0, 0, 0, 255),
-        # )
-
-        # self.eta_text_field = pyglet.text.Label(
-        #     "0000",
-        #     font_size=10,
-        #     x=20,
-        #     y=WINDOW_H - 130.00,
-        #     anchor_x="left",
-        #     anchor_y="center",
-        #     color=(0, 0, 0, 255),
-        # )
-        # self.eta_value_field = pyglet.text.Label(
-        #     "0000",
-        #     font_size=10,
-        #     x=260,
-        #     y=WINDOW_H - 130.00,
-        #     anchor_x="right",
-        #     anchor_y="center",
-        #     color=(0, 0, 0, 255),
-        # )
-
-        # print("Initialized 2D viewer")
-
-    # def close(self):
-    #     self.window.close()
-
-    # def window_closed_by_user(self):
-    #     self.isopen = False
-
-    # def set_bounds(self, left, right, bottom, top):
-    #     assert right > left and top > bottom
-    #     scalex = self.width / (right - left)
-    #     scaley = self.height / (top - bottom)
-    #     self.transform = Transform(
-    #         translation=(-left * scalex, -bottom * scaley), scale=(scalex, scaley)
-    #     )
 
     def add_geom(self, geom):
         self.geoms.append(geom)
@@ -292,18 +152,9 @@ class Viewer2D(object):
         if self.clock is None:
             self.clock = pygame.time.Clock()
 
-        # self.window.clear()
-        # self.window.switch_to()
-        # self.window.dispatch_events()
-        self.transform.enable()
-        for geom in self.geoms:
-            geom.render()
-        for geom in self.onetime_geoms:
-            geom.render()
-        self.transform.disable()
-        for geom in self.fixed_geoms:
-            geom.render()
-        arr = None
+        # Make geometry
+        world_geoms = []
+        body_geoms = []
 
         if self.render_mode == "human":
             pygame.event.pump()

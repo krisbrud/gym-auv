@@ -30,7 +30,11 @@ class Transformation:
 
 
 class Geom:
-    def __init__(self, points: List[pygame.Vector2] = []):
+    def __init__(
+        self,
+        points: List[pygame.Vector2] = [],
+        color: pygame.Color = pygame.Color(0, 0, 0, 255),
+    ):
         # self._color = Color((0, 0, 0, 1.0))
         self.points = points
         # self.attrs: List[Attr] = [self._color]
