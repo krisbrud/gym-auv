@@ -39,13 +39,13 @@ from gym_auv.config import RenderingConfig
 from gym_auv.rendering.render2d.geometry import (
     Circle,
     Line,
-    Transform,
+    Transformation,
     make_circle,
     _add_attrs,
     make_polygon,
     make_polyline,
 )
-from gym_auv.rendering.render2d.renderer import render_blue_background, render_objects
+from gym_auv.rendering.render2d.factories import render_blue_background, render_objects
 
 
 if "Apple" in sys.version:
@@ -396,28 +396,28 @@ class Viewer2D(object):
         self.draw_polyline([base, head], linewidth=2, **attrs)
         self.draw_polygon(tri, **attrs)
 
-    # def draw_shape(
-    #     self,
-    #     vertices,
-    #     position=None,
-    #     angle=None,
-    #     color=(1, 1, 1),
-    #     filled=True,
-    #     border=True,
-    # ):
-    #     if position is not None:
-    #         poly_path = self.transform_vertices(vertices, position, angle)
-    #     else:
-    #         poly_path = vertices
-    #     if filled:
-    #         self.draw_polygon(poly_path + [poly_path[0]], color=color)
-    #     if border:
-    #         border_color = (0, 0, 0) if type(border) == bool else border
-    #         self.draw_polyline(
-    #             poly_path + [poly_path[0]],
-    #             linewidth=1,
-    #             color=border_color if filled else color,
-    #         )
+    def draw_shape(
+        self,
+        vertices,
+        position=None,
+        angle=None,
+        color=(1, 1, 1),
+        filled=True,
+        border=True,
+    ):
+        if position is not None:
+            poly_path = self.transform_vertices(vertices, position, angle)
+        else:
+            poly_path = vertices
+        if filled:
+            self.draw_polygon(poly_path + [poly_path[0]], color=color)
+        if border:
+            border_color = (0, 0, 0) if type(border) == bool else border
+            self.draw_polyline(
+                poly_path + [poly_path[0]],
+                linewidth=1,
+                color=border_color if filled else color,
+            )
 
     def __del__(self):
         self.close()

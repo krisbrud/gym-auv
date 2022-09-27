@@ -419,6 +419,7 @@ class BaseEnvironment(gym.Env, ABC):
             obstacles=self.obstacles,
             path=self.path,
             vessel=self.vessel,
+            show_indicators=self.config.rendering.show_indicators,
         )
         return renderable_state
 

@@ -15,6 +15,7 @@ def _render_vessel(viewer: Viewer2D, vessel: Vessel):
     ]
 
     viewer.draw_shape(vertices, vessel.position, vessel.heading, color=(0, 0, 0.8))
+    # vessel_shape =
 
 
 def _render_sensors(viewer: Viewer2D, vessel: Vessel):

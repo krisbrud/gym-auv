@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import math
 from tkinter import CENTER
 from turtle import circle
@@ -14,27 +15,47 @@ def _add_attrs(geom, attrs):
         geom.set_linewidth(attrs["linewidth"])
 
 
-class Geom:
-    def __init__(self):
-        self._color = Color((0, 0, 0, 1.0))
-        self.attrs: List[Attr] = [self._color]
+@dataclass
+class Transformation:
+    translation: pygame.Vector2
+    angle: float  # radians
+    scale: float = 1
 
-    def render(self):
-        for attr in reversed(self.attrs):
-            attr.enable()
-        self.render1()
-        for attr in self.attrs:
-            attr.disable()
+    def apply_to(self, point: pygame.Vector2) -> pygame.Vector2:
+        rotated = point.rotate_rad(self.angle)
+        translated = rotated - self.translation
+        scaled = translated * self.scale
+
+        return scaled
+
+
+class Geom:
+    def __init__(self, points: List[pygame.Vector2] = []):
+        # self._color = Color((0, 0, 0, 1.0))
+        self.points = points
+        # self.attrs: List[Attr] = [self._color]
+
+    def render(self, surf: pygame.Surface):
+        raise NotImplementedError
+
+        # for attr in reversed(self.attrs):
+        #     attr.enable()
+        # self.render1()
+        # for attr in self.attrs:
+        #     attr.disable()
 
     @property
     def color(self):
         return self._color
 
-    def render1(self):
-        raise NotImplementedError
+    def transform(self, transformation: Transformation):
+        self.points = map(lambda p: transformation.apply_to(p), self.points)
 
-    def add_attr(self, attr):
-        self.attrs.append(attr)
+    # def render1(self):
+    #     raise NotImplementedError
+
+    # def add_attr(self, attr):
+    #     self.attrs.append(attr)
 
     def set_color(self, r, g, b, alpha=1):
         self._color.vec4 = (r, g, b, alpha)
@@ -48,40 +69,12 @@ class Attr(object):
         pass
 
 
-class Transform:
-    def __init__(self, translation=(0.0, 0.0), rotation=0.0, scale=(1, 1)):
-        self.set_translation(*translation)
-        self.set_rotation(rotation)
-        self.set_scale(*scale)
+# class Color(Attr):
+#     def __init__(self, vec4):
+#         self.vec4 = vec4
 
-    def apply(self, geom):
-        pass
-        # gl.glPushMatrix()
-        # gl.glTranslatef(
-        #     self.translation[0], self.translation[1], 0
-        # )  # translate to GL loc ppint
-        # gl.glRotatef(rad2deg(self.rotation), 0, 0, 1.0)
-        # gl.glScalef(self.scale[0], self.scale[1], 1)
-
-    def disable(self):
-        gl.glPopMatrix()
-
-    def set_translation(self, newx, newy):
-        self.translation = (float(newx), float(newy))
-
-    def set_rotation(self, new):
-        self.rotation = float(new)
-
-    def set_scale(self, newx, newy):
-        self.scale = (float(newx), float(newy))
-
-
-class Color(Attr):
-    def __init__(self, vec4):
-        self.vec4 = vec4
-
-    def enable(self):
-        gl.glColor4f(*self.vec4)
+#     def enable(self):
+#         # gl.glColor4f(*self.vec4)
 
 
 # class LineStyle(Attr):
@@ -115,29 +108,27 @@ class Color(Attr):
 
 
 class FilledPolygon(Geom):
-    def __init__(self, v):
-        Geom.__init__(self)
-        self.v = v
+    def __init__(self, points):
+        super().__init__(points)
 
     def render(self, surf):
-        pygame.draw.polygon(surf, color=self.color, points=self.v)
-
-        # if len(self.v) == 4:
-        #     gl.glBegin(gl.GL_QUADS)
-        # elif len(self.v) > 4:
-        #     gl.glBegin(gl.GL_POLYGON)
-        # else:
-        #     gl.glBegin(gl.GL_TRIANGLES)
-        # for p in self.v:
-        #     gl.glVertex3f(p[0], p[1], 0)  # draw each vertex
-        # gl.glEnd()
+        pygame.draw.polygon(surf, color=self.color, points=self.points)
 
 
 class Circle(Geom):
-    def __init__(self, center: float = 0.0, radius: float = 10):
-        Geom.__init__(self)
+    def __init__(self, center: pygame.Vector2, radius: float = 10):
+        super().__init__()
         self.center = center
         self.radius = radius
+
+    @property
+    def center(self) -> pygame.Vector2:
+        # Allows for inheriting transformation from parent
+        return self.points[0]
+
+    @center.setter
+    def center(self, center: pygame.Vector2):
+        self.points = [center]
 
     def render(self, surf):
         pygame.draw.circle(
@@ -162,49 +153,50 @@ def make_capsule(length, width):
     box = make_polygon([(l, b), (l, t), (r, t), (r, b)])
     circ0 = Circle(width / 2)
     circ1 = Circle(width / 2)
-    circ1.add_attr(Transform(translation=(length, 0)))
+    # circ1.add_attr(Transform(translation=(length, 0)))
     geom = Compound([box, circ0, circ1])
     return geom
 
 
 class Compound(Geom):
-    def __init__(self, gs):
-        Geom.__init__(self)
-        self.gs = gs
-        for g in self.gs:
-            g.attrs = [a for a in g.attrs if not isinstance(a, Color)]
+    def __init__(self, geoms: List[Geom]):
+        super().__init__(self)
+        self.geoms = geoms
+        # for g in self.geoms:
+        #     g.attrs = [a for a in g.attrs if not isinstance(a, Color)]
 
     def render(self, surf: pygame.Surface):
-        for g in self.gs:
-            surf = g.render()
+        for geom in self.geoms:
+            surf = geom.render()
 
         return surf
 
+    def transform(self, transformation):
+        self.geoms = map(lambda geom: geom.transform(transformation), self.geoms)
+
 
 class PolyLine(Geom):
-    def __init__(self, v, close):
-        Geom.__init__(self)
-        self.v = v
-        self.close = close
-        # self.linewidth = LineWidth(1)
-        self.add_attr(self.linewidth)
+    def __init__(self, points: List[pygame.Vector2]):
+        super().__init__(points)
 
     def render(self, surf: pygame.Surface):
         gray = (127, 127, 127)
-        return pygame.draw.lines(surface=surf, points=self.v, color=gray)
+        return pygame.draw.lines(surface=surf, points=self.points, color=gray)
 
 
 class Line(Geom):
-    def __init__(self, start=(0.0, 0.0), end=(0.0, 0.0), linewidth=1):
-        Geom.__init__(self)
-        self.start = start
-        self.end = end
-        # self.linewidth = LineWidth(linewidth)
-        self.add_attr(self.linewidth)
+    def __init__(self, start: pygame.Vector2, end: pygame.Vector2):
+        super().__init__(self, [start, end])
+
+    @property
+    def start(self) -> pygame.Vector2:
+        return self.points[0]
+
+    @property
+    def end(self) -> pygame.Vector2:
+        return self.points[1]
 
     def render(self, surf: pygame.Surface):
         gray = (127, 127, 127)
-        start = pygame.Vector2(*self.start)
-        end = pygame.Vector2(*self.end)
 
-        return pygame.draw.line(surf, gray, start, end)
+        return pygame.draw.line(surf, gray, self.start, self.end)
