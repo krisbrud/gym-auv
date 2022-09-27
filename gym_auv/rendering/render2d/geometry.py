@@ -1,18 +1,12 @@
+from abc import abstractmethod
 from dataclasses import dataclass
-import math
-from tkinter import CENTER
-from turtle import circle
-from typing import List
+from typing import List, Union
+from typing_extensions import Self
 
 import numpy as np
 import pygame
 
-
-def _add_attrs(geom, attrs):
-    if "color" in attrs:
-        geom.set_color(*attrs["color"])
-    if "linewidth" in attrs:
-        geom.set_linewidth(attrs["linewidth"])
+from gym_auv.rendering.render2d import colors
 
 
 @dataclass
@@ -29,101 +23,64 @@ class Transformation:
         return scaled
 
 
-class Geom:
+class BaseGeom:
+    @abstractmethod
+    def render(self, surf: pygame.Surface) -> Union[np.ndarray, None]:
+        """Renders the shape(s) to the pygame surface"""
+        pass
+
+    @abstractmethod
+    def transform(self, transformation: Transformation):
+        pass
+
+
+class BasePointGeom(BaseGeom):
     def __init__(
         self,
-        points: List[pygame.Vector2] = [],
-        color: pygame.Color = pygame.Color(0, 0, 0, 255),
+        points: List[pygame.Vector2],
+        color: pygame.Color,
     ):
-        # self._color = Color((0, 0, 0, 1.0))
-        self.points = points
-        # self.attrs: List[Attr] = [self._color]
+        self._points = points
+        self._color = color
 
-    def render(self, surf: pygame.Surface):
-        raise NotImplementedError
-
-        # for attr in reversed(self.attrs):
-        #     attr.enable()
-        # self.render1()
-        # for attr in self.attrs:
-        #     attr.disable()
+    @abstractmethod
+    def render(self, surf: pygame.Surface) -> Union[np.ndarray, None]:
+        """Renders the shape(s) to the pygame surface"""
+        pass
 
     @property
     def color(self):
         return self._color
 
-    def transform(self, transformation: Transformation):
-        self.points = map(lambda p: transformation.apply_to(p), self.points)
+    @property
+    def points(self):
+        return self._points
 
-    # def render1(self):
-    #     raise NotImplementedError
+    def transform(self, transformation: Transformation) -> Self:
+        self._points = list(map(lambda p: transformation.apply_to(p), self.points))
 
-    # def add_attr(self, attr):
-    #     self.attrs.append(attr)
-
-    def set_color(self, r, g, b, alpha=1):
-        self._color.vec4 = (r, g, b, alpha)
+        return self
 
 
-class Attr(object):
-    def enable(self):
-        raise NotImplementedError
-
-    def disable(self):
-        pass
-
-
-# class Color(Attr):
-#     def __init__(self, vec4):
-#         self.vec4 = vec4
-
-#     def enable(self):
-#         # gl.glColor4f(*self.vec4)
-
-
-# class LineStyle(Attr):
-#     def __init__(self, style):
-#         self.style = style
-
-#     def enable(self):
-#         gl.glEnable(gl.GL_LINE_STIPPLE)
-#         gl.glLineStipple(1, self.style)
-
-#     def disable(self):
-#         gl.glDisable(gl.GL_LINE_STIPPLE)
-
-
-# class LineWidth(Attr):
-#     def __init__(self, stroke):
-#         self.stroke = stroke
-
-#     def enable(self):
-#         gl.glLineWidth(self.stroke)
-
-
-# class Point(Geom):
-#     def __init__(self):
-#         Geom.__init__(self)
-
-#     def render1(self):
-#         gl.glBegin(gl.GL_POINTS)  # draw point
-#         gl.glVertex3f(0.0, 0.0, 0.0)
-#         gl.glEnd()
-
-
-class FilledPolygon(Geom):
-    def __init__(self, points):
-        super().__init__(points)
+class FilledPolygon(BasePointGeom):
+    def __init__(self, points: List[pygame.Vector2], color: pygame.Color):
+        super().__init__(points, color)
 
     def render(self, surf):
         pygame.draw.polygon(surf, color=self.color, points=self.points)
 
 
-class Circle(Geom):
-    def __init__(self, center: pygame.Vector2, radius: float = 10):
+class Circle(BaseGeom):
+    def __init__(
+        self,
+        center: pygame.Vector2,
+        radius: float = 10,
+        color: pygame.Color = colors.BLACK,
+    ):
         super().__init__()
         self.center = center
         self.radius = radius
+        self.color = color
 
     @property
     def center(self) -> pygame.Vector2:
@@ -133,6 +90,11 @@ class Circle(Geom):
     @center.setter
     def center(self, center: pygame.Vector2):
         self.points = [center]
+
+    def transform(self, transformation: Transformation):
+        self.center = transformation.apply_to(self.center)
+        self.radius *= transformation.scale
+        return self
 
     def render(self, surf):
         pygame.draw.circle(
@@ -162,35 +124,40 @@ def make_capsule(length, width):
     return geom
 
 
-class Compound(Geom):
-    def __init__(self, geoms: List[Geom]):
-        super().__init__(self)
+class Compound(BaseGeom):
+    def __init__(self, geoms: List[BaseGeom]):
         self.geoms = geoms
-        # for g in self.geoms:
-        #     g.attrs = [a for a in g.attrs if not isinstance(a, Color)]
 
     def render(self, surf: pygame.Surface):
         for geom in self.geoms:
-            surf = geom.render()
-
-        return surf
+            geom.render(surf)
 
     def transform(self, transformation):
-        self.geoms = map(lambda geom: geom.transform(transformation), self.geoms)
+        self.geoms = list(map(lambda geom: geom.transform(transformation), self.geoms))
 
 
-class PolyLine(Geom):
-    def __init__(self, points: List[pygame.Vector2]):
-        super().__init__(points)
+class PolyLine(BasePointGeom):
+    def __init__(self, points: List[pygame.Vector2], color: pygame.Color):
+        super().__init__(points, color)
 
     def render(self, surf: pygame.Surface):
-        gray = (127, 127, 127)
-        return pygame.draw.lines(surface=surf, points=self.points, color=gray)
+        pygame.draw.lines(
+            surface=surf, 
+            color=self.color, 
+            points=self.points, 
+            closed=False
+        )
 
 
-class Line(Geom):
-    def __init__(self, start: pygame.Vector2, end: pygame.Vector2):
-        super().__init__(self, [start, end])
+class Line(BasePointGeom):
+    def __init__(
+        self,
+        start: pygame.Vector2,
+        end: pygame.Vector2,
+        color: pygame.Color = colors.GRAY,
+    ):
+        points = [start, end]
+        super().__init__(points, color)
 
     @property
     def start(self) -> pygame.Vector2:
@@ -201,6 +168,4 @@ class Line(Geom):
         return self.points[1]
 
     def render(self, surf: pygame.Surface):
-        gray = (127, 127, 127)
-
-        return pygame.draw.line(surf, gray, self.start, self.end)
+        pygame.draw.line(surf, self.color, self.start, self.end)
