@@ -16,9 +16,9 @@ class Transformation:
     scale: float = 1
 
     def apply_to(self, point: pygame.Vector2) -> pygame.Vector2:
-        rotated = point.rotate_rad(self.angle)
-        translated = rotated - self.translation
-        scaled = translated * self.scale
+        translated = point - self.translation
+        rotated = translated.rotate_rad(self.angle)
+        scaled = rotated * self.scale
 
         return scaled
 

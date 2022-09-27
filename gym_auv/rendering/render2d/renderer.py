@@ -31,6 +31,7 @@ from gym_auv.rendering.render2d.geometry import (
     Line,
     Transformation,
 )
+from gym_auv.rendering.render2d import colors
 from gym_auv.rendering.render2d.factories import (
     make_body_frame_geoms,
     make_world_frame_geoms,
@@ -82,6 +83,7 @@ class Renderer2d:
         width=WINDOW_W,
         height=WINDOW_H,
         render_fps: int = 60,
+        zoom: float = 1.5,
     ):
         self.width = width
         self.height = height
@@ -89,14 +91,11 @@ class Renderer2d:
 
         self.screen = None
         self.clock = None
+        self.zoom = zoom
 
     def render(self, state: RenderableState, render_mode="human"):
-        valid_render_modes = ("human", "rgb_array")
-        if render_mode not in valid_render_modes:
-            raise ValueError(
-                f"{render_mode}, is not a valid rendering mode!\nValid modes are {valid_render_modes}"
-            )
-        # TODO: Possibly move to init
+        Renderer2d._validate_render_mode(render_mode)
+
         if self.screen is None:
             pygame.init()
             if render_mode == "human":
@@ -108,25 +107,40 @@ class Renderer2d:
             self.clock = pygame.time.Clock()
 
         self.surf = pygame.Surface(self.screen_size)
-
+        self.surf.fill(colors.BLUE)
         # Make geometry
         world_geoms = make_world_frame_geoms(state=state)
         body_geoms = make_body_frame_geoms(state=state)
 
         # Transform world geoms to body frame
-        transformation = Transformation(
+        body_to_world_transformation = Transformation(
             translation=state.vessel.position, angle=state.vessel.heading
         )
-        world_geoms_body_frame = list(
-            map(lambda geom: geom.transform(transformation), world_geoms)
+        body_geoms.extend(
+            list(
+                map(
+                    lambda geom: geom.transform(body_to_world_transformation),
+                    world_geoms,
+                )
+            )
         )
 
-        for geom in world_geoms_body_frame:
-            print(geom)
+        # Center camera on vessel by applying transform
+        centering_translation = pygame.Vector2(x=-self.width / 2, y=-self.height / 2)
+        camera_transformation = Transformation(
+            translation=centering_translation,
+            angle=0.0,
+        )
+
+        centered_geoms = list(
+            map(lambda geom: geom.transform(camera_transformation), body_geoms)
+        )
+
+        for geom in centered_geoms:
             self.render_geom(geom)
 
-        for geom in body_geoms:
-            self.render_geom(geom)
+        self.surf = pygame.transform.flip(self.surf, False, True)
+        self.screen.blit(self.surf, (0, 0))
 
         if render_mode == "human":
             pygame.event.pump()
@@ -144,3 +158,12 @@ class Renderer2d:
     @property
     def screen_size(self) -> Tuple[int, int]:
         return (self.width, self.height)
+
+    @staticmethod
+    def _validate_render_mode(render_mode: str):
+        """Raises ValueError if render mode is invalid"""
+        valid_render_modes = ("human", "rgb_array")
+        if render_mode not in valid_render_modes:
+            raise ValueError(
+                f"{render_mode}, is not a valid rendering mode!\nValid modes are {valid_render_modes}"
+            )

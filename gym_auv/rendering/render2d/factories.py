@@ -46,7 +46,7 @@ def _render_vessel(vessel: Vessel) -> List[BaseGeom]:
         pygame.Vector2(vessel.width / 2, -vessel.width / 2),
     ]
 
-    vessel_shape = FilledPolygon(vertices, color=colors.BLUE)
+    vessel_shape = FilledPolygon(vertices, color=colors.GRAY)
 
     return [path_taken_line, vessel_shape]
 
@@ -119,8 +119,6 @@ def _render_obstacles(obstacles: List[BaseObstacle]) -> List[BaseGeom]:
 
 def make_world_frame_geoms(state: RenderableState) -> List[BaseGeom]:
     geoms = []
-    geoms.extend(_render_sensors(vessel=state.vessel))
-    geoms.extend(_render_vessel(vessel=state.vessel))
 
     if state.path is not None:
         geoms.append(_render_path(path=state.path))
@@ -133,4 +131,7 @@ def make_world_frame_geoms(state: RenderableState) -> List[BaseGeom]:
 
 def make_body_frame_geoms(state: RenderableState) -> List[BaseGeom]:
     geoms = []
+    geoms.extend(_render_sensors(vessel=state.vessel))
+    geoms.extend(_render_vessel(vessel=state.vessel))
+
     return geoms
