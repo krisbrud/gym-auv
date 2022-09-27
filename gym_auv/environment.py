@@ -9,7 +9,8 @@ from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.rewarder import ColavRewarder
 from gym_auv.rendering.render2d.state import RenderableState
 
-import gym_auv.rendering.renderer2d as render2d
+from gym_auv.rendering.render2d.renderer import Renderer2d
+import gym_auv.rendering.render2d.renderer as renderer
 
 # import gym_auv.rendering.render3d as render3d
 from gym_auv.utils.clip_to_space import clip_to_space
@@ -22,7 +23,7 @@ class BaseEnvironment(gym.Env, ABC):
 
     metadata = {
         "render.modes": ["human", "rgb_array", "state_pixels"],
-        "video.frames_per_second": render2d.FPS,
+        "video.frames_per_second": renderer.FPS,
     }
 
     def __init__(
@@ -137,11 +138,12 @@ class BaseEnvironment(gym.Env, ABC):
             )
 
         # Initializing rendering
-        self._viewer2d = None
+        self._renderer2d = None
         self._viewer3d = None
         if self.render_mode == "2d" or self.render_mode == "both":
-            # pass
-            self._viewer2d = render2d.Viewer2D()
+            self._renderer2d = Renderer2d(
+                render_fps=self.metadata["video.frames_per_second"]
+            )
         if self.render_mode == "3d" or self.render_mode == "both":
             if self.config.vessel.render_distance == "random":
                 self.render_distance = self.rng.randint(300, 2000)
@@ -367,8 +369,8 @@ class BaseEnvironment(gym.Env, ABC):
 
     def close(self):
         """Closes the environment. To be called after usage."""
-        if self._viewer2d is not None:
-            self._viewer2d.close()
+        if self._renderer2d is not None:
+            self._renderer2d.close()
         if self._viewer3d is not None:
             self._viewer3d.close()
 
@@ -379,11 +381,8 @@ class BaseEnvironment(gym.Env, ABC):
         # print("inside env.render()!")
         try:
             if self.render_mode == "2d" or self.render_mode == "both":
-                image_arr = render2d.render_env(
-                    state=self.renderable_state,
-                    viewer=self._viewer2d,
-                    mode=mode,
-                    render_config=self.config.rendering,
+                image_arr = self._renderer2d.render(
+                    state=self.renderable_state, render_mode=mode
                 )
             # if self.render_mode == "3d" or self.render_mode == "both":
             #     image_arr = render3d.render_env(
