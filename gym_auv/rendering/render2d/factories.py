@@ -55,11 +55,8 @@ def _render_sensors(vessel: Vessel) -> List[BaseGeom]:
     sensor_lines: List[BaseGeom] = []
     for isensor, sensor_angle in enumerate(vessel._sensor_angles):
         distance = vessel._last_sensor_dist_measurements[isensor]
-        p0 = pygame.Vector2(*vessel.position)
-        p1 = pygame.Vector2(
-            p0[0] + np.cos(sensor_angle + vessel.heading) * distance,
-            p0[1] + np.sin(sensor_angle + vessel.heading) * distance,
-        )
+        p0 = pygame.Vector2(0, 0)
+        p1 = pygame.Vector2(np.cos(sensor_angle), np.sin(sensor_angle)) * distance
 
         # closeness = vessel._last_sector_dist_measurements[isector]
         closeness = vessel._last_sensor_dist_measurements[isensor]

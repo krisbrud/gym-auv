@@ -142,10 +142,7 @@ class PolyLine(BasePointGeom):
 
     def render(self, surf: pygame.Surface):
         pygame.draw.lines(
-            surface=surf, 
-            color=self.color, 
-            points=self.points, 
-            closed=False
+            surface=surf, color=self.color, points=self.points, closed=False
         )
 
 
