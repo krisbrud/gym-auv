@@ -3,12 +3,13 @@ import gym
 import numpy as np
 from gym.utils import seeding
 import gym_auv
-from gym_auv.config import Config
 
 from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.rewarder import ColavRewarder
+from gym_auv.render2d.state import RenderableState
 
-import gym_auv.rendering.render2d as render2d
+from gym_auv.render2d.renderer import Renderer2d
+import gym_auv.render2d.renderer as renderer
 
 # import gym_auv.rendering.render3d as render3d
 from gym_auv.utils.clip_to_space import clip_to_space
@@ -21,7 +22,7 @@ class BaseEnvironment(gym.Env, ABC):
 
     metadata = {
         "render.modes": ["human", "rgb_array", "state_pixels"],
-        "video.frames_per_second": render2d.FPS,
+        "video.frames_per_second": renderer.FPS,
     }
 
     def __init__(
@@ -136,11 +137,12 @@ class BaseEnvironment(gym.Env, ABC):
             )
 
         # Initializing rendering
-        self._viewer2d = None
+        self._renderer2d = None
         self._viewer3d = None
         if self.render_mode == "2d" or self.render_mode == "both":
-            # pass
-            render2d.init_env_viewer(self)
+            self._renderer2d = Renderer2d(
+                render_fps=self.metadata["video.frames_per_second"]
+            )
         if self.render_mode == "3d" or self.render_mode == "both":
             if self.config.vessel.render_distance == "random":
                 self.render_distance = self.rng.randint(300, 2000)
@@ -366,8 +368,8 @@ class BaseEnvironment(gym.Env, ABC):
 
     def close(self):
         """Closes the environment. To be called after usage."""
-        if self._viewer2d is not None:
-            self._viewer2d.close()
+        if self._renderer2d is not None:
+            self._renderer2d.close()
         if self._viewer3d is not None:
             self._viewer3d.close()
 
@@ -378,7 +380,9 @@ class BaseEnvironment(gym.Env, ABC):
         # print("inside env.render()!")
         try:
             if self.render_mode == "2d" or self.render_mode == "both":
-                image_arr = render2d.render_env(self, mode)
+                image_arr = self._renderer2d.render(
+                    state=self.renderable_state, render_mode=mode
+                )
             # if self.render_mode == "3d" or self.render_mode == "both":
             #     image_arr = render3d.render_env(
             #         self, mode, self.config.simulation.t_step_size
@@ -400,6 +404,22 @@ class BaseEnvironment(gym.Env, ABC):
         """Reseeds the random number generator used in the environment"""
         self.rng, seed = seeding.np_random(seed)
         return [seed]
+
+    @property
+    def renderable_state(self) -> RenderableState:
+        renderable_state = RenderableState(
+            last_reward=self.last_reward,
+            cumulative_reward=self.cumulative_reward,
+            t_step=self.t_step,
+            episode=self.episode,
+            lambda_tradeoff=self.rewarder.params["lambda"],
+            eta=self.rewarder.params["eta"],
+            obstacles=self.obstacles,
+            path=self.path,
+            vessel=self.vessel,
+            show_indicators=self.config.rendering.show_indicators,
+        )
+        return renderable_state
 
     def _save_latest_step(self):
         latest_data = self.vessel.req_latest_data()
