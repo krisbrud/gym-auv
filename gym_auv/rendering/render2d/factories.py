@@ -31,13 +31,18 @@ def _render_path(path: Path) -> PolyLine:
     return polyline
 
 
-def _render_vessel(vessel: Vessel) -> List[BaseGeom]:
+def _render_path_taken(vessel: Vessel) -> PolyLine:
+    # previous positions
     points = ndarray_to_vector2_list(vessel.path_taken)
     path_taken_line = PolyLine(
         points=points,
         color=pygame.Color(200, 0, 0),
     )
-    # previous positions
+
+    return path_taken_line
+
+
+def _render_vessel(vessel: Vessel) -> FilledPolygon:
     vertices = [
         pygame.Vector2(-vessel.width / 2, -vessel.width / 2),
         pygame.Vector2(-vessel.width / 2, vessel.width / 2),
@@ -48,7 +53,7 @@ def _render_vessel(vessel: Vessel) -> List[BaseGeom]:
 
     vessel_shape = FilledPolygon(vertices, color=colors.GRAY)
 
-    return [path_taken_line, vessel_shape]
+    return vessel_shape
 
 
 def _render_sensors(vessel: Vessel) -> List[BaseGeom]:
@@ -56,7 +61,13 @@ def _render_sensors(vessel: Vessel) -> List[BaseGeom]:
     for isensor, sensor_angle in enumerate(vessel._sensor_angles):
         distance = vessel._last_sensor_dist_measurements[isensor]
         p0 = pygame.Vector2(0, 0)
-        p1 = pygame.Vector2(np.cos(sensor_angle), np.sin(sensor_angle)) * distance
+        p1 = (
+            pygame.Vector2(
+                np.cos(sensor_angle),
+                np.sin(sensor_angle),
+            )
+            * distance
+        )
 
         # closeness = vessel._last_sector_dist_measurements[isector]
         closeness = vessel._last_sensor_dist_measurements[isensor]
@@ -119,6 +130,7 @@ def make_world_frame_geoms(state: RenderableState) -> List[BaseGeom]:
 
     if state.path is not None:
         geoms.append(_render_path(path=state.path))
+        geoms.append(_render_path_taken(vessel=state.vessel))
     geoms.extend(_render_obstacles(obstacles=state.obstacles))
     if state.path is not None:
         geoms.extend(_render_progress(path=state.path, vessel=state.vessel))
@@ -129,6 +141,6 @@ def make_world_frame_geoms(state: RenderableState) -> List[BaseGeom]:
 def make_body_frame_geoms(state: RenderableState) -> List[BaseGeom]:
     geoms = []
     geoms.extend(_render_sensors(vessel=state.vessel))
-    geoms.extend(_render_vessel(vessel=state.vessel))
+    geoms.append(_render_vessel(vessel=state.vessel))
 
     return geoms

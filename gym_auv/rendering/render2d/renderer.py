@@ -113,27 +113,37 @@ class Renderer2d:
         body_geoms = make_body_frame_geoms(state=state)
 
         # Transform world geoms to body frame
-        body_to_world_transformation = Transformation(
-            translation=state.vessel.position, angle=state.vessel.heading
+        world_to_body_transformation = Transformation(
+            translation=-state.vessel.position, angle=-state.vessel.heading
         )
         body_geoms.extend(
             list(
                 map(
-                    lambda geom: geom.transform(body_to_world_transformation),
+                    lambda geom: geom.transform(world_to_body_transformation),
                     world_geoms,
                 )
             )
         )
 
+        zoom_transformation = Transformation(
+            translation=pygame.Vector2(0, 0),
+            angle=0.0,
+            scale=self.zoom,
+        )
+        zoomed_geoms = list(
+            map(lambda geom: geom.transform(zoom_transformation), body_geoms)
+        )
+
         # Center camera on vessel by applying transform
-        centering_translation = pygame.Vector2(x=-self.width / 2, y=-self.height / 2)
+
+        centering_translation = pygame.Vector2(x=self.width / 2, y=self.height / 2)
         camera_transformation = Transformation(
             translation=centering_translation,
             angle=0.0,
         )
 
         centered_geoms = list(
-            map(lambda geom: geom.transform(camera_transformation), body_geoms)
+            map(lambda geom: geom.transform(camera_transformation), zoomed_geoms)
         )
 
         for geom in centered_geoms:

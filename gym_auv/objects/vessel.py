@@ -732,7 +732,7 @@ class Vessel:
 
         tau = np.array([self._input[0], 0, self._input[1]])
 
-        eta_dot = geom.Rzyx(0, 0, geom.princip(psi)).dot(nu)
+        eta_dot = geom.Rz(geom.princip(psi)).dot(nu)
         nu_dot = const.M_inv.dot(
             tau
             # - const.D.dot(nu)
