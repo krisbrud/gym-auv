@@ -24,9 +24,8 @@ from gym_auv.rendering.render2d.utils import ndarray_to_vector2_list
 
 
 def _render_path(path: Path) -> PolyLine:
-    color = pygame.Color(77, 255, 77)
     points = ndarray_to_vector2_list(path.points)
-    polyline = PolyLine(points, color=color)
+    polyline = PolyLine(points, color=colors.LIGHT_GREEN)
 
     return polyline
 
@@ -36,7 +35,7 @@ def _render_path_taken(vessel: Vessel) -> PolyLine:
     points = ndarray_to_vector2_list(vessel.path_taken)
     path_taken_line = PolyLine(
         points=points,
-        color=pygame.Color(200, 0, 0),
+        color=colors.BLUE_GREEN,
     )
 
     return path_taken_line
@@ -51,7 +50,7 @@ def _render_vessel(vessel: Vessel) -> FilledPolygon:
         pygame.Vector2(vessel.width / 2, -vessel.width / 2),
     ]
 
-    vessel_shape = FilledPolygon(vertices, color=colors.GRAY)
+    vessel_shape = FilledPolygon(vertices, color=colors.ORANGE)
 
     return vessel_shape
 
@@ -82,18 +81,16 @@ def _render_sensors(vessel: Vessel) -> List[BaseGeom]:
 
 
 def _render_progress(path: Path, vessel: Vessel) -> List[BaseGeom]:
-    color = pygame.Color(200, 77, 77)
-
     geoms = []
     ref_point = pygame.Vector2(
         *path(vessel._last_navi_state_dict["vessel_arclength"]).flatten()
     )
-    geoms.append(Circle(center=ref_point, radius=1, color=color))
+    geoms.append(Circle(center=ref_point, radius=1, color=colors.EGG_WHITE))
 
     target_point = pygame.Vector2(
         *path(vessel._last_navi_state_dict["target_arclength"]).flatten()
     )
-    geoms.append(Circle(center=target_point, radius=1, color=color))
+    geoms.append(Circle(center=target_point, radius=1, color=colors.EGG_WHITE))
 
     return geoms
 
@@ -101,7 +98,7 @@ def _render_progress(path: Path, vessel: Vessel) -> List[BaseGeom]:
 def _render_obstacles(obstacles: List[BaseObstacle]) -> List[BaseGeom]:
     geoms = []
     for obst in obstacles:
-        c = pygame.Color(200, 200, 200)
+        c = colors.EGG_WHITE
 
         if isinstance(obst, CircularObstacle):
             geoms.append(Circle(pygame.Vector2(*obst.position), obst.radius, color=c))
@@ -112,7 +109,7 @@ def _render_obstacles(obstacles: List[BaseObstacle]) -> List[BaseGeom]:
 
         elif isinstance(obst, VesselObstacle):
             points = ndarray_to_vector2_list(obst.boundary.exterior.coords)
-            geoms.append(PolyLine(points, color=c))
+            geoms.append(FilledPolygon(points, color=c))
 
     return geoms
 
@@ -140,7 +137,7 @@ def make_world_frame_geoms(state: RenderableState) -> List[BaseGeom]:
 
 def make_body_frame_geoms(state: RenderableState) -> List[BaseGeom]:
     geoms = []
-    geoms.extend(_render_sensors(vessel=state.vessel))
     geoms.append(_render_vessel(vessel=state.vessel))
+    geoms.extend(_render_sensors(vessel=state.vessel))
 
     return geoms

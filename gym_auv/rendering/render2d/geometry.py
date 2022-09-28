@@ -75,7 +75,7 @@ class Circle(BaseGeom):
         self,
         center: pygame.Vector2,
         radius: float = 10,
-        color: pygame.Color = colors.BLACK,
+        color: pygame.Color = colors.BLACK_BLUE,
     ):
         super().__init__()
         self.center = center

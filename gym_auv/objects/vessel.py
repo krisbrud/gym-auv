@@ -282,7 +282,7 @@ class Vessel:
         self.config = config
 
         # Initializing private attributes
-        self._width = width
+        self._width = config.vessel.vessel_width
 
         self._n_sectors = self.config.vessel.n_sectors
         self._n_sensors = self.config.vessel.n_sensors_per_sector * self._n_sectors

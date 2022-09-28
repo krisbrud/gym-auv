@@ -107,7 +107,7 @@ class Renderer2d:
             self.clock = pygame.time.Clock()
 
         self.surf = pygame.Surface(self.screen_size)
-        self.surf.fill(colors.BLUE)
+        self.surf.fill(colors.LIGHT_BLUE)
         # Make geometry
         world_geoms = make_world_frame_geoms(state=state)
         body_geoms = make_body_frame_geoms(state=state)
@@ -127,7 +127,7 @@ class Renderer2d:
 
         zoom_transformation = Transformation(
             translation=pygame.Vector2(0, 0),
-            angle=0.0,
+            angle=-np.pi / 2 + state.vessel.heading,
             scale=self.zoom,
         )
         zoomed_geoms = list(
@@ -139,7 +139,7 @@ class Renderer2d:
         centering_translation = pygame.Vector2(x=self.width / 2, y=self.height / 2)
         camera_transformation = Transformation(
             translation=centering_translation,
-            angle=0.0,
+            angle=0,
         )
 
         centered_geoms = list(
@@ -149,7 +149,7 @@ class Renderer2d:
         for geom in centered_geoms:
             self.render_geom(geom)
 
-        self.surf = pygame.transform.flip(self.surf, False, True)
+        # self.surf = pygame.transform.flip(self.surf, False, True)
         self.screen.blit(self.surf, (0, 0))
 
         if render_mode == "human":
