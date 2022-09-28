@@ -2,15 +2,15 @@ import pygame
 import numpy as np
 
 from typing import List
-from gym_auv.rendering.render2d.geometry import (
+from gym_auv.render2d.geometry import (
     Circle,
     FilledPolygon,
     BaseGeom,
     Line,
     PolyLine,
 )
-from gym_auv.rendering.render2d.state import RenderableState
-from gym_auv.rendering.render2d.utils import clamp_to_uint8
+from gym_auv.render2d.state import RenderableState
+from gym_auv.render2d.utils import clamp_to_uint8
 from gym_auv.objects.obstacles import (
     BaseObstacle,
     CircularObstacle,
@@ -19,8 +19,8 @@ from gym_auv.objects.obstacles import (
 )
 from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.path import Path
-from gym_auv.rendering.render2d import colors
-from gym_auv.rendering.render2d.utils import ndarray_to_vector2_list
+from gym_auv.render2d import colors
+from gym_auv.render2d.utils import ndarray_to_vector2_list
 
 
 def _render_path(path: Path) -> PolyLine:

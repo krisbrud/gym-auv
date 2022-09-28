@@ -22,24 +22,25 @@ import numpy as np
 import math
 from numpy import sin, cos, arctan2
 from gym import error
-from gym_auv.rendering.render2d.state import RenderableState
+from gym_auv.render2d.state import RenderableState
 from gym_auv.utils.sector_partitioning import sector_partition_fun
 
-from gym_auv.rendering.render2d.geometry import (
+from gym_auv.render2d.geometry import (
     BaseGeom,
     Circle,
     Line,
     Transformation,
 )
-from gym_auv.rendering.render2d import colors
-from gym_auv.rendering.render2d.factories import (
+from gym_auv.render2d import colors
+from gym_auv.render2d.factories import (
     make_body_frame_geoms,
     make_world_frame_geoms,
 )
-from gym_auv.rendering.render2d.utils import apply_transformation
+from gym_auv.render2d.utils import apply_transformation
 
 WINDOW_W = 720
 WINDOW_H = 600
+FPS = 60
 
 
 class Renderer2d:

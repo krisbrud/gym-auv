@@ -9,7 +9,8 @@ from gym_auv.objects.rewarder import ColavRewarder
 from gym_auv.render2d.state import RenderableState
 
 from gym_auv.render2d.renderer import Renderer2d
-import gym_auv.render2d.renderer as renderer
+from gym_auv.render2d.renderer import FPS as rendererFPS2D
+import gym_auv.render2d.renderer
 
 # import gym_auv.rendering.render3d as render3d
 from gym_auv.utils.clip_to_space import clip_to_space
@@ -22,7 +23,7 @@ class BaseEnvironment(gym.Env, ABC):
 
     metadata = {
         "render.modes": ["human", "rgb_array", "state_pixels"],
-        "video.frames_per_second": renderer.FPS,
+        "video.frames_per_second": rendererFPS2D,
     }
 
     def __init__(
