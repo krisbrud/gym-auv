@@ -36,45 +36,10 @@ from gym_auv.rendering.render2d.factories import (
     make_body_frame_geoms,
     make_world_frame_geoms,
 )
+from gym_auv.rendering.render2d.utils import apply_transformation
 
-STATE_W = 96
-STATE_H = 96
-VIDEO_W = 720
-VIDEO_H = 600
-WINDOW_W = VIDEO_W
-WINDOW_H = VIDEO_H
-
-SCALE = 5.0  # Track scale
-PLAYFIELD = 5000  # Game over boundary
-FPS = 50
-ZOOM = 2  # Camera ZOOM
-DYNAMIC_ZOOM = False
-CAMERA_ROTATION_SPEED = 0.02
-env_bg_h = int(2 * PLAYFIELD)
-env_bg_w = int(2 * PLAYFIELD)
-
-RAD2DEG = 57.29577951308232
-
-
-"""
-TODO: Refactor.
-Environment dependencies of Render2d
-- path
-- vessel
-- sensor_obst_intercepts_transformed_hist
-- time_step
-- config:
-  - sector partition function
-"""
-
-
-# def rad2deg(rad: Union[float, np.array]) -> float:
-# return rad * 180 / np.pi
-
-
-# env_bg = None
-# bg = None
-# rot_angle = None
+WINDOW_W = 720
+WINDOW_H = 600
 
 
 class Renderer2d:
@@ -117,24 +82,16 @@ class Renderer2d:
             translation=-state.vessel.position, angle=-state.vessel.heading
         )
         body_geoms.extend(
-            list(
-                map(
-                    lambda geom: geom.transform(world_to_body_transformation),
-                    world_geoms,
-                )
-            )
+            apply_transformation(world_to_body_transformation, world_geoms)
         )
 
+        # Center camera on vessel by applying transform
         zoom_transformation = Transformation(
             translation=pygame.Vector2(0, 0),
             angle=-np.pi / 2 + state.vessel.heading,
             scale=self.zoom,
         )
-        zoomed_geoms = list(
-            map(lambda geom: geom.transform(zoom_transformation), body_geoms)
-        )
-
-        # Center camera on vessel by applying transform
+        zoomed_geoms = apply_transformation(zoom_transformation, body_geoms)
 
         centering_translation = pygame.Vector2(x=self.width / 2, y=self.height / 2)
         camera_transformation = Transformation(
@@ -149,7 +106,6 @@ class Renderer2d:
         for geom in centered_geoms:
             self.render_geom(geom)
 
-        # self.surf = pygame.transform.flip(self.surf, False, True)
         self.screen.blit(self.surf, (0, 0))
 
         if render_mode == "human":

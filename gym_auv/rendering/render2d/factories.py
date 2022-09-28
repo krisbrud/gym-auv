@@ -114,14 +114,6 @@ def _render_obstacles(obstacles: List[BaseObstacle]) -> List[BaseGeom]:
     return geoms
 
 
-# def make_background(W=env_bg_w, H=env_bg_h) -> BaseGeom:
-#     color = (37, 150, 190)  # "#2596be" Semi-dark blue
-#     # TODO: Change: Potentially by using this example
-#     # https://www.geeksforgeeks.org/how-to-change-screen-background-color-in-pygame/
-#     # background = pyglet.shapes.Rectangle(x=0, y=0, width=W, height=H, color=color)
-#     # background.draw()
-
-
 def make_world_frame_geoms(state: RenderableState) -> List[BaseGeom]:
     geoms = []
 
