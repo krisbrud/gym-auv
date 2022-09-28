@@ -19,7 +19,7 @@ deg2rad = math.pi / 180
 
 class TestScenario1(BaseEnvironment):
     def _generate(self):
-        self.path = Path([[0, 1100], [0, -1100]])
+        self.path = Path([[0, 1100], [0, 1100]])
 
         init_state = self.path(0)
         init_angle = self.path.get_direction(0)
