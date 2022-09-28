@@ -100,30 +100,6 @@ class Circle(BaseGeom):
         pygame.draw.circle(
             surf, color=self.color, center=self.center, radius=self.radius
         )
-
-
-def make_polygon(v, filled=True):
-    if filled:
-        return FilledPolygon(v)
-    else:
-        return PolyLine(v, True)
-
-
-def make_polyline(v):
-    return PolyLine(v, False)
-
-
-def make_capsule(length, width):
-    # TODO: Remove
-    l, r, t, b = 0, length, width / 2, -width / 2
-    box = make_polygon([(l, b), (l, t), (r, t), (r, b)])
-    circ0 = Circle(width / 2)
-    circ1 = Circle(width / 2)
-    # circ1.add_attr(Transform(translation=(length, 0)))
-    geom = Compound([box, circ0, circ1])
-    return geom
-
-
 class Compound(BaseGeom):
     def __init__(self, geoms: List[BaseGeom]):
         self.geoms = geoms
