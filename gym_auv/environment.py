@@ -3,14 +3,13 @@ import gym
 import numpy as np
 from gym.utils import seeding
 import gym_auv
-from gym_auv.config import Config
 
 from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.rewarder import ColavRewarder
-from gym_auv.rendering.render2d.state import RenderableState
+from gym_auv.render2d.state import RenderableState
 
-from gym_auv.rendering.render2d.renderer import Renderer2d
-import gym_auv.rendering.render2d.renderer as renderer
+from gym_auv.render2d.renderer import Renderer2d
+import gym_auv.render2d.renderer as renderer
 
 # import gym_auv.rendering.render3d as render3d
 from gym_auv.utils.clip_to_space import clip_to_space
