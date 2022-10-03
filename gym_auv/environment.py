@@ -118,7 +118,14 @@ class BaseEnvironment(gym.Env, ABC):
 
             # The LiDAR has a distance/closeness measurements, as well as two measurements
             # that correspond to the planar velocity of an object obstructing the sensor (if there is one).
-            lidar_shape = (3, self.config.vessel.n_sensors)
+            if self.config.vessel.sensor_use_velocity_observations:
+                lidar_channels = 3
+            else:
+                # Don't calculate velocities
+                lidar_channels = 1    
+            
+            lidar_shape = (lidar_channels, self.config.vessel.n_sensors)
+
 
             self._observation_space = gym.spaces.Dict(
                 {
