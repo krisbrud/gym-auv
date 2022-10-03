@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 import dataclasses
 from functools import cached_property
-from typing import Any, Callable, Union
+from typing import Any, Callable, Tuple, Union
 
 # import gym_auv
 from gym_auv.utils.observe_functions import observe_obstacle_fun
@@ -73,6 +73,18 @@ class VesselConfig:
         # Calculates the number of sensors in total
         return self.n_sensors_per_sector * self.n_sectors
 
+    @property
+    def lidar_shape(self) -> Tuple[int, int]:
+        lidar_channels = 1    
+        
+        if self.sensor_use_velocity_observations:
+            lidar_channels = 3
+        
+        return (lidar_channels, self.n_sensors)
+ 
+    @property
+    def n_lidar_observations(self) -> int:
+        return self.lidar_shape[0] * self.lidar_shape[1]
 
 @dataclass
 class RenderingConfig:
