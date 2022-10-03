@@ -159,7 +159,7 @@ class RealWorldEnv(BaseEnvironment):
                 self.all_obstacles.append(vessel_obstacle)
                 self.obstacles.append(vessel_obstacle)
 
-        # if self.render_mode == '3d':
+        # if self.renderer == '3d':
         #     if self.verbose:
         #         print('Loading nearby 3D terrain...')
         #     xlow = 0
@@ -173,7 +173,7 @@ class RealWorldEnv(BaseEnvironment):
         self._update()
 
     def _update(self, force=False):
-        if self.render_mode == "3d":
+        if self.renderer == "3d":
             if self.t_step % UPDATE_WAIT == 0 or force:
                 travelled_distance = (
                     np.linalg.norm(
