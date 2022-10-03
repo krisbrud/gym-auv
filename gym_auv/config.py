@@ -68,7 +68,7 @@ class VesselConfig:
     # With real-world terrain, using virtual obstacles is critical for performance.
     use_dict_observation: bool = False  # True
 
-    @cached_property
+    @property
     def n_sensors(self) -> int:
         # Calculates the number of sensors in total
         return self.n_sensors_per_sector * self.n_sectors
