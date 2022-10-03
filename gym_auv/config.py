@@ -53,6 +53,7 @@ class VesselConfig:
     n_sensors_per_sector: int = 20  # Number of rangefinder sensors within each sector
     n_sectors: int = 9  # Number of sensor sectors
     sensor_use_feasibility_pooling: bool = False  # Whether to use the Feasibility pooling preprocessing for LiDAR measurements
+    sensor_use_velocity_observations: bool = False
     sector_partition_fun: Callable[
         [Any, int], int
     ] = sector_partition_fun  # Function that returns corresponding sector for a given sensor index
