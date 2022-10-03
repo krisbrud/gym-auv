@@ -9,7 +9,8 @@ from gym_auv.objects.rewarder import ColavRewarder
 from gym_auv.render2d.state import RenderableState
 
 from gym_auv.render2d.renderer import Renderer2d
-import gym_auv.render2d.renderer as renderer
+from gym_auv.render2d.renderer import FPS as rendererFPS2D
+import gym_auv.render2d.renderer
 
 # import gym_auv.rendering.render3d as render3d
 from gym_auv.utils.clip_to_space import clip_to_space
@@ -22,14 +23,15 @@ class BaseEnvironment(gym.Env, ABC):
 
     metadata = {
         "render.modes": ["human", "rgb_array", "state_pixels"],
-        "video.frames_per_second": renderer.FPS,
+        "video.frames_per_second": rendererFPS2D,
     }
 
     def __init__(
         self,
         env_config: Union[gym_auv.Config, dict],
         test_mode: bool = False,
-        render_mode: Union[str, None] = None,
+        renderer: Union[str, None] = "2d",
+        # render_mode: str = "rgb_array",  # "human",
         verbose: bool = False,
     ):
         """The __init__ method declares all class atributes and calls
@@ -43,7 +45,7 @@ class BaseEnvironment(gym.Env, ABC):
             test_mode : bool
                 If test_mode is True, the environment will not be autonatically reset
                 due to too low cumulative reward or too large distance from the path.
-            render_mode : {'2d', '3d', 'both'}
+            renderer : {'2d', '3d', 'both'}
                 Whether to use 2d or 3d rendering. 'both' is currently broken.
             verbose
                 Whether to print debugging information.
@@ -55,7 +57,7 @@ class BaseEnvironment(gym.Env, ABC):
             self._n_moving_stat = 10
 
         self.test_mode = test_mode
-        self.render_mode = render_mode
+        self.renderer = renderer
         self.verbose = verbose
 
         # As some RL frameworks (RLlib) requires the config object to be a dictionary,
@@ -139,11 +141,12 @@ class BaseEnvironment(gym.Env, ABC):
         # Initializing rendering
         self._renderer2d = None
         self._viewer3d = None
-        if self.render_mode == "2d" or self.render_mode == "both":
+        # self.render_mode = render_mode
+        if self.renderer == "2d" or self.renderer == "both":
             self._renderer2d = Renderer2d(
                 render_fps=self.metadata["video.frames_per_second"]
             )
-        if self.render_mode == "3d" or self.render_mode == "both":
+        if self.renderer == "3d" or self.renderer == "both":
             if self.config.vessel.render_distance == "random":
                 self.render_distance = self.rng.randint(300, 2000)
             else:
@@ -219,7 +222,7 @@ class BaseEnvironment(gym.Env, ABC):
             print("Generated scenario")
 
         # Initializing 3d viewer
-        # if self.render_mode == "3d":
+        # if self.renderer == "3d":
         # render3d.init_boat_model(self)
         # self._viewer3d.create_path(self.path)
 
@@ -335,8 +338,8 @@ class BaseEnvironment(gym.Env, ABC):
         self._save_latest_step()
 
         self.t_step += 1
-        # if self.t_step % 50 == 1:
-        print("timestep:", self.t_step)
+        if self.t_step % 50 == 1:
+            print("timestep:", self.t_step)
 
         return (obs, reward, done, info)
 
@@ -368,22 +371,26 @@ class BaseEnvironment(gym.Env, ABC):
 
     def close(self):
         """Closes the environment. To be called after usage."""
+        pass
         if self._renderer2d is not None:
-            self._renderer2d.close()
+            # self._renderer2d.close()
+            pass
         if self._viewer3d is not None:
             self._viewer3d.close()
 
-    def render(self, mode="human"):
+    def render(self, mode="rgb_array", **kwargs):
         """Render one frame of the environment.
-        The default mode will do something human friendly, such as pop up a window."""
+        The default mode will do something human friendly, such as pop up a window.
+
+        As the OrderEnforcing wrapper is used in RLlib, an ignored **kwargs is added here."""
         image_arr = None
         # print("inside env.render()!")
         try:
-            if self.render_mode == "2d" or self.render_mode == "both":
+            if self.renderer == "2d" or self.renderer == "both":
                 image_arr = self._renderer2d.render(
                     state=self.renderable_state, render_mode=mode
                 )
-            # if self.render_mode == "3d" or self.render_mode == "both":
+            # if self.renderer == "3d" or self.renderer == "both":
             #     image_arr = render3d.render_env(
             #         self, mode, self.config.simulation.t_step_size
             #     )

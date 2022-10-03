@@ -19,7 +19,7 @@ deg2rad = math.pi / 180
 
 class TestScenario1(BaseEnvironment):
     def _generate(self):
-        self.path = Path([[0, 1100], [0, -1100]])
+        self.path = Path([[0, 1100], [0, 1100]])
 
         init_state = self.path(0)
         init_angle = self.path.get_direction(0)
@@ -273,7 +273,7 @@ class EmptyScenario(BaseEnvironment):
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog
 
-        if self.render_mode == "3d":
+        if self.renderer == "3d":
             self.all_terrain = np.zeros((50, 50), dtype=float)
             self._viewer3d.create_world(self.all_terrain, 0, 0, 50, 50)
 
@@ -349,7 +349,7 @@ class DebugScenario(BaseEnvironment):
             self.obstacles.append(other_vessel_obstacle)
             self.vessel_obstacles.append(other_vessel_obstacle)
 
-        if self.render_mode == "3d":
+        if self.renderer == "3d":
             self.all_terrain = np.load(TERRAIN_DATA_PATH)[1950:2450, 5320:5820] / 7.5
             # terrain = np.zeros((500, 500), dtype=float)
 

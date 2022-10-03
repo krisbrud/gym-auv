@@ -38,11 +38,11 @@ def _preprocess_custom_envconfig(rawconfig):
             pass
     return custom_envconfig
 
-def create_env(env_id, envconfig, test_mode=False, render_mode='2d', pilot=None, verbose=False):
+def create_env(env_id, envconfig, test_mode=False, renderer='2d', pilot=None, verbose=False):
     if pilot:
-        env = gym.make(env_id, env_config=envconfig, test_mode=test_mode, render_mode=render_mode, pilot=pilot, verbose=verbose)
+        env = gym.make(env_id, env_config=envconfig, test_mode=test_mode, renderer=renderer, pilot=pilot, verbose=verbose)
     else:
-        env = gym.make(env_id, env_config=envconfig, test_mode=test_mode, render_mode=render_mode, verbose=verbose)
+        env = gym.make(env_id, env_config=envconfig, test_mode=test_mode, renderer=renderer, verbose=verbose)
     return env
 
 def make_mp_env(env_id, rank, envconfig, seed=0, pilot=None):
@@ -223,7 +223,7 @@ def main(args):
         envconfig_play = envconfig.copy()
         envconfig_play['show_indicators'] = True
         #envconfig_play['autocamera3d'] = False
-        env = create_env(env_id, envconfig_play, test_mode=True, render_mode=args.render, pilot=args.pilot, verbose=True)
+        env = create_env(env_id, envconfig_play, test_mode=True, renderer=args.render, pilot=args.pilot, verbose=True)
         print('Created environment instance')
 
         if args.scenario:
@@ -255,7 +255,7 @@ def main(args):
         video_folder = os.path.join(DIR_PATH, 'logs', 'videos', args.env, EXPERIMENT_ID)
         os.makedirs(video_folder, exist_ok=True)
         
-        env = create_env(env_id, envconfig, test_mode=True, render_mode=args.render, pilot=args.pilot)
+        env = create_env(env_id, envconfig, test_mode=True, renderer=args.render, pilot=args.pilot)
         if args.scenario:
             env.load(args.scenario)
         vec_env = DummyVecEnv([lambda: env])
@@ -525,7 +525,7 @@ def main(args):
 
         def create_test_env(video_name_prefix, envconfig=envconfig):
             print('Creating test environment: ' + env_id)
-            env = create_env(env_id, envconfig, test_mode=True, render_mode=args.render if args.video else None, pilot=args.pilot)
+            env = create_env(env_id, envconfig, test_mode=True, renderer=args.render if args.video else None, pilot=args.pilot)
             vec_env = DummyVecEnv([lambda: env])
             if args.video:
                 video_length = min(500, args.recording_length)

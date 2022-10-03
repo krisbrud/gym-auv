@@ -6,7 +6,7 @@ from typing_extensions import Self
 import numpy as np
 import pygame
 
-from gym_auv.rendering.render2d import colors
+from gym_auv.render2d import colors
 
 
 @dataclass
@@ -100,6 +100,8 @@ class Circle(BaseGeom):
         pygame.draw.circle(
             surf, color=self.color, center=self.center, radius=self.radius
         )
+
+
 class Compound(BaseGeom):
     def __init__(self, geoms: List[BaseGeom]):
         self.geoms = geoms

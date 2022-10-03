@@ -1,7 +1,7 @@
 from typing import List
 import numpy as np
 import pygame
-from gym_auv.rendering.render2d.geometry import BaseGeom, Transformation
+from gym_auv.render2d.geometry import BaseGeom, Transformation
 
 
 def _clamp(x: int, min_val: int, max_val: int) -> int:
@@ -22,7 +22,7 @@ def apply_transformation(
     transformation: Transformation, geoms: List[BaseGeom]
 ) -> List[BaseGeom]:
     """Applies a transformation to all points in geoms, and returns the result"""
-    list(
+    return list(
         map(
             lambda geom: geom.transform(transformation),
             geoms,
