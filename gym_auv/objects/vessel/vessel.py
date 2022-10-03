@@ -4,7 +4,6 @@ This module implements an AUV that is simulated in the horizontal plane.
 from typing import Callable, List, Tuple
 import numpy as np
 import numpy.linalg as linalg
-from itertools import islice, chain, repeat
 import shapely.geometry, shapely.errors, shapely.strtree, shapely.ops, shapely.prepared
 import gym_auv
 
