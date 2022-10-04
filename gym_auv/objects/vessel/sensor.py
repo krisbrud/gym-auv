@@ -1,9 +1,12 @@
+from typing import List, Tuple
 import numpy as np
 from itertools import chain, repeat
 import shapely.geometry, shapely.errors, shapely.strtree, shapely.ops, shapely.prepared
 import gym_auv
+from gym_auv.objects.obstacles import BaseObstacle, CircleParams
 
 import gym_auv.utils.geomutils as geom
+
 
 def _standardize_intersect(intersect):
     if intersect.is_empty:
@@ -15,6 +18,68 @@ def _standardize_intersect(intersect):
     else:
         return list(intersect.geoms)
 
+
+def _find_feasible_angle_diff(
+    obstacle_enclosing_circle: CircleParams,
+    p0_point: shapely.geometry.Point,
+):
+    dist_p0_circle_center = p0_point.distance(obstacle_enclosing_circle.center)
+
+    safe_dist = max(1e-6, dist_p0_circle_center)  # Avoid zero division
+    max_angle_per_side = np.arcsin(obstacle_enclosing_circle.radius / safe_dist)
+
+    return max_angle_per_side
+
+
+def _find_limit_angle_rays(
+    obstacle_enclosing_circle: CircleParams,
+    p0_point: shapely.geometry.Point,
+    heading: float,
+    angle_per_ray: float,  # radians
+) -> Tuple[int, int]:
+    # Find the relative angle from the heading to the obstacle. Use clockwise positive rotation, as this is
+    # done in the NED plane
+    diff_p0_circle_center = np.array(p0_point) - np.array(
+        obstacle_enclosing_circle.center
+    )
+    obstacle_relative_bearing = (
+        np.arctan2(diff_p0_circle_center.x, diff_p0_circle_center.y) + heading
+    )
+    feasible_angle_diff = _find_feasible_angle_diff(obstacle_enclosing_circle, p0_point)
+
+    # Assume seam on back (ray 0 and N meets at the back), and clockwise positive rotation
+    idx_min_ray = np.floor(
+        (np.pi + geom.princip((obstacle_relative_bearing - feasible_angle_diff)))
+        / angle_per_ray
+    )
+    idx_max_ray = np.ceil(
+        (np.pi + geom.princip((obstacle_relative_bearing + feasible_angle_diff)))
+        / angle_per_ray
+    )
+
+    return (idx_min_ray, idx_max_ray)
+
+def _find_rays_to_simulate_for_obstacles(
+    obstacles: List[BaseObstacle],
+    p0_point: shapely.geometry.Point,
+    heading: float,
+    angle_per_ray: float,
+    n_rays: int,
+) -> List[List[BaseObstacle]]:
+    # Make a list of obstacles that may intersect per ray.
+    # They are passed by reference in python, so it should be pretty fast.
+    obstacles_to_simulate_per_ray = [[] for _ in range(n_rays)]
+    
+    for obstacle in obstacles:
+        idx_min_ray, idx_max_ray = _find_limit_angle_rays(
+            obstacle.enclosing_circle, p0_point, heading, angle_per_ray
+        )
+
+        # Add obstacle to all rays which may collide with it
+        for i in range(idx_min_ray, idx_max_ray + 1):  # +1 as range is a semi-open interval
+            obstacles_to_simulate_per_ray[i].append(obstacle)
+        
+    return obstacles_to_simulate_per_ray
 
 def _simulate_sensor(sensor_angle, p0_point, sensor_range, obstacles):
     sensor_endpoint = (
@@ -191,4 +256,3 @@ class LidarPreprocessor:
                 return max(0, measurements[idx])
 
         return max(0, np.max(measurements))
-
