@@ -26,9 +26,9 @@ def _find_feasible_angle_diff(
     dist_p0_circle_center = p0_point.distance(obstacle_enclosing_circle.center)
 
     safe_dist = max(1e-6, dist_p0_circle_center)  # Avoid zero division
-    max_angle_per_side = np.arcsin(obstacle_enclosing_circle.radius / safe_dist)
+    max_angle_from_circle_center = np.arcsin(obstacle_enclosing_circle.radius / safe_dist)
 
-    return max_angle_per_side
+    return max_angle_from_circle_center
 
 
 def _find_limit_angle_rays(
@@ -37,11 +37,12 @@ def _find_limit_angle_rays(
     heading: float,
     angle_per_ray: float,  # radians
 ) -> Tuple[int, int]:
-    # Find the relative angle from the heading to the obstacle. Use clockwise positive rotation, as this is
-    # done in the NED plane
+    """Finds the indices of the rays that may collide with an obstacle (so that we do not need to simulate this for every other ray)"""
     diff_p0_circle_center = np.array(p0_point) - np.array(
         obstacle_enclosing_circle.center
     )
+    # Find the relative angle from the heading to the obstacle. Use clockwise positive rotation, as this is
+    # done in the NED plane
     obstacle_relative_bearing = (
         np.arctan2(diff_p0_circle_center.x, diff_p0_circle_center.y) + heading
     )
