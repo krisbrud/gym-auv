@@ -25,8 +25,11 @@ def _find_feasible_angle_diff(
 ):
     dist_p0_circle_center = p0_point.distance(obstacle_enclosing_circle.center)
 
-    safe_dist = max(1e-6, dist_p0_circle_center)  # Avoid zero division
-    max_angle_from_circle_center = np.arcsin(obstacle_enclosing_circle.radius / safe_dist)
+    safe_dist = max(1e-8, dist_p0_circle_center)  # Avoid zero division
+
+    max_angle_from_circle_center = np.arcsin(
+        obstacle_enclosing_circle.radius / safe_dist
+    )
 
     return max_angle_from_circle_center
 
@@ -38,27 +41,32 @@ def _find_limit_angle_rays(
     angle_per_ray: float,  # radians
 ) -> Tuple[int, int]:
     """Finds the indices of the rays that may collide with an obstacle (so that we do not need to simulate this for every other ray)"""
-    diff_p0_circle_center = np.array(p0_point) - np.array(
-        obstacle_enclosing_circle.center
+    obstacle_relative_pos = np.array(obstacle_enclosing_circle.center) - np.array(
+        p0_point
     )
     # Find the relative angle from the heading to the obstacle. Use clockwise positive rotation, as this is
     # done in the NED plane
     obstacle_relative_bearing = (
-        np.arctan2(diff_p0_circle_center.x, diff_p0_circle_center.y) + heading
+        np.arctan2(obstacle_relative_pos[0], obstacle_relative_pos[1]) - heading
     )
     feasible_angle_diff = _find_feasible_angle_diff(obstacle_enclosing_circle, p0_point)
 
     # Assume seam on back (ray 0 and N meets at the back), and clockwise positive rotation
-    idx_min_ray = np.floor(
-        (np.pi + geom.princip((obstacle_relative_bearing - feasible_angle_diff)))
-        / angle_per_ray
+    idx_min_ray = int(
+        np.floor(
+            (np.pi + geom.princip((obstacle_relative_bearing - feasible_angle_diff)))
+            / angle_per_ray
+        )
     )
-    idx_max_ray = np.ceil(
-        (np.pi + geom.princip((obstacle_relative_bearing + feasible_angle_diff)))
-        / angle_per_ray
+    idx_max_ray = int(
+        np.ceil(
+            (np.pi + geom.princip((obstacle_relative_bearing + feasible_angle_diff)))
+            / angle_per_ray
+        )
     )
 
     return (idx_min_ray, idx_max_ray)
+
 
 def _find_rays_to_simulate_for_obstacles(
     obstacles: List[BaseObstacle],
@@ -70,17 +78,20 @@ def _find_rays_to_simulate_for_obstacles(
     # Make a list of obstacles that may intersect per ray.
     # They are passed by reference in python, so it should be pretty fast.
     obstacles_to_simulate_per_ray = [[] for _ in range(n_rays)]
-    
+
     for obstacle in obstacles:
         idx_min_ray, idx_max_ray = _find_limit_angle_rays(
             obstacle.enclosing_circle, p0_point, heading, angle_per_ray
         )
 
         # Add obstacle to all rays which may collide with it
-        for i in range(idx_min_ray, idx_max_ray + 1):  # +1 as range is a semi-open interval
+        for i in range(
+            idx_min_ray - 1, idx_max_ray
+        ):  # -1 as first sensor has angle -pi + "angle between rays"
             obstacles_to_simulate_per_ray[i].append(obstacle)
-        
+
     return obstacles_to_simulate_per_ray
+
 
 def _simulate_sensor(sensor_angle, p0_point, sensor_range, obstacles):
     sensor_endpoint = (

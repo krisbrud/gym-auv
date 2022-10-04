@@ -50,7 +50,7 @@ class Vessel:
 
         self._n_sectors = self.config.vessel.n_sectors
         self._n_sensors = self.config.vessel.n_sensors_per_sector * self._n_sectors
-        self._d_sensor_angle = 2 * np.pi / (self._n_sensors)  # TODO: Move to sensor?
+        self._d_sensor_angle = 2 * np.pi / (self._n_sensors)  # radians TODO: Move to sensor?
         self._sensor_angles = np.array(
             [-np.pi + (i + 1) * self._d_sensor_angle for i in range(self._n_sensors)]
         )
