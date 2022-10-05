@@ -46,8 +46,9 @@ def _find_limit_angle_rays(
     )
     # Find the relative angle from the heading to the obstacle. Use clockwise positive rotation, as this is
     # done in the NED plane
+    n, e = obstacle_relative_pos
     obstacle_relative_bearing = (
-        np.arctan2(obstacle_relative_pos[0], obstacle_relative_pos[1]) - heading
+        np.arctan2(e, n) - heading
     )
     feasible_angle_diff = _find_feasible_angle_diff(obstacle_enclosing_circle, p0_point)
 
@@ -86,7 +87,7 @@ def find_rays_to_simulate_for_obstacles(
 
         # Add obstacle to all rays which may collide with it
         for i in range(
-            idx_min_ray - 11, idx_max_ray
+            idx_min_ray - 1, idx_max_ray
         ):  # -1 as first sensor has angle -pi + "angle between rays"
             obstacles_to_simulate_per_ray[i].append(obstacle)
 
