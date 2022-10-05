@@ -68,7 +68,7 @@ def _find_limit_angle_rays(
     return (idx_min_ray, idx_max_ray)
 
 
-def _find_rays_to_simulate_for_obstacles(
+def find_rays_to_simulate_for_obstacles(
     obstacles: List[BaseObstacle],
     p0_point: shapely.geometry.Point,
     heading: float,
@@ -86,14 +86,14 @@ def _find_rays_to_simulate_for_obstacles(
 
         # Add obstacle to all rays which may collide with it
         for i in range(
-            idx_min_ray - 1, idx_max_ray
+            idx_min_ray - 11, idx_max_ray
         ):  # -1 as first sensor has angle -pi + "angle between rays"
             obstacles_to_simulate_per_ray[i].append(obstacle)
 
     return obstacles_to_simulate_per_ray
 
 
-def _simulate_sensor(sensor_angle, p0_point, sensor_range, obstacles):
+def simulate_sensor_brute_force(sensor_angle, p0_point, sensor_range, obstacles):
     sensor_endpoint = (
         p0_point.x + np.cos(sensor_angle) * sensor_range,
         p0_point.y + np.sin(sensor_angle) * sensor_range,
@@ -131,6 +131,28 @@ def _simulate_sensor(sensor_angle, p0_point, sensor_range, obstacles):
         ray_blocked = False
 
     return (measured_distance, obst_speed_vec_rel, ray_blocked)
+
+
+def simulate_sensor(sensor_angle, p0_point, sensor_range, obstacles):
+    sensor_endpoint = (
+        p0_point.x + np.cos(sensor_angle) * sensor_range,
+        p0_point.y + np.sin(sensor_angle) * sensor_range,
+    )
+    sector_ray = shapely.geometry.LineString([p0_point, sensor_endpoint])
+
+    obst_intersections = [sector_ray.intersection(elm.boundary) for elm in obstacles]
+    obst_intersections = list(map(_standardize_intersect, obst_intersections))
+    obst_intersections = list(chain(*obst_intersections))
+
+    if obst_intersections:
+        distances = [p0_point.distance(elm) for elm in obst_intersections]
+        measured_distance = np.min(distances)
+        ray_blocked = True
+    else:
+        measured_distance = sensor_range
+        ray_blocked = False
+
+    return (measured_distance, (0, 0), ray_blocked)
 
 
 class LidarPreprocessor:

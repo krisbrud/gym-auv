@@ -1,1 +1,1 @@
-from .vessel import Vessel
+from gym_auv.objects.vessel.vessel import Vessel

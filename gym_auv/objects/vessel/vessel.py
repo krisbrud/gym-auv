@@ -11,8 +11,14 @@ import gym_auv.utils.constants as const
 import gym_auv.utils.geomutils as geom
 from gym_auv.objects.obstacles import BaseObstacle, LineObstacle
 from gym_auv.objects.path import Path
-from gym_auv.objects.vessel.sensor import LidarPreprocessor, _simulate_sensor
+from gym_auv.objects.vessel.sensor import (
+    LidarPreprocessor,
+    simulate_sensor_brute_force,
+    find_rays_to_simulate_for_obstacles,
+    simulate_sensor,
+)
 from gym_auv.objects.vessel.odesolver import odesolver45
+
 
 class Vessel:
     NAVIGATION_FEATURES = [
@@ -50,7 +56,9 @@ class Vessel:
 
         self._n_sectors = self.config.vessel.n_sectors
         self._n_sensors = self.config.vessel.n_sensors_per_sector * self._n_sectors
-        self._d_sensor_angle = 2 * np.pi / (self._n_sensors)  # radians TODO: Move to sensor?
+        self._d_sensor_angle = (
+            2 * np.pi / (self._n_sensors)
+        )  # radians TODO: Move to sensor?
         self._sensor_angles = np.array(
             [-np.pi + (i + 1) * self._d_sensor_angle for i in range(self._n_sensors)]
         )
@@ -271,14 +279,14 @@ class Vessel:
                 )
 
         else:
-            should_observe = (
-                self._perceive_counter % self._observe_interval == 0
-            ) or self._virtual_environment is None
-            if should_observe:
-                geom_targets = self._nearby_obstacles
-            else:
-                geom_targets = self._virtual_environment
-
+            # should_observe = (
+            #     self._perceive_counter % self._observe_interval == 0
+            # ) or self._virtual_environment is None
+            # if should_observe:
+            #     geom_targets = self._nearby_obstacles
+            # else:
+            #     geom_targets = self._virtual_environment
+            geom_targets = self._nearby_obstacles
             # Simulating all sensors using _simulate_sensor subroutine
             sensor_angles_ned = self._sensor_angles + self.heading
 
@@ -294,10 +302,10 @@ class Vessel:
             self._last_sensor_speed_measurements = sensor_speed_measurements
 
             # Setting virtual obstacle
-            if should_observe:
-                self._virtual_environment = self._make_virtual_environment(
-                    sensor_angles_ned, sensor_dist_measurements, sensor_blocked_arr
-                )
+            # if should_observe:
+            #     self._virtual_environment = self._make_virtual_environment(
+            #         sensor_angles_ned, sensor_dist_measurements, sensor_blocked_arr
+            #     )
 
             if self.lidar_preprocessor is not None:
                 # Preprocess sensor readings, splitting them into sectors and
@@ -347,63 +355,84 @@ class Vessel:
             sensor_speed_measurements:  Speed mesurements for sensors
             sensor_blocked_arr:         Whether the sensors are blocked
         """
-        activate_sensor = lambda i: (i % self._sensor_interval) == (
-            self._perceive_counter % self._sensor_interval
-        )
+        # activate_sensor = lambda i: (i % self._sensor_interval) == (
+        #     self._perceive_counter % self._sensor_interval
+        # )
 
         sensor_dist_measurements = []
         sensor_speed_measurements = []
         sensor_blocked_arr = []
+        obstacles_to_simulate_per_ray = find_rays_to_simulate_for_obstacles(
+            obstacles=geom_targets,
+            p0_point=p0_point,
+            heading=self.heading,
+            angle_per_ray=self._d_sensor_angle,
+            n_rays=self.n_sensors,
+        )
 
-        for i in range(self._n_sensors):
-            if activate_sensor(i):
-                (distance, speed, blocked) = _simulate_sensor(
-                    sensor_angles_ned[i], p0_point, sensor_range, geom_targets
-                )
-            else:
-                distance = (self._last_sensor_dist_measurements[i],)
-                speed = (self._last_sensor_speed_measurements[i],)
-                blocked = True
+        for i, ray_obstacles in enumerate(obstacles_to_simulate_per_ray):
+            if i == 37:
+                print("debug ja")
+            dist, speed, blocked = simulate_sensor(
+                obstacles=ray_obstacles,
+                sensor_angle=sensor_angles_ned[i],
+                sensor_range=sensor_range,
+                p0_point=p0_point,
+            )
 
-            sensor_dist_measurements.append(distance)
+            sensor_dist_measurements.append(dist)
             sensor_speed_measurements.append(speed)
             sensor_blocked_arr.append(blocked)
+
+        # for i in range(self._n_sensors):
+        #     if activate_sensor(i):
+        #         (distance, speed, blocked) = simulate_sensor_brute_force(
+        #             sensor_angles_ned[i], p0_point, sensor_range, geom_targets
+        #         )
+        #     else:
+        #         distance = (self._last_sensor_dist_measurements[i],)
+        #         speed = (self._last_sensor_speed_measurements[i],)
+        #         blocked = True
+
+        #     sensor_dist_measurements.append(distance)
+        #     sensor_speed_measurements.append(speed)
+        #     sensor_blocked_arr.append(blocked)
 
         sensor_dist_measurements = np.array(sensor_dist_measurements)
         sensor_speed_measurements = np.array(sensor_speed_measurements).T
 
         return (sensor_dist_measurements, sensor_speed_measurements, sensor_blocked_arr)
 
-    def _make_virtual_environment(
-        self,
-        sensor_angles_ned: np.ndarray,
-        sensor_dist_measurements: np.ndarray,
-        sensor_blocked_arr: np.ndarray,
-    ) -> List[LineObstacle]:
-        """Makes a simplified environment 'virtual' environment, which is cheaper to simulate sensors on.
+    # def _make_virtual_environment(
+    #     self,
+    #     sensor_angles_ned: np.ndarray,
+    #     sensor_dist_measurements: np.ndarray,
+    #     sensor_blocked_arr: np.ndarray,
+    # ) -> List[LineObstacle]:
+    #     """Makes a simplified environment 'virtual' environment, which is cheaper to simulate sensors on.
 
-        Returns
-        -------
-        virtual_environment: List of approximate LineObstacles approximating obstacles
-        """
-        line_segments = []
-        tmp = []
-        for i in range(self.n_sensors):
-            if sensor_blocked_arr[i]:
-                point = (
-                    self.position[0]
-                    + np.cos(sensor_angles_ned[i]) * sensor_dist_measurements[i],
-                    self.position[1]
-                    + np.sin(sensor_angles_ned[i]) * sensor_dist_measurements[i],
-                )
-                tmp.append(point)
-            elif len(tmp) > 1:
-                line_segments.append(tuple(tmp))
-                tmp = []
+    #     Returns
+    #     -------
+    #     virtual_environment: List of approximate LineObstacles approximating obstacles
+    #     """
+    #     line_segments = []
+    #     tmp = []
+    #     for i in range(self.n_sensors):
+    #         if sensor_blocked_arr[i]:
+    #             point = (
+    #                 self.position[0]
+    #                 + np.cos(sensor_angles_ned[i]) * sensor_dist_measurements[i],
+    #                 self.position[1]
+    #                 + np.sin(sensor_angles_ned[i]) * sensor_dist_measurements[i],
+    #             )
+    #             tmp.append(point)
+    #         elif len(tmp) > 1:
+    #             line_segments.append(tuple(tmp))
+    #             tmp = []
 
-        virtual_environment = list(map(LineObstacle, line_segments))
+    #     virtual_environment = list(map(LineObstacle, line_segments))
 
-        return virtual_environment
+    #     return virtual_environment
 
     def navigate(self, path: Path) -> np.ndarray:
         """

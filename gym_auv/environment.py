@@ -109,7 +109,7 @@ class BaseEnvironment(gym.Env, ABC):
             len(Vessel.NAVIGATION_FEATURES)
             + self.config.vessel.n_lidar_observations + self._rewarder_class.N_INSIGHTS
         )
-        
+
         if self.config.vessel.use_dict_observation:
             # Use a dictionary observation, as we want to encode the proprioceptive sensors (velocities etc)
             # and LiDAR measurements differently, and keep the lidar measurements as a multi-channel "image",
@@ -267,7 +267,9 @@ class BaseEnvironment(gym.Env, ABC):
 
             if self.config.vessel.sensor_use_velocity_observations:
                 raw_obs.append(sector_velocities.flatten())
-            
+
+            raw_obs = np.hstack(raw_obs)
+
             obs = np.clip(
                 raw_obs,
                 a_min=self.observation_space.low,
