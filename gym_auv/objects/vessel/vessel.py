@@ -371,8 +371,6 @@ class Vessel:
         )
 
         for i, ray_obstacles in enumerate(obstacles_to_simulate_per_ray):
-            if i == 37:
-                print("debug ja")
             dist, speed, blocked = simulate_sensor(
                 obstacles=ray_obstacles,
                 sensor_angle=sensor_angles_ned[i],

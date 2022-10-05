@@ -227,9 +227,10 @@ class VesselObstacle(BaseObstacle):
 
         return boundary_temp
     
+    @property
     def enclosing_circle(self) -> CircleParams:
         # Note: this one is _not_ cached as it may change from timestep to timestep
-        return enclosing_circle_of_shape(self._calculate_boundary)
+        return enclosing_circle_of_shape(self._calculate_boundary())
 
 def enclosing_circle_of_shape(
     shape: Union[shapely.geometry.LineString, shapely.geometry.Polygon]
