@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 import dataclasses
 from functools import cached_property
-from typing import Any, Callable, Union
+from typing import Any, Callable, Tuple, Union
 
 # import gym_auv
 from gym_auv.utils.observe_functions import observe_obstacle_fun
@@ -53,6 +53,7 @@ class VesselConfig:
     n_sensors_per_sector: int = 20  # Number of rangefinder sensors within each sector
     n_sectors: int = 9  # Number of sensor sectors
     sensor_use_feasibility_pooling: bool = False  # Whether to use the Feasibility pooling preprocessing for LiDAR measurements
+    sensor_use_velocity_observations: bool = False
     sector_partition_fun: Callable[
         [Any, int], int
     ] = sector_partition_fun  # Function that returns corresponding sector for a given sensor index
@@ -67,11 +68,23 @@ class VesselConfig:
     # With real-world terrain, using virtual obstacles is critical for performance.
     use_dict_observation: bool = False  # True
 
-    @cached_property
+    @property
     def n_sensors(self) -> int:
         # Calculates the number of sensors in total
         return self.n_sensors_per_sector * self.n_sectors
 
+    @property
+    def lidar_shape(self) -> Tuple[int, int]:
+        lidar_channels = 1    
+        
+        if self.sensor_use_velocity_observations:
+            lidar_channels = 3
+        
+        return (lidar_channels, self.n_sensors)
+ 
+    @property
+    def n_lidar_observations(self) -> int:
+        return self.lidar_shape[0] * self.lidar_shape[1]
 
 @dataclass
 class RenderingConfig:

@@ -1,9 +1,20 @@
+from dataclasses import dataclass
+from functools import cached_property
+from re import I
+from turtle import shape
+from typing import Tuple, Union
 import numpy as np
 import shapely.geometry
 import shapely.affinity
 import gym_auv.utils.geomutils as geom
 from abc import ABC, abstractmethod
 import copy
+
+
+@dataclass
+class CircleParams:
+    center: shapely.geometry.Point
+    radius: float
 
 
 class BaseObstacle(ABC):
@@ -70,6 +81,11 @@ class BaseObstacle(ABC):
         """Returns an array holding the heading of the obstacle at previous timesteps."""
         return self._prev_heading
 
+    @property
+    @abstractmethod
+    def enclosing_circle(self) -> CircleParams:
+        """Returns ((x, y), r), coordinates describing a circle enclosing the Obstacle. Useful for hierarchical collision detection."""
+
 
 class CircularObstacle(BaseObstacle):
     def _setup(self, position, radius, color=(0.6, 0, 0)):
@@ -89,6 +105,13 @@ class CircularObstacle(BaseObstacle):
             .boundary.simplify(0.3, preserve_topology=False)
         )
 
+    @property
+    def enclosing_circle(self) -> CircleParams:
+        x = self.position[0]
+        y = self.position[1]
+        center = shapely.geometry.Point(x, y)
+        return CircleParams(center, self.radius)
+
 
 class PolygonObstacle(BaseObstacle):
     def _setup(self, points, color=(0.6, 0, 0)):
@@ -99,6 +122,10 @@ class PolygonObstacle(BaseObstacle):
     def _calculate_boundary(self):
         return shapely.geometry.Polygon(self.points)
 
+    @cached_property
+    def enclosing_circle(self) -> CircleParams:
+       return enclosing_circle_of_shape(self._calculate_boundary())
+
 
 class LineObstacle(BaseObstacle):
     def _setup(self, points):
@@ -107,6 +134,11 @@ class LineObstacle(BaseObstacle):
 
     def _calculate_boundary(self):
         return shapely.geometry.LineString(self.points)
+
+    @cached_property
+    def enclosing_circle(self) -> CircleParams:
+        # Share implementation with PolygonObstacle
+        return
 
 
 class VesselObstacle(BaseObstacle):
@@ -194,3 +226,37 @@ class VesselObstacle(BaseObstacle):
         )
 
         return boundary_temp
+    
+    @property
+    def enclosing_circle(self) -> CircleParams:
+        # Note: this one is _not_ cached as it may change from timestep to timestep
+        return enclosing_circle_of_shape(self._calculate_boundary())
+
+def enclosing_circle_of_shape(
+    shape: Union[shapely.geometry.LineString, shapely.geometry.Polygon]
+) -> CircleParams:
+    # Find the enclosing circle by:
+    # 1. Finding the minimum rotated rectangle (mrr) using shapely
+    mrr = shape.minimum_rotated_rectangle
+
+    # 2. Set (x, y) to the centre of the mrr, use as centre of enclosing circle
+    if isinstance(mrr, shapely.geometry.Polygon):
+        centre = mrr.centroid
+        corners = mrr.exterior.coords
+    elif isinstance(mrr, shapely.geometry.LineString):
+        centre = mrr.centroid
+        corners = mrr.coords
+    else:
+        print(
+            "Warning! Finding enclosing circle from degenerate shape! This should probably be handled elsewhere.",
+            str(type(mrr)),
+        )
+        return CircleParams(mrr.centroid, 1)
+
+    # 3. Set r to the distance to the point furthest away from (x, y)
+    #    from the vertices of the mrr
+    radius = np.max(
+        [centre.distance(shapely.geometry.Point(corner)) for corner in corners]
+    )
+
+    return CircleParams(center=centre, radius=radius)

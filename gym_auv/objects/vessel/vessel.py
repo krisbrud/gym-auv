@@ -4,7 +4,6 @@ This module implements an AUV that is simulated in the horizontal plane.
 from typing import Callable, List, Tuple
 import numpy as np
 import numpy.linalg as linalg
-from itertools import islice, chain, repeat
 import shapely.geometry, shapely.errors, shapely.strtree, shapely.ops, shapely.prepared
 import gym_auv
 
@@ -12,242 +11,13 @@ import gym_auv.utils.constants as const
 import gym_auv.utils.geomutils as geom
 from gym_auv.objects.obstacles import BaseObstacle, LineObstacle
 from gym_auv.objects.path import Path
-
-
-def _odesolver45(f, y, h):
-    """Calculate the next step of an IVP of a time-invariant ODE with a RHS
-    described by f, with an order 4 approx. and an order 5 approx.
-    Parameters:
-        f: function. RHS of ODE.
-        y: float. Current position.
-        h: float. Step length.
-    Returns:
-        q: float. Order 2 approx.
-        w: float. Order 3 approx.
-    """
-    s1 = f(y)
-    s2 = f(y + h * s1 / 4.0)
-    s3 = f(y + 3.0 * h * s1 / 32.0 + 9.0 * h * s2 / 32.0)
-    s4 = f(
-        y
-        + 1932.0 * h * s1 / 2197.0
-        - 7200.0 * h * s2 / 2197.0
-        + 7296.0 * h * s3 / 2197.0
-    )
-    s5 = f(
-        y
-        + 439.0 * h * s1 / 216.0
-        - 8.0 * h * s2
-        + 3680.0 * h * s3 / 513.0
-        - 845.0 * h * s4 / 4104.0
-    )
-    s6 = f(
-        y
-        - 8.0 * h * s1 / 27.0
-        + 2 * h * s2
-        - 3544.0 * h * s3 / 2565
-        + 1859.0 * h * s4 / 4104.0
-        - 11.0 * h * s5 / 40.0
-    )
-    w = y + h * (
-        25.0 * s1 / 216.0 + 1408.0 * s3 / 2565.0 + 2197.0 * s4 / 4104.0 - s5 / 5.0
-    )
-    q = y + h * (
-        16.0 * s1 / 135.0
-        + 6656.0 * s3 / 12825.0
-        + 28561.0 * s4 / 56430.0
-        - 9.0 * s5 / 50.0
-        + 2.0 * s6 / 55.0
-    )
-    return w, q
-
-
-def _standardize_intersect(intersect):
-    if intersect.is_empty:
-        return []
-    elif isinstance(intersect, shapely.geometry.LineString):
-        return [shapely.geometry.Point(intersect.coords[0])]
-    elif isinstance(intersect, shapely.geometry.Point):
-        return [intersect]
-    else:
-        return list(intersect.geoms)
-
-
-def _simulate_sensor(sensor_angle, p0_point, sensor_range, obstacles):
-    sensor_endpoint = (
-        p0_point.x + np.cos(sensor_angle) * sensor_range,
-        p0_point.y + np.sin(sensor_angle) * sensor_range,
-    )
-    sector_ray = shapely.geometry.LineString([p0_point, sensor_endpoint])
-
-    obst_intersections = [sector_ray.intersection(elm.boundary) for elm in obstacles]
-    obst_intersections = list(map(_standardize_intersect, obst_intersections))
-    obst_references = list(
-        chain.from_iterable(
-            repeat(obstacles[i], len(obst_intersections[i]))
-            for i in range(len(obst_intersections))
-        )
-    )
-    obst_intersections = list(chain(*obst_intersections))
-
-    if obst_intersections:
-        measured_distance, intercept_idx = min(
-            (float(p0_point.distance(elm)), i)
-            for i, elm in enumerate(obst_intersections)
-        )
-        obstacle = obst_references[intercept_idx]
-        if not obstacle.static:
-            obst_speed_homogenous = geom.to_homogeneous([obstacle.dx, obstacle.dy])
-            obst_speed_rel_homogenous = geom.Rz(-sensor_angle - np.pi / 2).dot(
-                obst_speed_homogenous
-            )
-            obst_speed_vec_rel = geom.to_cartesian(obst_speed_rel_homogenous)
-        else:
-            obst_speed_vec_rel = (0, 0)
-        ray_blocked = True
-    else:
-        measured_distance = sensor_range
-        obst_speed_vec_rel = (0, 0)
-        ray_blocked = False
-
-    return (measured_distance, obst_speed_vec_rel, ray_blocked)
-
-
-class LidarPreprocessor:
-    """LidarPreprocessor reduces the dimensionality of the Lidar measurements through feasibility pooling"""
-
-    def __init__(self, config: gym_auv.Config, _d_sensor_angle: float):
-        self._feasibility_width = (
-            config.vessel.vessel_width * config.vessel.feasibility_width_multiplier
-        )
-        self._n_sectors = config.vessel.n_sectors
-        self._sector_angles = []
-        self._n_sensors_per_sector = [0] * self._n_sectors
-        self._sector_start_indeces = [0] * self._n_sectors
-        self._sector_end_indeces = [0] * self._n_sectors
-        self._sector_partition_fun = config.vessel.sector_partition_fun
-        self._d_sensor_angle = _d_sensor_angle
-
-    def _init_sectors(self) -> None:
-        """Initializes the sectors used in for instance feasibility pooling
-
-        Calling this function is not needed if no pooling is done.
-        """
-        last_isector = -1
-        tmp_sector_angle_sum = 0
-        tmp_sector_sensor_count = 0
-        for isensor in range(self._n_sensors):
-            isector = self._sector_partition_fun(self, isensor)
-            angle = self._sensor_angles[isensor]
-            if isector == last_isector:
-                tmp_sector_angle_sum += angle
-                tmp_sector_sensor_count += 1
-            else:
-                if last_isector > -1:
-                    self._sector_angles.append(
-                        tmp_sector_angle_sum / tmp_sector_sensor_count
-                    )
-                last_isector = isector
-                self._sector_start_indeces[isector] = isensor
-                tmp_sector_angle_sum = angle
-                tmp_sector_sensor_count = 1
-            self._n_sensors_per_sector[isector] += 1
-        self._sector_angles.append(tmp_sector_angle_sum / tmp_sector_sensor_count)
-        self._sector_angles = np.array(self._sector_angles)
-
-        for isensor in range(self._n_sensors):
-            isector = self._sector_partition_fun(self, isensor)
-            isensor_internal = isensor - self._sector_start_indeces[isector]
-            self._sensor_internal_indeces.append(isensor_internal)
-
-        for isector in range(self._n_sectors):
-            self._sector_end_indeces[isector] = (
-                self._sector_start_indeces[isector]
-                + self._n_sensors_per_sector[isector]
-            )
-
-    def preprocess(
-        self,
-        sensor_dist_measurements: np.ndarray,
-        sensor_speed_measurements: np.ndarray,
-    ) -> np.ndarray:
-        # Partitioning sensor readings into sectors
-        sector_dist_measurements = np.split(
-            sensor_dist_measurements, self._sector_start_indeces[1:]
-        )
-        sector_speed_measurements = np.split(
-            sensor_speed_measurements, self._sector_start_indeces[1:], axis=0
-        )
-
-        # Performing feasibility pooling
-        sector_feasible_distances = np.array(
-            list(
-                map(
-                    lambda x: LidarPreprocessor._feasibility_pooling(
-                        x, self._feasibility_width, self._d_sensor_angle
-                    ),
-                    sector_dist_measurements,
-                )
-            )
-        )
-
-        # Retrieving obstacle speed for closest obstacle within each sector
-        closest_obst_sensor_indeces = list(map(np.argmin, sector_dist_measurements))
-        sector_velocities = np.concatenate(
-            [
-                sector_speed_measurements[i][closest_obst_sensor_indeces[i]]
-                for i in range(self._n_sectors)
-            ]
-        )
-
-        return sector_feasible_distances, sector_velocities
-
-    @staticmethod
-    def _feasibility_pooling(
-        measurements: np.ndarray, width: float, theta: float
-    ) -> float:
-        """Applies feasibility pooling to the sensors in a sector
-
-        Args:
-            measurements:   Measurements corresponding to one sector
-            width:          The width from the center to the side of the vessel
-            theta:          Angle between neighboring sensors
-        Returns:
-            The maximum distance to a feasible opening for the vessel
-        """
-
-        N_sensors = measurements.shape[0]
-        sort_idx = np.argsort(measurements)
-        for idx in sort_idx:
-            surviving = measurements > measurements[idx] + width
-            d = measurements[idx] * theta
-            opening_width = 0
-            opening_span = 0
-            opening_start = -theta * (N_sensors - 1) / 2
-            found_opening = False
-            for isensor, sensor_survives in enumerate(surviving):
-                if sensor_survives:
-                    opening_width += d
-                    opening_span += theta
-                    if opening_width > width:
-                        opening_center = opening_start + opening_span / 2
-                        if abs(opening_center) < theta * (N_sensors - 1) / 4:
-                            found_opening = True
-                else:
-                    opening_width += 0.5 * d
-                    opening_span += 0.5 * theta
-                    if opening_width > width:
-                        opening_center = opening_start + opening_span / 2
-                        if abs(opening_center) < theta * (N_sensors - 1) / 4:
-                            found_opening = True
-                    opening_width = 0
-                    opening_span = 0
-                    opening_start = -theta * (N_sensors - 1) / 2 + isensor * theta
-
-            if not found_opening:
-                return max(0, measurements[idx])
-
-        return max(0, np.max(measurements))
+from gym_auv.objects.vessel.sensor import (
+    LidarPreprocessor,
+    simulate_sensor_brute_force,
+    find_rays_to_simulate_for_obstacles,
+    simulate_sensor,
+)
+from gym_auv.objects.vessel.odesolver import odesolver45
 
 
 class Vessel:
@@ -286,7 +56,9 @@ class Vessel:
 
         self._n_sectors = self.config.vessel.n_sectors
         self._n_sensors = self.config.vessel.n_sensors_per_sector * self._n_sectors
-        self._d_sensor_angle = 2 * np.pi / (self._n_sensors)  # TODO: Move to sensor?
+        self._d_sensor_angle = (
+            2 * np.pi / (self._n_sensors)
+        )  # radians TODO: Move to sensor?
         self._sensor_angles = np.array(
             [-np.pi + (i + 1) * self._d_sensor_angle for i in range(self._n_sensors)]
         )
@@ -436,7 +208,7 @@ class Vessel:
         self._input = np.array(
             [self._thrust_surge(action[0]), self._moment_steer(action[1])]
         )
-        w, q = _odesolver45(
+        w, q = odesolver45(
             self._state_dot, self._state, self.config.simulation.t_step_size
         )
 
@@ -507,14 +279,14 @@ class Vessel:
                 )
 
         else:
-            should_observe = (
-                self._perceive_counter % self._observe_interval == 0
-            ) or self._virtual_environment is None
-            if should_observe:
-                geom_targets = self._nearby_obstacles
-            else:
-                geom_targets = self._virtual_environment
-
+            # should_observe = (
+            #     self._perceive_counter % self._observe_interval == 0
+            # ) or self._virtual_environment is None
+            # if should_observe:
+            #     geom_targets = self._nearby_obstacles
+            # else:
+            #     geom_targets = self._virtual_environment
+            geom_targets = self._nearby_obstacles
             # Simulating all sensors using _simulate_sensor subroutine
             sensor_angles_ned = self._sensor_angles + self.heading
 
@@ -530,10 +302,10 @@ class Vessel:
             self._last_sensor_speed_measurements = sensor_speed_measurements
 
             # Setting virtual obstacle
-            if should_observe:
-                self._virtual_environment = self._make_virtual_environment(
-                    sensor_angles_ned, sensor_dist_measurements, sensor_blocked_arr
-                )
+            # if should_observe:
+            #     self._virtual_environment = self._make_virtual_environment(
+            #         sensor_angles_ned, sensor_dist_measurements, sensor_blocked_arr
+            #     )
 
             if self.lidar_preprocessor is not None:
                 # Preprocess sensor readings, splitting them into sectors and
@@ -583,63 +355,82 @@ class Vessel:
             sensor_speed_measurements:  Speed mesurements for sensors
             sensor_blocked_arr:         Whether the sensors are blocked
         """
-        activate_sensor = lambda i: (i % self._sensor_interval) == (
-            self._perceive_counter % self._sensor_interval
-        )
+        # activate_sensor = lambda i: (i % self._sensor_interval) == (
+        #     self._perceive_counter % self._sensor_interval
+        # )
 
         sensor_dist_measurements = []
         sensor_speed_measurements = []
         sensor_blocked_arr = []
+        obstacles_to_simulate_per_ray = find_rays_to_simulate_for_obstacles(
+            obstacles=geom_targets,
+            p0_point=p0_point,
+            heading=self.heading,
+            angle_per_ray=self._d_sensor_angle,
+            n_rays=self.n_sensors,
+        )
 
-        for i in range(self._n_sensors):
-            if activate_sensor(i):
-                (distance, speed, blocked) = _simulate_sensor(
-                    sensor_angles_ned[i], p0_point, sensor_range, geom_targets
-                )
-            else:
-                distance = (self._last_sensor_dist_measurements[i],)
-                speed = (self._last_sensor_speed_measurements[i],)
-                blocked = True
+        for i, ray_obstacles in enumerate(obstacles_to_simulate_per_ray):
+            dist, speed, blocked = simulate_sensor(
+                obstacles=ray_obstacles,
+                sensor_angle=sensor_angles_ned[i],
+                sensor_range=sensor_range,
+                p0_point=p0_point,
+            )
 
-            sensor_dist_measurements.append(distance)
+            sensor_dist_measurements.append(dist)
             sensor_speed_measurements.append(speed)
             sensor_blocked_arr.append(blocked)
+
+        # for i in range(self._n_sensors):
+        #     if activate_sensor(i):
+        #         (distance, speed, blocked) = simulate_sensor_brute_force(
+        #             sensor_angles_ned[i], p0_point, sensor_range, geom_targets
+        #         )
+        #     else:
+        #         distance = (self._last_sensor_dist_measurements[i],)
+        #         speed = (self._last_sensor_speed_measurements[i],)
+        #         blocked = True
+
+        #     sensor_dist_measurements.append(distance)
+        #     sensor_speed_measurements.append(speed)
+        #     sensor_blocked_arr.append(blocked)
 
         sensor_dist_measurements = np.array(sensor_dist_measurements)
         sensor_speed_measurements = np.array(sensor_speed_measurements).T
 
         return (sensor_dist_measurements, sensor_speed_measurements, sensor_blocked_arr)
 
-    def _make_virtual_environment(
-        self,
-        sensor_angles_ned: np.ndarray,
-        sensor_dist_measurements: np.ndarray,
-        sensor_blocked_arr: np.ndarray,
-    ) -> List[LineObstacle]:
-        """Makes a simplified environment 'virtual' environment, which is cheaper to simulate sensors on.
+    # def _make_virtual_environment(
+    #     self,
+    #     sensor_angles_ned: np.ndarray,
+    #     sensor_dist_measurements: np.ndarray,
+    #     sensor_blocked_arr: np.ndarray,
+    # ) -> List[LineObstacle]:
+    #     """Makes a simplified environment 'virtual' environment, which is cheaper to simulate sensors on.
 
-        Returns
-        -------
-        virtual_environment: List of approximate LineObstacles approximating obstacles
-        """
-        line_segments = []
-        tmp = []
-        for i in range(self.n_sensors):
-            if sensor_blocked_arr[i]:
-                point = (
-                    self.position[0]
-                    + np.cos(sensor_angles_ned[i]) * sensor_dist_measurements[i],
-                    self.position[1]
-                    + np.sin(sensor_angles_ned[i]) * sensor_dist_measurements[i],
-                )
-                tmp.append(point)
-            elif len(tmp) > 1:
-                line_segments.append(tuple(tmp))
-                tmp = []
+    #     Returns
+    #     -------
+    #     virtual_environment: List of approximate LineObstacles approximating obstacles
+    #     """
+    #     line_segments = []
+    #     tmp = []
+    #     for i in range(self.n_sensors):
+    #         if sensor_blocked_arr[i]:
+    #             point = (
+    #                 self.position[0]
+    #                 + np.cos(sensor_angles_ned[i]) * sensor_dist_measurements[i],
+    #                 self.position[1]
+    #                 + np.sin(sensor_angles_ned[i]) * sensor_dist_measurements[i],
+    #             )
+    #             tmp.append(point)
+    #         elif len(tmp) > 1:
+    #             line_segments.append(tuple(tmp))
+    #             tmp = []
 
-        virtual_environment = list(map(LineObstacle, line_segments))
+    #     virtual_environment = list(map(LineObstacle, line_segments))
 
-        return virtual_environment
+    #     return virtual_environment
 
     def navigate(self, path: Path) -> np.ndarray:
         """

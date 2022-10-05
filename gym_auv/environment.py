@@ -107,9 +107,9 @@ class BaseEnvironment(gym.Env, ABC):
         # Setting dimension of observation vector
         self.n_observations = (
             len(Vessel.NAVIGATION_FEATURES)
-            + 3 * (self.config.vessel.n_sensors)
-            + self._rewarder_class.N_INSIGHTS
+            + self.config.vessel.n_lidar_observations + self._rewarder_class.N_INSIGHTS
         )
+
         if self.config.vessel.use_dict_observation:
             # Use a dictionary observation, as we want to encode the proprioceptive sensors (velocities etc)
             # and LiDAR measurements differently, and keep the lidar measurements as a multi-channel "image",
@@ -118,7 +118,8 @@ class BaseEnvironment(gym.Env, ABC):
 
             # The LiDAR has a distance/closeness measurements, as well as two measurements
             # that correspond to the planar velocity of an object obstructing the sensor (if there is one).
-            lidar_shape = (3, self.config.vessel.n_sensors)
+            
+
 
             self._observation_space = gym.spaces.Dict(
                 {
@@ -128,7 +129,7 @@ class BaseEnvironment(gym.Env, ABC):
                         shape=(n_navigation_observations,),
                         dtype=np.float32,
                     ),
-                    "lidar": gym.spaces.Box(low=-1.0, high=1.0, shape=lidar_shape),
+                    "lidar": gym.spaces.Box(low=-1.0, high=1.0, shape=self.config.vessel.lidar_shape),
                 }
             )
         else:
@@ -255,24 +256,27 @@ class BaseEnvironment(gym.Env, ABC):
         else:
             sector_closenesses, sector_velocities = [], []
 
-        sector_closenesses = sector_closenesses.reshape(1, -1)  # Add leading axis
 
         # Clamp/clip the observation to the valid domain as specified by the Space
         if isinstance(self.observation_space, gym.spaces.Box):
-            raw_obs = np.concatenate(
-                [
+            raw_obs = [
                     reward_insight,
                     navigation_states,
                     sector_closenesses.flatten(),
-                    sector_velocities.flatten(),
                 ]
-            )
+
+            if self.config.vessel.sensor_use_velocity_observations:
+                raw_obs.append(sector_velocities.flatten())
+
+            raw_obs = np.hstack(raw_obs)
+
             obs = np.clip(
                 raw_obs,
                 a_min=self.observation_space.low,
                 a_max=self.observation_space.high,
             )
         elif isinstance(self.observation_space, gym.spaces.Dict):
+            sector_closenesses = sector_closenesses.reshape(1, -1)  # Add leading axis
             raw_lidar_obs = np.vstack((sector_closenesses, sector_velocities))
             raw_obs = {
                 "proprioceptive": navigation_states,
