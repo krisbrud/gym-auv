@@ -57,13 +57,13 @@ def _find_limit_angle_rays(
     # Assume seam on back (ray 0 and N meets at the back), and clockwise positive rotation
     idx_min_ray = int(
         np.floor(
-            (np.pi + geom.princip((obstacle_relative_bearing - feasible_angle_diff)))
+            (np.pi + (obstacle_relative_bearing - feasible_angle_diff))
             / angle_per_ray
         )
     )
     idx_max_ray = int(
         np.ceil(
-            (np.pi + geom.princip((obstacle_relative_bearing + feasible_angle_diff)))
+            (np.pi + (obstacle_relative_bearing + feasible_angle_diff))
             / angle_per_ray
         )
     )
