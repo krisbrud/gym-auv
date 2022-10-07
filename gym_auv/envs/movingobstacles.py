@@ -109,3 +109,12 @@ class MovingObstaclesColreg(MovingObstacles):
         self._n_static_obst = 11
         self._rewarder_class = ColregRewarder
         super().__init__(*args, **kwargs)
+
+
+class PathFollowNoObstacles(MovingObstacles):
+    def __init__(self, *args, **kwargs) -> None:
+        self._n_moving_obst = 0 
+        self._n_static_obst = 0 
+        self._rewarder_class = ColavRewarder
+          
+        super().__init__(*args, **kwargs)

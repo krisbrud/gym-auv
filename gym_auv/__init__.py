@@ -28,6 +28,9 @@ DEBUG_CONFIG.episode.min_goal_distance = 0.1
 # DEBUG_CONFIG["min_goal_distance"] = 0.1
 
 REALWORLD_CONFIG = Config()
+
+PATHFOLLOW_CONFIG = Config()
+PATHFOLLOW_CONFIG.vessel.sensing = False
 # REALWORLD_CONFIG.simulation.t_step_size = 0.2
 # REALWORLD_CONFIG.vessel.render_distance = 300
 # REALWORLD_CONFIG = DEFAULT_CONFIG.copy()
@@ -100,6 +103,10 @@ SCENARIOS = {
     "MovingObstaclesNoRules-v0": {
         "entry_point": "gym_auv.envs:MovingObstaclesNoRules",
         "config": MOVING_CONFIG,
+    },
+    "PathFollowNoObstacles-v0": {
+        "entry_point": "gym_auv.envs:NoObstacles",
+        "config": PATHFOLLOW_CONFIG,
     },
     # "MovingObstaclesColreg-v0": {
     #     "entry_point": "gym_auv.envs:MovingObstaclesColreg",

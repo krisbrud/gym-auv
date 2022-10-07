@@ -109,7 +109,10 @@ class BaseEnvironment(gym.Env, ABC):
         #     len(Vessel.NAVIGATION_FEATURES)
         #     + self.config.vessel.n_lidar_observations + self._rewarder_class.N_INSIGHTS
         # )
-        self.n_observations = self.config.vessel.dense_observation_size + self.config.vessel.n_lidar_observations
+        self.n_observations = (
+            self.config.vessel.dense_observation_size
+            + self.config.vessel.n_lidar_observations
+        )
 
         if self.config.vessel.use_dict_observation:
             # Use a dictionary observation, as we want to encode the proprioceptive sensors (velocities etc)
@@ -119,8 +122,6 @@ class BaseEnvironment(gym.Env, ABC):
 
             # The LiDAR has a distance/closeness measurements, as well as two measurements
             # that correspond to the planar velocity of an object obstructing the sensor (if there is one).
-            
-
 
             self._observation_space = gym.spaces.Dict(
                 {
@@ -130,7 +131,9 @@ class BaseEnvironment(gym.Env, ABC):
                         shape=(n_navigation_observations,),
                         dtype=np.float32,
                     ),
-                    "lidar": gym.spaces.Box(low=-1.0, high=1.0, shape=self.config.vessel.lidar_shape),
+                    "lidar": gym.spaces.Box(
+                        low=-1.0, high=1.0, shape=self.config.vessel.lidar_shape
+                    ),
                 }
             )
         else:
@@ -257,17 +260,18 @@ class BaseEnvironment(gym.Env, ABC):
         else:
             sector_closenesses, sector_velocities = [], []
 
-
         # Clamp/clip the observation to the valid domain as specified by the Space
         if isinstance(self.observation_space, gym.spaces.Box):
             raw_obs = [
-                    reward_insight,
-                    navigation_states,
-                    sector_closenesses.flatten(),
-                ]
+                reward_insight,
+                navigation_states,
+            ]
 
-            if self.config.vessel.sensor_use_velocity_observations:
-                raw_obs.append(sector_velocities.flatten())
+            if self.config.vessel.sensing:
+                raw_obs.append(sector_closenesses.flatten())
+
+                if self.config.vessel.sensor_use_velocity_observations:
+                    raw_obs.append(sector_velocities.flatten())
 
             raw_obs = np.hstack(raw_obs)
 
