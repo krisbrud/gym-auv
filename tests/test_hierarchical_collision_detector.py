@@ -16,12 +16,13 @@ def my_vessel() -> Vessel:
 
 @pytest.fixture
 def obst_behind_vessel() -> CircularObstacle:
-    # pos = np.array([])
-    pos = np.array([0, 0])  # Should fail
-    radius = 3
+    pos = np.array([0, -9.5])
+    # pos = np.array([0, 0])
+    radius = 1.5 
 
     obst = CircularObstacle(pos, radius)
     return obst
+
 
 @pytest.fixture
 def ranges(my_vessel: Vessel, obst_behind_vessel: CircularObstacle) -> np.ndarray:
@@ -29,15 +30,19 @@ def ranges(my_vessel: Vessel, obst_behind_vessel: CircularObstacle) -> np.ndarra
     ranges, velocities = my_vessel.perceive(obstacles=obstacles)
     return ranges
 
+
 def _is_intercepted(range: float):
     return 0 < range < 1
+
 
 def test_no_obst_in_front(ranges: np.ndarray):
     idx_front = len(ranges) // 2
     assert not _is_intercepted(ranges[idx_front])
 
+
 def test_obst_in_last_sensor(ranges: np.ndarray):
     assert _is_intercepted(ranges[-1])
+
 
 def test_obst_in_first_sensor(ranges: np.ndarray):
     assert _is_intercepted(ranges[0])
