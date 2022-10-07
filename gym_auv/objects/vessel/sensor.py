@@ -31,6 +31,10 @@ def _find_feasible_angle_diff(
         obstacle_enclosing_circle.radius / safe_dist
     )
 
+    if np.isnan(max_angle_from_circle_center):
+        # Inside convex hull - return pi as we want to check everywhere
+        return np.pi
+
     return max_angle_from_circle_center
 
 
@@ -87,7 +91,7 @@ def find_rays_to_simulate_for_obstacles(
 
         # Add obstacle to all rays which may collide with it
         for i in range(
-            idx_min_ray - 1, idx_max_ray
+            max(0, idx_min_ray - 1), min(idx_max_ray, n_rays)
         ):  # -1 as first sensor has angle -pi + "angle between rays"
             obstacles_to_simulate_per_ray[i].append(obstacle)
 

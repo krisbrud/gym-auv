@@ -105,10 +105,11 @@ class BaseEnvironment(gym.Env, ABC):
             dtype=np.float32,
         )
         # Setting dimension of observation vector
-        self.n_observations = (
-            len(Vessel.NAVIGATION_FEATURES)
-            + self.config.vessel.n_lidar_observations + self._rewarder_class.N_INSIGHTS
-        )
+        # self.n_observations = (
+        #     len(Vessel.NAVIGATION_FEATURES)
+        #     + self.config.vessel.n_lidar_observations + self._rewarder_class.N_INSIGHTS
+        # )
+        self.n_observations = self.config.vessel.dense_observation_size + self.config.vessel.n_lidar_observations
 
         if self.config.vessel.use_dict_observation:
             # Use a dictionary observation, as we want to encode the proprioceptive sensors (velocities etc)
