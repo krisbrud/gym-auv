@@ -109,10 +109,9 @@ class BaseEnvironment(gym.Env, ABC):
         #     len(Vessel.NAVIGATION_FEATURES)
         #     + self.config.vessel.n_lidar_observations + self._rewarder_class.N_INSIGHTS
         # )
-        self.n_observations = (
-            self.config.vessel.dense_observation_size
-            + self.config.vessel.n_lidar_observations
-        )
+        self.n_observations = self.config.vessel.dense_observation_size
+        if self.config.vessel.use_lidar:
+            self.n_observations += self.config.vessel.n_lidar_observations
 
         if self.config.vessel.use_dict_observation:
             # Use a dictionary observation, as we want to encode the proprioceptive sensors (velocities etc)
@@ -255,7 +254,7 @@ class BaseEnvironment(gym.Env, ABC):
         """
         reward_insight = self.rewarder.insight()
         navigation_states = self.vessel.navigate(self.path)
-        if bool(self.config.vessel.sensing):
+        if bool(self.config.vessel.use_lidar):
             sector_closenesses, sector_velocities = self.vessel.perceive(self.obstacles)
         else:
             sector_closenesses, sector_velocities = [], []
@@ -263,15 +262,14 @@ class BaseEnvironment(gym.Env, ABC):
         # Clamp/clip the observation to the valid domain as specified by the Space
         if isinstance(self.observation_space, gym.spaces.Box):
             raw_obs = [
-                reward_insight,
-                navigation_states,
-            ]
+                    reward_insight,
+                    navigation_states,
+                ]
 
-            if self.config.vessel.sensing:
+            if self.config.vessel.use_lidar:
                 raw_obs.append(sector_closenesses.flatten())
-
-                if self.config.vessel.sensor_use_velocity_observations:
-                    raw_obs.append(sector_velocities.flatten())
+            if self.config.vessel.sensor_use_velocity_observations:
+                raw_obs.append(sector_velocities.flatten())
 
             raw_obs = np.hstack(raw_obs)
 

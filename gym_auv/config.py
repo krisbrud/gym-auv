@@ -46,8 +46,9 @@ class VesselConfig:
     render_distance: Union[
         int, str
     ] = 300  # 3D rendering render distance, or "random" [m]
-    sensing: bool = (
-        True  # Whether rangerfinder sensors for perception should be activated
+    use_lidar: bool = (
+        False  # True
+        # Whether rangefinder sensors for perception should be activated
     )
     sensor_interval_load_obstacles: int = 25  # Interval for loading nearby obstacles
     n_sensors_per_sector: int = 20  # Number of rangefinder sensors within each sector
