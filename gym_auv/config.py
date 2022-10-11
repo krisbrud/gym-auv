@@ -46,8 +46,9 @@ class VesselConfig:
     render_distance: Union[
         int, str
     ] = 300  # 3D rendering render distance, or "random" [m]
-    sensing: bool = (
-        True  # Whether rangerfinder sensors for perception should be activated
+    use_lidar: bool = (
+        False  # True
+        # Whether rangefinder sensors for perception should be activated
     )
     sensor_interval_load_obstacles: int = 25  # Interval for loading nearby obstacles
     n_sensors_per_sector: int = 20  # Number of rangefinder sensors within each sector
@@ -75,16 +76,24 @@ class VesselConfig:
 
     @property
     def lidar_shape(self) -> Tuple[int, int]:
-        lidar_channels = 1    
-        
+        lidar_channels = 1
+
         if self.sensor_use_velocity_observations:
             lidar_channels = 3
-        
+
         return (lidar_channels, self.n_sensors)
- 
+
     @property
     def n_lidar_observations(self) -> int:
         return self.lidar_shape[0] * self.lidar_shape[1]
+
+    @property
+    def dense_observation_size(self) -> int:
+        n_reward_insights = 0  # TODO
+        n_navigation_features = 6  # TODO
+
+        return n_reward_insights + n_navigation_features
+
 
 @dataclass
 class RenderingConfig:
