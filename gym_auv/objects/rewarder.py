@@ -60,10 +60,10 @@ class PathFollowRewarder(BaseRewarder):
         self.params["gamma_x"] = 0.1
         self.params["gamma_v_y"] = 1.0
         self.params["gamma_y_e"] = 5.0
-        self.params["penalty_yawrate"] = 0.5 #0.0
+        self.params["penalty_yawrate"] = 10.0 # 20  # 0.0
         self.params["penalty_torque_change"] = 0.0
         self.params["cruise_speed"] = 0.1
-        self.params["neutral_speed"] = 0.2  # 0.05
+        self.params["neutral_speed"] = 0.05  # 0.05
         self.params["negative_multiplier"] = 2.0
         self.params["collision"] = -10000.0
         self.params["lambda"] = 0.5  # _sample_lambda(scale=0.2)
@@ -96,16 +96,23 @@ class PathFollowRewarder(BaseRewarder):
         cross_track_performance = np.exp(
             -self.params["gamma_y_e"] * np.abs(cross_track_error)
         )
+        # path_reward = (np.cos(heading_error) * self._vessel.speed / self._vessel.max_speed) * cross_track_performance
         path_reward = (
             1 + np.cos(heading_error) * self._vessel.speed / self._vessel.max_speed
         ) * (1 + cross_track_performance) - 1
 
         # Extra penalty for going backwards, as going continously in a circle is
         # a local minima giving an average positive reward with this strategy.
-        # gamma_backwards = 2  
-        # path_reward = (1 + min(np.cos(heading_error), gamma_backwards * np.cos(heading_error)) + self._vessel.speed / self._vessel.max_speed) * (1 + cross_track_performance) - 1
-            
+        # gamma_backwards = 2.5
+        # path_reward = (
+        #     1
+        #     + min(np.cos(heading_error), gamma_backwards * np.cos(heading_error))
+        #     * self._vessel.speed / self._vessel.max_speed
+        # ) * (1 + cross_track_performance) - 1
 
+        slow_penalty = 0
+        if self._vessel.speed < self.params["cruise_speed"]:
+            slow_penalty = -2
         # Calculating living penalty
         living_penalty = (
             self.params["lambda"] * (2 * self.params["neutral_speed"] + 1)
@@ -118,10 +125,11 @@ class PathFollowRewarder(BaseRewarder):
             - living_penalty
             + self.params["eta"] * self._vessel.speed / self._vessel.max_speed
             - self.params["penalty_yawrate"] * abs(self._vessel.yaw_rate)
+            + slow_penalty
         )
 
-        if reward < 0:
-            reward *= self.params["negative_multiplier"]
+        # if reward < 0:
+        #     reward *= self.params["negative_multiplier"]
 
         return reward
 

@@ -121,6 +121,11 @@ class Vessel:
         return self._prev_states[:, 2]
 
     @property
+    def actions_taken(self) -> np.ndarray:
+        """Returns the actions taken (surge, rudder) over the current episode. The actions are probably normalized."""
+        return self._prev_inputs
+
+    @property
     def heading(self) -> float:
         """Returns the heading of the AUV with respect to true north."""
         return self._state[2]
@@ -447,10 +452,13 @@ class Vessel:
 
         # Calculating tangential path direction at reference point
         path_direction = path.get_direction(vessel_arclength)
+        
+        closest_path_point_ned = path(vessel_arclength) 
+        path_vector_body = geom.Rzyx(0, 0, -self.heading).dot(np.hstack([closest_path_point_ned - self.position, 0]))
         cross_track_error = geom.Rzyx(0, 0, -path_direction).dot(
             np.hstack([path(vessel_arclength) - self.position, 0])
         )[1]
-
+        
         # Calculating tangential path direction at look-ahead point
         target_arclength = min(
             path.length, vessel_arclength + self.config.vessel.look_ahead_distance
@@ -488,6 +496,7 @@ class Vessel:
             "heading_error": heading_error,
             "cross_track_error": cross_track_error / 100,
             "target_heading": target_heading,
+            "target_vector": target_vector,
             "look_ahead_path_direction": look_ahead_path_direction,
             "path_direction": path_direction,
             "vessel_arclength": vessel_arclength,
@@ -526,7 +535,7 @@ class Vessel:
         eta_dot = geom.Rz(geom.princip(psi)).dot(nu)
         nu_dot = const.M_inv.dot(
             tau
-            # - const.D.dot(nu)
+            - const.D.dot(nu)
             - const.N(nu).dot(nu)
         )
         state_dot = np.concatenate([eta_dot, nu_dot])

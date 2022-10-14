@@ -31,7 +31,9 @@ REALWORLD_CONFIG = Config()
 
 PATHFOLLOW_CONFIG = Config()
 PATHFOLLOW_CONFIG.vessel.sensing = False
+# PATHFOLLOW_CONFIG.episode.min_cumulative_reward = -1000
 # REALWORLD_CONFIG.simulation.t_step_size = 0.2
+
 # REALWORLD_CONFIG.vessel.render_distance = 300
 # REALWORLD_CONFIG = DEFAULT_CONFIG.copy()
 # REALWORLD_CONFIG["t_step_size"] = 0.2
@@ -105,7 +107,7 @@ SCENARIOS = {
         "config": MOVING_CONFIG,
     },
     "PathFollowNoObstacles-v0": {
-        "entry_point": "gym_auv.envs:NoObstacles",
+        "entry_point": "gym_auv.envs:PathFollowNoObstacles",
         "config": PATHFOLLOW_CONFIG,
     },
     # "MovingObstaclesColreg-v0": {

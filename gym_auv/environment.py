@@ -345,8 +345,21 @@ class BaseEnvironment(gym.Env, ABC):
         self._save_latest_step()
 
         self.t_step += 1
-        if self.t_step % 50 == 1:
-            print("timestep:", self.t_step)
+        # if self.t_step % 50 == 1:
+        #     print("timestep:", self.t_step)
+        if self.t_step % 1000 == 0:
+            print(f"time step = {self.t_step}, progress = {self.progress}, cumulative reward = {self.cumulative_reward}")
+            # self.vessel.
+            print(f"yaw rate: {self.vessel.yaw_rate}, cross-track-error: {vessel_data['navigation']['cross_track_error']}")
+            print(f"velocity: {self.vessel.velocity}")
+
+        if done:
+            print(f"Done after {self.t_step} steps. Info: {info}")
+            print(f"Cumulative reward: {self.cumulative_reward}")
+            print(f"yaw rate: {self.vessel.yaw_rate}")
+            actions_taken: np.ndarray = self.vessel.actions_taken
+            print("Mean of actions this episode:", np.mean(actions_taken, axis=0))
+            print("Std of actions this episode:", np.std(actions_taken, axis=0))
 
         return (obs, reward, done, info)
 
@@ -355,7 +368,7 @@ class BaseEnvironment(gym.Env, ABC):
             [
                 self.collision,
                 self.reached_goal,
-                self.t_step > self.config.episode.max_timesteps and not self.test_mode,
+                self.t_step >= self.config.episode.max_timesteps - 1 and not self.test_mode,
                 self.cumulative_reward < self.config.episode.min_cumulative_reward
                 and not self.test_mode,
             ]
