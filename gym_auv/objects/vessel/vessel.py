@@ -25,9 +25,11 @@ class Vessel:
         "surge_velocity",
         "sway_velocity",
         "yaw_rate",
-        "look_ahead_heading_error",
-        "heading_error",
-        "cross_track_error",
+        # "look_ahead_heading_error",
+        # "heading_error",
+        # "cross_track_error",
+        "path_error"  # 2-element vector of relative position of nearest point of path in body coords
+        "lookahead_path_error",
     ]
 
     def __init__(
@@ -452,13 +454,15 @@ class Vessel:
 
         # Calculating tangential path direction at reference point
         path_direction = path.get_direction(vessel_arclength)
-        
-        closest_path_point_ned = path(vessel_arclength) 
-        path_vector_body = geom.Rzyx(0, 0, -self.heading).dot(np.hstack([closest_path_point_ned - self.position, 0]))
+
+        closest_path_point_ned = path(vessel_arclength)
+        relative_pos_nearest_path_point = geom.Rzyx(0, 0, -self.heading).dot(
+            np.hstack([closest_path_point_ned - self.position, 0])
+        )
         cross_track_error = geom.Rzyx(0, 0, -path_direction).dot(
             np.hstack([path(vessel_arclength) - self.position, 0])
         )[1]
-        
+
         # Calculating tangential path direction at look-ahead point
         target_arclength = min(
             path.length, vessel_arclength + self.config.vessel.look_ahead_distance
@@ -469,10 +473,12 @@ class Vessel:
         )
 
         # Calculating vector difference between look-ahead point and vessel position
-        target_vector = path(target_arclength) - self.position
+        relative_pos_lookahead = path(target_arclength) - self.position
 
         # Calculating heading error
-        target_heading = np.arctan2(target_vector[1], target_vector[0])
+        target_heading = np.arctan2(
+            relative_pos_lookahead[1], relative_pos_lookahead[0]
+        )
         heading_error = float(geom.princip(target_heading - self.heading))
 
         # Calculating path progress
@@ -496,12 +502,14 @@ class Vessel:
             "heading_error": heading_error,
             "cross_track_error": cross_track_error / 100,
             "target_heading": target_heading,
-            "target_vector": target_vector,
+            "target_vector": relative_pos_lookahead,
             "look_ahead_path_direction": look_ahead_path_direction,
             "path_direction": path_direction,
             "vessel_arclength": vessel_arclength,
             "target_arclength": target_arclength,
             "goal_distance": goal_distance,
+            "path_error": relative_pos_nearest_path_point / 100,  # 2-element vector of relative position of nearest point of path in body coords
+            "lookahead_path_error": relative_pos_lookahead / 100,
         }
         navigation_states = np.array(
             [self._last_navi_state_dict[state] for state in Vessel.NAVIGATION_FEATURES]
@@ -533,11 +541,7 @@ class Vessel:
         tau = np.array([self._input[0], 0, self._input[1]])
 
         eta_dot = geom.Rz(geom.princip(psi)).dot(nu)
-        nu_dot = const.M_inv.dot(
-            tau
-            - const.D.dot(nu)
-            - const.N(nu).dot(nu)
-        )
+        nu_dot = const.M_inv.dot(tau - const.D.dot(nu) - const.N(nu).dot(nu))
         state_dot = np.concatenate([eta_dot, nu_dot])
         return state_dot
 

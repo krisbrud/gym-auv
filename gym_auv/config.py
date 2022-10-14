@@ -46,6 +46,9 @@ class VesselConfig:
     render_distance: Union[
         int, str
     ] = 300  # 3D rendering render distance, or "random" [m]
+    include_original_observations: bool = False  # Whether to include cross-track-error, as well as two 
+    # path-relative angles in observation
+    use_relative_vectors: bool = True
     use_lidar: bool = (
         False  # True
         # Whether rangefinder sensors for perception should be activated
@@ -90,7 +93,7 @@ class VesselConfig:
     @property
     def dense_observation_size(self) -> int:
         n_reward_insights = 0  # TODO
-        n_navigation_features = 6  # TODO
+        n_navigation_features = 7  # TODO
 
         return n_reward_insights + n_navigation_features
 
