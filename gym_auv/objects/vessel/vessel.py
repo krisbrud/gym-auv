@@ -25,11 +25,13 @@ class Vessel:
         "surge_velocity",
         "sway_velocity",
         "yaw_rate",
-        # "look_ahead_heading_error",
-        # "heading_error",
-        # "cross_track_error",
-        "path_error"  # 2-element vector of relative position of nearest point of path in body coords
-        "lookahead_path_error",
+        "look_ahead_heading_error",
+        "heading_error",
+        "cross_track_error",
+        # "path_error_x",
+        # "path_error_y",
+        # "lookahead_path_error_x",
+        # "lookahead_path_error_y",
     ]
 
     def __init__(
@@ -148,6 +150,11 @@ class Vessel:
         return self._state[5]
 
     @property
+    def yaw_rate_taken(self) -> np.ndarray:
+        """Returns the history of yaw rates"""
+        return self._prev_states[:, 5]
+
+    @property
     def max_speed(self) -> float:
         """Returns the maximum speed of the AUV."""
         return 2
@@ -198,6 +205,7 @@ class Vessel:
         self._virtual_environment = None
         self._collision = False
         self._progress = 0
+        self._max_progress = 0
         self._reached_goal = False
 
         self._step_counter = 0
@@ -458,7 +466,7 @@ class Vessel:
         closest_path_point_ned = path(vessel_arclength)
         relative_pos_nearest_path_point = geom.Rzyx(0, 0, -self.heading).dot(
             np.hstack([closest_path_point_ned - self.position, 0])
-        )
+        )[:2]
         cross_track_error = geom.Rzyx(0, 0, -path_direction).dot(
             np.hstack([path(vessel_arclength) - self.position, 0])
         )[1]
@@ -485,6 +493,8 @@ class Vessel:
         progress = vessel_arclength / path.length
         self._progress = progress
 
+        self._max_progress = max(progress, self._max_progress)
+
         # Deciding if vessel has reached the goal
         goal_distance = linalg.norm(path.end - self.position)
         reached_goal = (
@@ -508,8 +518,10 @@ class Vessel:
             "vessel_arclength": vessel_arclength,
             "target_arclength": target_arclength,
             "goal_distance": goal_distance,
-            "path_error": relative_pos_nearest_path_point / 100,  # 2-element vector of relative position of nearest point of path in body coords
-            "lookahead_path_error": relative_pos_lookahead / 100,
+            "path_error_x": relative_pos_nearest_path_point[0] / 100,              
+            "path_error_y": relative_pos_nearest_path_point[1] / 100,              
+            "lookahead_path_error_x": relative_pos_lookahead[0] / 100,
+            "lookahead_path_error_y": relative_pos_lookahead[1] / 100,
         }
         navigation_states = np.array(
             [self._last_navi_state_dict[state] for state in Vessel.NAVIGATION_FEATURES]
@@ -527,6 +539,7 @@ class Vessel:
             "collision": self._collision,
             "progress": self._progress,
             "reached_goal": self._reached_goal,
+            # "max_progress": 
         }
 
         if self.config.vessel.sensor_use_feasibility_pooling:

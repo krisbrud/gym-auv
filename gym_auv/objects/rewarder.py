@@ -26,7 +26,7 @@ class BaseRewarder(ABC):
     @property
     def vessel(self) -> Vessel:
         """Vessel instance that the reward is calculated with respect to."""
-        return self._vessel[-1]
+        return self._vessel
 
     @abstractmethod
     def calculate(self) -> float:
@@ -100,6 +100,12 @@ class PathFollowRewarder(BaseRewarder):
         path_reward = (
             1 + np.cos(heading_error) * self._vessel.speed / self._vessel.max_speed
         ) * (1 + cross_track_performance) - 1
+
+        # if self.vessel._progress < self.vessel._max_progress or self.vessel._progress < 0: # or path_reward < 0:
+        #     # Has not gone forward past the current maximum path progress. Clip reward to be 0 at maximum.
+        #     # path_reward = min(path_reward, 0)
+        #     path_reward = 0
+
 
         # Extra penalty for going backwards, as going continously in a circle is
         # a local minima giving an average positive reward with this strategy.

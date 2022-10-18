@@ -93,7 +93,7 @@ class VesselConfig:
     @property
     def dense_observation_size(self) -> int:
         n_reward_insights = 0  # TODO
-        n_navigation_features = 7  # TODO
+        n_navigation_features = 6  # 7  # TODO
 
         return n_reward_insights + n_navigation_features
 
