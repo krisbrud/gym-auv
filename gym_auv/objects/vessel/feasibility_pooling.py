@@ -78,7 +78,7 @@ class FeasPoolPreprocessor:
         sector_feasible_distances = np.array(
             list(
                 map(
-                    lambda x: LidarPreprocessor._feasibility_pooling(
+                    lambda x: FeasPoolPreprocessor._feasibility_pooling(
                         x, self._feasibility_width, self._d_sensor_angle
                     ),
                     sector_dist_measurements,

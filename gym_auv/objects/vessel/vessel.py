@@ -70,20 +70,6 @@ class Vessel:
 
         self._sensor_internal_indeces = []
         self._sensor_interval = max(1, int(1 / self.config.simulation.sensor_frequency))
-        self._observe_interval = max(
-            1, int(1 / self.config.simulation.observe_frequency)
-        )
-        self._virtual_environment = None
-        self._use_feasibility_pooling = config.vessel.sensor_use_feasibility_pooling
-
-        # Calculating sensor partitioning
-        if self._use_feasibility_pooling:
-            # Initialize sectors used for sensor dimensionality reduction
-            self.lidar_preprocessor = LidarPreprocessor(
-                self.config, self._d_sensor_angle
-            )
-        else:
-            self.lidar_preprocessor = None
 
         # Calculating feasible closeness
         if self.config.vessel.sensor_log_transform:
@@ -213,7 +199,6 @@ class Vessel:
         self._last_navi_state_dict = dict(
             (state, 0) for state in Vessel.NAVIGATION_FEATURES
         )
-        self._virtual_environment = None
         self._collision = False
         self._progress = 0
         self._max_progress = 0
@@ -258,22 +243,22 @@ class Vessel:
 
         """
         # PSEUDOCODE:
-        # Find nearby obstacles
+        # Find nearby obstacles - done
         # Simulate sensors for nearby obstacles
         # Postprocess the observations
 
         # Initializing variables
         sensor_range = self.config.vessel.sensor_range
 
-        self._load_nearby_obstacles()
+        if self._step_counter % self.config.vessel.sensor_interval_load_obstacles == 0:
+            self._load_nearby_obstacles(obstacles)
+
         # Loading nearby obstacles, i.e. obstacles within the vessel's detection range
         if not self._nearby_obstacles:
             # Set feasible distances to sensor range, closeness and velocities to zero
             collision = False
 
-            n_sensors = (
-                self.config.vessel.n_sectors * self.config.vessel.n_sensors_per_sector
-            )
+            n_sensors = self.config.vessel.n_sensors
             output_closenesses = np.zeros((n_sensors,))
             output_velocities = np.zeros((2, n_sensors))
 
@@ -287,40 +272,19 @@ class Vessel:
                 sensor_speed_measurements,
                 sensor_blocked_arr,
             ) = self._simulate_sensors_or_use_previous_measurement(
-                sensor_angles_ned, p0_point, sensor_range, geom_targets
+                sensor_angles_ned, self._p0_point, sensor_range, geom_targets
             )
 
             self._last_sensor_dist_measurements = sensor_dist_measurements
             self._last_sensor_speed_measurements = sensor_speed_measurements
-
-            if self.lidar_preprocessor is not None:
-                # Preprocess sensor readings, splitting them into sectors and
-                # applying feasibility pooling
-                (
-                    sector_feasible_distances,
-                    sector_velocities,
-                ) = self.lidar_preprocessor.preprocess(
-                    sensor_dist_measurements, sensor_speed_measurements
-                )
-
-                # Use sector distances and velocities as output
-                distances = sector_feasible_distances
-                output_velocities = sector_velocities
-            else:
-                # Don't apply dimensionality reduction/feasibility pooling
-
-                distances = sensor_dist_measurements
-                output_velocities = sensor_speed_measurements
+            distances = sensor_dist_measurements
+            output_velocities = sensor_speed_measurements
 
             # Calculating feasible closeness
             output_closenesses = self._get_closeness(distances)
 
             # Testing if vessel has collided
             collision = np.any(sensor_dist_measurements < self.width)
-
-        if self.lidar_preprocessor is not None:
-            self._last_sector_dist_measurements = sector_closenesses
-            self._last_sector_feasible_dists = sector_feasible_distances
 
         self._collision = collision
         self._perceive_counter += 1
@@ -337,15 +301,14 @@ class Vessel:
 
         return (output_closenesses, output_velocities)
 
-    def _load_nearby_obstacles(self) -> None:
-        if self._step_counter % self.config.vessel.sensor_interval_load_obstacles == 0:
-            self._nearby_obstacles = list(
-                filter(
-                    lambda obst: float(p0_point.distance(obst.boundary)) - self._width
-                    < sensor_range,
-                    obstacles,
-                )
+    def _load_nearby_obstacles(self, obstacles) -> None:
+        self._nearby_obstacles = list(
+            filter(
+                lambda obst: float(self._p0_point.distance(obst.boundary)) - self._width
+                < self.config.vessel.sensor_range,
+                obstacles,
             )
+    )
 
     @property
     def _p0_point(self) -> shapely.geometry.Point:
