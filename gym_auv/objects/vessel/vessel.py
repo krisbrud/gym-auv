@@ -175,6 +175,17 @@ class Vessel:
         """Array containg the angles of the center line of each sensor sector relative to the vessel heading."""
         return self._sector_angles
 
+    @property
+    def progress(self) -> float:
+        """Returns the progress along the path. Can take values between 0 and 1."""
+        return self._progress
+
+    @property
+    def max_progress(self) -> float:
+        """Returns the maximum progress along the path in the current episode. Can take values between 0 and 1."""
+        return self._max_progress
+
+
     def reset(self, init_state: np.ndarray) -> None:
         """
         Resets the vessel to the specified initial state.

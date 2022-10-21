@@ -147,9 +147,11 @@ class ColavRewarder(BaseRewarder):
         self.params["gamma_x"] = 0.1
         self.params["gamma_v_y"] = 1.0
         self.params["gamma_y_e"] = 5.0
-        self.params["penalty_yawrate"] = 0.0
+        self.params["penalty_yawrate"] = 10.0
         self.params["penalty_torque_change"] = 0.0
+        self.params["penalty_slow"] = -2
         self.params["cruise_speed"] = 0.1
+        self.params["slow_speed"] = 0.04
         self.params["neutral_speed"] = 0.05
         self.params["negative_multiplier"] = 2.0
         self.params["collision"] = -10000.0
@@ -207,7 +209,16 @@ class ColavRewarder(BaseRewarder):
             closeness_reward = -closeness_penalty_num / closeness_penalty_den
         else:
             closeness_reward = 0
-
+        
+        
+        if self.vessel.progress < self.vessel.max_progress: # or path_reward < 0:
+            # Has not gone forward past the current maximum path progress. Clip reward to be 0 at maximum.
+            path_reward = min(path_reward, 0)
+        # path_reward = 0
+        
+        slow_penalty = 0
+        if self._vessel.speed < self.params["slow_speed"]:
+            slow_penalty = self.params["penalty_slow"]
         # Calculating living penalty
         living_penalty = (
             self.params["lambda"] * (2 * self.params["neutral_speed"] + 1)
@@ -221,6 +232,7 @@ class ColavRewarder(BaseRewarder):
             - living_penalty
             + self.params["eta"] * self._vessel.speed / self._vessel.max_speed
             - self.params["penalty_yawrate"] * abs(self._vessel.yaw_rate)
+            + slow_penalty
         )
 
         if reward < 0:
