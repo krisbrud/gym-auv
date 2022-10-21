@@ -57,14 +57,12 @@ def _find_limit_angle_rays(
     # Assume seam on back (ray 0 and N meets at the back), and clockwise positive rotation
     idx_min_ray = int(
         np.floor(
-            (np.pi + (obstacle_relative_bearing - feasible_angle_diff))
-            / angle_per_ray
+            (np.pi + (obstacle_relative_bearing - feasible_angle_diff)) / angle_per_ray
         )
     )
     idx_max_ray = int(
         np.ceil(
-            (np.pi + (obstacle_relative_bearing + feasible_angle_diff))
-            / angle_per_ray
+            (np.pi + (obstacle_relative_bearing + feasible_angle_diff)) / angle_per_ray
         )
     )
 
@@ -88,7 +86,7 @@ def find_rays_to_simulate_for_obstacles(
         )
 
         # Add obstacle to all rays which may collide with it
-        # Because negative indices wrap around (in the same way as the sensor!), 
+        # Because negative indices wrap around (in the same way as the sensor!),
         # they aren't a problem
         for i in range(idx_min_ray - 1, idx_max_ray % n_rays):
             # -1 as first sensor has angle -pi + "angle between rays"
@@ -157,6 +155,37 @@ def simulate_sensor(sensor_angle, p0_point, sensor_range, obstacles):
         ray_blocked = False
 
     return (measured_distance, (0, 0), ray_blocked)
+
+
+def make_occupancy_grid(
+    lidar_ranges: np.ndarray,
+    sensor_angles: np.ndarray,
+    sensor_range: np.ndarray,
+    grid_size: int,
+    collisions: np.ndarray,
+) -> np.ndarray:
+    # Each row are (north, east) coordinates of a ray
+    pos = (
+        np.vstack(
+            [lidar_ranges * np.cos(sensor_angles), lidar_ranges * np.sin(sensor_angles)]
+        )
+    ).T  
+
+    # Only calculate occupancy for positions with measurements
+    pos_with_collisions = pos[collisions, :]
+
+    # Calculate the indices in the grid
+    indices_decimals = (pos_with_collisions * (grid_size / 2) / sensor_range) + (
+        grid_size / 2
+    )
+    # Round the indices to integers
+    indices = np.floor(indices_decimals).astype(np.int32)
+
+    # Occupancy grid uses (row, col) i.e. (y, x) indexing
+    occupancy_grid = np.zeros((grid_size, grid_size))
+    occupancy_grid[indices[:, 1], indices[:, 0]] = 1.0
+
+    return occupancy_grid
 
 
 class LidarPreprocessor:
