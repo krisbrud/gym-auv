@@ -100,8 +100,8 @@ class BaseEnvironment(gym.Env, ABC):
 
         self._action_space = gym.spaces.Box(
             # low=np.array([0, -1]),
-            low=np.array([-1, -1]),
-            high=np.array([1, 1]),
+            low=np.array([-1, -0.15]), # [-1, -1]
+            high=np.array([1, 0.15]), # [1, 1]
             dtype=np.float32,
         )
         # Setting dimension of observation vector
@@ -121,8 +121,6 @@ class BaseEnvironment(gym.Env, ABC):
 
             # The LiDAR has a distance/closeness measurements, as well as two measurements
             # that correspond to the planar velocity of an object obstructing the sensor (if there is one).
-            
-
 
             self._observation_space = gym.spaces.Dict(
                 {
@@ -132,7 +130,9 @@ class BaseEnvironment(gym.Env, ABC):
                         shape=(n_navigation_observations,),
                         dtype=np.float32,
                     ),
-                    "lidar": gym.spaces.Box(low=-1.0, high=1.0, shape=self.config.vessel.lidar_shape),
+                    "lidar": gym.spaces.Box(
+                        low=-1.0, high=1.0, shape=self.config.vessel.lidar_shape
+                    ),
                 }
             )
         else:
@@ -259,7 +259,6 @@ class BaseEnvironment(gym.Env, ABC):
         else:
             sector_closenesses, sector_velocities = [], []
 
-
         # Clamp/clip the observation to the valid domain as specified by the Space
         if isinstance(self.observation_space, gym.spaces.Box):
             raw_obs = [
@@ -346,17 +345,39 @@ class BaseEnvironment(gym.Env, ABC):
         self._save_latest_step()
 
         self.t_step += 1
-        if self.t_step % 50 == 1:
-            print("timestep:", self.t_step)
+        # if self.t_step % 50 == 1:
+        #     print("timestep:", self.t_step)
+        if self.t_step % 1000 == 0:
+            # print(f"time step = {self.t_step}, progress = {self.progress}, cumulative reward = {self.cumulative_reward}")
+            # # self.vessel.
+            # print(f"yaw rate: {self.vessel.yaw_rate}, cross-track-error: {vessel_data['navigation']['cross_track_error']}")
+            # print(f"velocity: {self.vessel.velocity}")
+            self._print_info()
+
+        if done:
+            print(f"Done after {self.t_step} steps. Info: {info}")
+            # print(f"Cumulative reward: {self.cumulative_reward}")
+            # print(f"yaw rate: {self.vessel.yaw_rate}")
+            # actions_taken: np.ndarray = self.vessel.actions_taken
+            # print("Mean of actions this episode:", np.mean(actions_taken, axis=0))
+            # print("Std of actions this episode:", np.std(actions_taken, axis=0))
+            self._print_info()
 
         return (obs, reward, done, info)
+
+    def _print_info(self) -> None:
+            print(f"time step = {self.t_step}, progress = {self.progress}, cumulative reward = {self.cumulative_reward}")
+            actions_taken: np.ndarray = self.vessel.actions_taken
+            print("Mean of actions this episode:", np.mean(actions_taken, axis=0))
+            print("Std of actions this episode:", np.std(actions_taken, axis=0))
+
 
     def _isdone(self) -> bool:
         return any(
             [
                 self.collision,
                 self.reached_goal,
-                self.t_step > self.config.episode.max_timesteps and not self.test_mode,
+                self.t_step >= self.config.episode.max_timesteps - 1 and not self.test_mode,
                 self.cumulative_reward < self.config.episode.min_cumulative_reward
                 and not self.test_mode,
             ]

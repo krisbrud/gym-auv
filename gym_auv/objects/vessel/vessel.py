@@ -28,6 +28,10 @@ class Vessel:
         "look_ahead_heading_error",
         "heading_error",
         "cross_track_error",
+        # "path_error_x",
+        # "path_error_y",
+        # "lookahead_path_error_x",
+        # "lookahead_path_error_y",
     ]
 
     def __init__(
@@ -121,6 +125,11 @@ class Vessel:
         return self._prev_states[:, 2]
 
     @property
+    def actions_taken(self) -> np.ndarray:
+        """Returns the actions taken (surge, rudder) over the current episode. The actions are probably normalized."""
+        return self._prev_inputs
+
+    @property
     def heading(self) -> float:
         """Returns the heading of the AUV with respect to true north."""
         return self._state[2]
@@ -139,6 +148,11 @@ class Vessel:
     def yaw_rate(self) -> float:
         """Returns the rate of rotation about the z-axis."""
         return self._state[5]
+
+    @property
+    def yaw_rate_taken(self) -> np.ndarray:
+        """Returns the history of yaw rates"""
+        return self._prev_states[:, 5]
 
     @property
     def max_speed(self) -> float:
@@ -160,6 +174,17 @@ class Vessel:
     def sector_angles(self) -> np.ndarray:
         """Array containg the angles of the center line of each sensor sector relative to the vessel heading."""
         return self._sector_angles
+
+    @property
+    def progress(self) -> float:
+        """Returns the progress along the path. Can take values between 0 and 1."""
+        return self._progress
+
+    @property
+    def max_progress(self) -> float:
+        """Returns the maximum progress along the path in the current episode. Can take values between 0 and 1."""
+        return self._max_progress
+
 
     def reset(self, init_state: np.ndarray) -> None:
         """
@@ -191,6 +216,7 @@ class Vessel:
         self._virtual_environment = None
         self._collision = False
         self._progress = 0
+        self._max_progress = 0
         self._reached_goal = False
 
         self._step_counter = 0
@@ -447,6 +473,11 @@ class Vessel:
 
         # Calculating tangential path direction at reference point
         path_direction = path.get_direction(vessel_arclength)
+
+        closest_path_point_ned = path(vessel_arclength)
+        relative_pos_nearest_path_point = geom.Rzyx(0, 0, -self.heading).dot(
+            np.hstack([closest_path_point_ned - self.position, 0])
+        )[:2]
         cross_track_error = geom.Rzyx(0, 0, -path_direction).dot(
             np.hstack([path(vessel_arclength) - self.position, 0])
         )[1]
@@ -461,15 +492,19 @@ class Vessel:
         )
 
         # Calculating vector difference between look-ahead point and vessel position
-        target_vector = path(target_arclength) - self.position
+        relative_pos_lookahead = path(target_arclength) - self.position
 
         # Calculating heading error
-        target_heading = np.arctan2(target_vector[1], target_vector[0])
+        target_heading = np.arctan2(
+            relative_pos_lookahead[1], relative_pos_lookahead[0]
+        )
         heading_error = float(geom.princip(target_heading - self.heading))
 
         # Calculating path progress
         progress = vessel_arclength / path.length
         self._progress = progress
+
+        self._max_progress = max(progress, self._max_progress)
 
         # Deciding if vessel has reached the goal
         goal_distance = linalg.norm(path.end - self.position)
@@ -488,11 +523,16 @@ class Vessel:
             "heading_error": heading_error,
             "cross_track_error": cross_track_error / 100,
             "target_heading": target_heading,
+            "target_vector": relative_pos_lookahead,
             "look_ahead_path_direction": look_ahead_path_direction,
             "path_direction": path_direction,
             "vessel_arclength": vessel_arclength,
             "target_arclength": target_arclength,
             "goal_distance": goal_distance,
+            "path_error_x": relative_pos_nearest_path_point[0] / 100,              
+            "path_error_y": relative_pos_nearest_path_point[1] / 100,              
+            "lookahead_path_error_x": relative_pos_lookahead[0] / 100,
+            "lookahead_path_error_y": relative_pos_lookahead[1] / 100,
         }
         navigation_states = np.array(
             [self._last_navi_state_dict[state] for state in Vessel.NAVIGATION_FEATURES]
@@ -510,6 +550,7 @@ class Vessel:
             "collision": self._collision,
             "progress": self._progress,
             "reached_goal": self._reached_goal,
+            # "max_progress": 
         }
 
         if self.config.vessel.sensor_use_feasibility_pooling:
@@ -524,11 +565,7 @@ class Vessel:
         tau = np.array([self._input[0], 0, self._input[1]])
 
         eta_dot = geom.Rz(geom.princip(psi)).dot(nu)
-        nu_dot = const.M_inv.dot(
-            tau
-            # - const.D.dot(nu)
-            - const.N(nu).dot(nu)
-        )
+        nu_dot = const.M_inv.dot(tau - const.D.dot(nu) - const.N(nu).dot(nu))
         state_dot = np.concatenate([eta_dot, nu_dot])
         return state_dot
 
