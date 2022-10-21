@@ -13,6 +13,7 @@ from gym_auv.objects.obstacles import BaseObstacle, LineObstacle
 from gym_auv.objects.path import Path
 from gym_auv.objects.vessel.sensor import (
     LidarPreprocessor,
+    make_occupancy_grid,
     simulate_sensor_brute_force,
     find_rays_to_simulate_for_obstacles,
     simulate_sensor,
@@ -184,7 +185,6 @@ class Vessel:
     def max_progress(self) -> float:
         """Returns the maximum progress along the path in the current episode. Can take values between 0 and 1."""
         return self._max_progress
-
 
     def reset(self, init_state: np.ndarray) -> None:
         """
@@ -364,6 +364,17 @@ class Vessel:
 
         self._collision = collision
         self._perceive_counter += 1
+        
+        if self.config.vessel.sensor_use_occupancy_grid:
+                occupancy_grid = make_occupancy_grid(
+                    lidar_ranges=sensor_dist_measurements,
+                    sensor_angles=self.sensor_angles,
+                    grid_size=self.config.vessel.occupancy_grid_size,
+                    blocked_sensors=sensor_blocked_arr,
+                    sensor_range=self.config.vessel.sensor_range
+                )
+                return occupancy_grid
+
 
         return (output_closenesses, output_velocities)
 
@@ -529,8 +540,8 @@ class Vessel:
             "vessel_arclength": vessel_arclength,
             "target_arclength": target_arclength,
             "goal_distance": goal_distance,
-            "path_error_x": relative_pos_nearest_path_point[0] / 100,              
-            "path_error_y": relative_pos_nearest_path_point[1] / 100,              
+            "path_error_x": relative_pos_nearest_path_point[0] / 100,
+            "path_error_y": relative_pos_nearest_path_point[1] / 100,
             "lookahead_path_error_x": relative_pos_lookahead[0] / 100,
             "lookahead_path_error_y": relative_pos_lookahead[1] / 100,
         }
@@ -550,7 +561,7 @@ class Vessel:
             "collision": self._collision,
             "progress": self._progress,
             "reached_goal": self._reached_goal,
-            # "max_progress": 
+            # "max_progress":
         }
 
         if self.config.vessel.sensor_use_feasibility_pooling:

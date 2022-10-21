@@ -50,13 +50,15 @@ class VesselConfig:
     # path-relative angles in observation
     use_relative_vectors: bool = True
     use_lidar: bool = (
-        False  # True
+        True
         # Whether rangefinder sensors for perception should be activated
     )
     sensor_interval_load_obstacles: int = 25  # Interval for loading nearby obstacles
     n_sensors_per_sector: int = 20  # Number of rangefinder sensors within each sector
     n_sectors: int = 9  # Number of sensor sectors
     sensor_use_feasibility_pooling: bool = False  # Whether to use the Feasibility pooling preprocessing for LiDAR measurements
+    sensor_use_occupancy_grid: bool = True
+    occupancy_grid_size: int = 64
     sensor_use_velocity_observations: bool = False
     sector_partition_fun: Callable[
         [Any, int], int

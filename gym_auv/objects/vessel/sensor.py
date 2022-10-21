@@ -162,7 +162,7 @@ def make_occupancy_grid(
     sensor_angles: np.ndarray,
     sensor_range: np.ndarray,
     grid_size: int,
-    collisions: np.ndarray,
+    blocked_sensors: np.ndarray,
 ) -> np.ndarray:
     # Each row are (north, east) coordinates of a ray
     pos = (
@@ -172,7 +172,7 @@ def make_occupancy_grid(
     ).T  
 
     # Only calculate occupancy for positions with measurements
-    pos_with_collisions = pos[collisions, :]
+    pos_with_collisions = pos[blocked_sensors, :]
 
     # Calculate the indices in the grid
     indices_decimals = (pos_with_collisions * (grid_size / 2) / sensor_range) + (

@@ -100,8 +100,8 @@ class BaseEnvironment(gym.Env, ABC):
 
         self._action_space = gym.spaces.Box(
             # low=np.array([0, -1]),
-            low=np.array([-1, -0.15]), # [-1, -1]
-            high=np.array([1, 0.15]), # [1, 1]
+            low=np.array([-1, -0.15]),  # [-1, -1]
+            high=np.array([1, 0.15]),  # [1, 1]
             dtype=np.float32,
         )
         # Setting dimension of observation vector
@@ -136,11 +136,12 @@ class BaseEnvironment(gym.Env, ABC):
                 }
             )
         else:
-            self._observation_space = gym.spaces.Box(
-                low=np.array([-1] * self.n_observations),
-                high=np.array([1] * self.n_observations),
-                dtype=np.float32,
-            )
+            self._observation_space = gym.spaces.Box(low=-1, high=1, shape=(1, 64, 64))
+            # self._observation_space = gym.spaces.Box(
+            #     low=np.array([-1] * self.n_observations),
+            #     high=np.array([1] * self.n_observations),
+            #     dtype=np.float32,
+            # )
 
         # Initializing rendering
         self._renderer2d = None
@@ -256,15 +257,21 @@ class BaseEnvironment(gym.Env, ABC):
         navigation_states = self.vessel.navigate(self.path)
         if bool(self.config.vessel.use_lidar):
             sector_closenesses, sector_velocities = self.vessel.perceive(self.obstacles)
+            if self.config.vessel.sensor_use_occupancy_grid:
+                occupancy_grid = self.vessel.perceive(self.obstacles)
+                print("Made occupancy grid!")
+                # Add a leading channel to the occupancy grid, so it resembles a
+                # 1-channel image
+                return occupancy_grid.reshape(1, 64, 64)
         else:
             sector_closenesses, sector_velocities = [], []
 
         # Clamp/clip the observation to the valid domain as specified by the Space
         if isinstance(self.observation_space, gym.spaces.Box):
             raw_obs = [
-                    reward_insight,
-                    navigation_states,
-                ]
+                reward_insight,
+                navigation_states,
+            ]
 
             if self.config.vessel.use_lidar:
                 raw_obs.append(sector_closenesses.flatten())
@@ -366,18 +373,20 @@ class BaseEnvironment(gym.Env, ABC):
         return (obs, reward, done, info)
 
     def _print_info(self) -> None:
-            print(f"time step = {self.t_step}, progress = {self.progress}, cumulative reward = {self.cumulative_reward}")
-            actions_taken: np.ndarray = self.vessel.actions_taken
-            print("Mean of actions this episode:", np.mean(actions_taken, axis=0))
-            print("Std of actions this episode:", np.std(actions_taken, axis=0))
-
+        print(
+            f"time step = {self.t_step}, progress = {self.progress}, cumulative reward = {self.cumulative_reward}"
+        )
+        actions_taken: np.ndarray = self.vessel.actions_taken
+        print("Mean of actions this episode:", np.mean(actions_taken, axis=0))
+        print("Std of actions this episode:", np.std(actions_taken, axis=0))
 
     def _isdone(self) -> bool:
         return any(
             [
                 self.collision,
                 self.reached_goal,
-                self.t_step >= self.config.episode.max_timesteps - 1 and not self.test_mode,
+                self.t_step >= self.config.episode.max_timesteps - 1
+                and not self.test_mode,
                 self.cumulative_reward < self.config.episode.min_cumulative_reward
                 and not self.test_mode,
             ]
