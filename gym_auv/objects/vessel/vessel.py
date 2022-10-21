@@ -257,61 +257,27 @@ class Vessel:
             sector_velocities : np.ndarray
 
         """
+        # PSEUDOCODE:
+        # Find nearby obstacles
+        # Simulate sensors for nearby obstacles
+        # Postprocess the observations
 
         # Initializing variables
         sensor_range = self.config.vessel.sensor_range
-        p0_point = shapely.geometry.Point(*self.position)
 
+        self._load_nearby_obstacles()
         # Loading nearby obstacles, i.e. obstacles within the vessel's detection range
-        if self._step_counter % self.config.vessel.sensor_interval_load_obstacles == 0:
-            self._nearby_obstacles = list(
-                filter(
-                    lambda obst: float(p0_point.distance(obst.boundary)) - self._width
-                    < sensor_range,
-                    obstacles,
-                )
-            )
-
         if not self._nearby_obstacles:
             # Set feasible distances to sensor range, closeness and velocities to zero
-            self._last_sensor_dist_measurements = (
-                np.ones((self._n_sensors,)) * sensor_range
-            )
-
             collision = False
 
-            if self.config.vessel.sensor_use_feasibility_pooling:
-                sector_feasible_distances = np.ones((self._n_sectors,)) * sensor_range
-                sector_closenesses = np.zeros((self._n_sectors,))
-                sector_velocities = np.zeros(
-                    (
-                        2,
-                        self._n_sectors,
-                    )
-                )
-                output_closenesses = sector_closenesses
-                output_velocities = sector_velocities
-            else:
-                n_sensors = (
-                    self.config.vessel.n_sectors
-                    * self.config.vessel.n_sensors_per_sector
-                )
-                output_closenesses = np.zeros((n_sensors,))
-                output_velocities = np.zeros(
-                    (
-                        2,
-                        n_sensors,
-                    )
-                )
+            n_sensors = (
+                self.config.vessel.n_sectors * self.config.vessel.n_sensors_per_sector
+            )
+            output_closenesses = np.zeros((n_sensors,))
+            output_velocities = np.zeros((2, n_sensors))
 
         else:
-            # should_observe = (
-            #     self._perceive_counter % self._observe_interval == 0
-            # ) or self._virtual_environment is None
-            # if should_observe:
-            #     geom_targets = self._nearby_obstacles
-            # else:
-            #     geom_targets = self._virtual_environment
             geom_targets = self._nearby_obstacles
             # Simulating all sensors using _simulate_sensor subroutine
             sensor_angles_ned = self._sensor_angles + self.heading
@@ -326,12 +292,6 @@ class Vessel:
 
             self._last_sensor_dist_measurements = sensor_dist_measurements
             self._last_sensor_speed_measurements = sensor_speed_measurements
-
-            # Setting virtual obstacle
-            # if should_observe:
-            #     self._virtual_environment = self._make_virtual_environment(
-            #         sensor_angles_ned, sensor_dist_measurements, sensor_blocked_arr
-            #     )
 
             if self.lidar_preprocessor is not None:
                 # Preprocess sensor readings, splitting them into sectors and
@@ -364,19 +324,33 @@ class Vessel:
 
         self._collision = collision
         self._perceive_counter += 1
-        
-        if self.config.vessel.sensor_use_occupancy_grid:
-                occupancy_grid = make_occupancy_grid(
-                    lidar_ranges=sensor_dist_measurements,
-                    sensor_angles=self.sensor_angles,
-                    grid_size=self.config.vessel.occupancy_grid_size,
-                    blocked_sensors=sensor_blocked_arr,
-                    sensor_range=self.config.vessel.sensor_range
-                )
-                return occupancy_grid
 
+        if self.config.vessel.sensor_use_occupancy_grid:
+            occupancy_grid = make_occupancy_grid(
+                lidar_ranges=sensor_dist_measurements,
+                sensor_angles=self.sensor_angles,
+                grid_size=self.config.vessel.occupancy_grid_size,
+                blocked_sensors=sensor_blocked_arr,
+                sensor_range=self.config.vessel.sensor_range,
+            )
+            return occupancy_grid
 
         return (output_closenesses, output_velocities)
+
+    def _load_nearby_obstacles(self) -> None:
+        if self._step_counter % self.config.vessel.sensor_interval_load_obstacles == 0:
+            self._nearby_obstacles = list(
+                filter(
+                    lambda obst: float(p0_point.distance(obst.boundary)) - self._width
+                    < sensor_range,
+                    obstacles,
+                )
+            )
+
+    @property
+    def _p0_point(self) -> shapely.geometry.Point:
+        """Position of vessel in North-East coords of NED as shapely point"""
+        return shapely.geometry.Point(*self.position)
 
     def _simulate_sensors_or_use_previous_measurement(
         self,
@@ -418,56 +392,10 @@ class Vessel:
             sensor_dist_measurements.append(dist)
             sensor_speed_measurements.append(speed)
             sensor_blocked_arr.append(blocked)
-
-        # for i in range(self._n_sensors):
-        #     if activate_sensor(i):
-        #         (distance, speed, blocked) = simulate_sensor_brute_force(
-        #             sensor_angles_ned[i], p0_point, sensor_range, geom_targets
-        #         )
-        #     else:
-        #         distance = (self._last_sensor_dist_measurements[i],)
-        #         speed = (self._last_sensor_speed_measurements[i],)
-        #         blocked = True
-
-        #     sensor_dist_measurements.append(distance)
-        #     sensor_speed_measurements.append(speed)
-        #     sensor_blocked_arr.append(blocked)
-
         sensor_dist_measurements = np.array(sensor_dist_measurements)
         sensor_speed_measurements = np.array(sensor_speed_measurements).T
 
         return (sensor_dist_measurements, sensor_speed_measurements, sensor_blocked_arr)
-
-    # def _make_virtual_environment(
-    #     self,
-    #     sensor_angles_ned: np.ndarray,
-    #     sensor_dist_measurements: np.ndarray,
-    #     sensor_blocked_arr: np.ndarray,
-    # ) -> List[LineObstacle]:
-    #     """Makes a simplified environment 'virtual' environment, which is cheaper to simulate sensors on.
-
-    #     Returns
-    #     -------
-    #     virtual_environment: List of approximate LineObstacles approximating obstacles
-    #     """
-    #     line_segments = []
-    #     tmp = []
-    #     for i in range(self.n_sensors):
-    #         if sensor_blocked_arr[i]:
-    #             point = (
-    #                 self.position[0]
-    #                 + np.cos(sensor_angles_ned[i]) * sensor_dist_measurements[i],
-    #                 self.position[1]
-    #                 + np.sin(sensor_angles_ned[i]) * sensor_dist_measurements[i],
-    #             )
-    #             tmp.append(point)
-    #         elif len(tmp) > 1:
-    #             line_segments.append(tuple(tmp))
-    #             tmp = []
-
-    #     virtual_environment = list(map(LineObstacle, line_segments))
-
-    #     return virtual_environment
 
     def navigate(self, path: Path) -> np.ndarray:
         """
