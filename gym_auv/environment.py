@@ -161,8 +161,8 @@ class BaseEnvironment(gym.Env, ABC):
             # guide to which observations should be a part of it
             observation_shapes = [space.shape for space in obs_space_dict]
 
-            # Calculate the size of the observation spaces by:
-            # 1. Calculate the flat size of individual spaces
+            # Calculate the flattened size of the observation spaces by:
+            # 1. Calculate the flat size of individual spaces by multiplying them out
             # e.g. (2, 64, 64) -> 2 * 64 * 64 = 8192, or (6,) -> 6
             observation_sizes = [math.prod(shape) for shape in observation_shapes]
 
@@ -271,7 +271,7 @@ class BaseEnvironment(gym.Env, ABC):
         # Clamp/clip the observation to the valid domain as specified by the Space
         if isinstance(self.observation_space, gym.spaces.Box):
             raw_obs = [
-                reward_insight,
+                # reward_insight,
                 navigation_states,
             ]
 
