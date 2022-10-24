@@ -1,6 +1,7 @@
 """
 This module implements an AUV that is simulated in the horizontal plane.
 """
+from re import I
 from typing import Callable, List, Tuple
 import numpy as np
 import numpy.linalg as linalg
@@ -20,19 +21,6 @@ from gym_auv.objects.vessel.odesolver import odesolver45
 
 
 class Vessel:
-    NAVIGATION_FEATURES = [
-        "surge_velocity",
-        "sway_velocity",
-        "yaw_rate",
-        "look_ahead_heading_error",
-        "heading_error",
-        "cross_track_error",
-        # "path_error_x",
-        # "path_error_y",
-        # "lookahead_path_error_x",
-        # "lookahead_path_error_y",
-    ]
-
     def __init__(
         self, config: gym_auv.Config, init_state: np.ndarray, width: float = 4
     ) -> None:
@@ -420,8 +408,11 @@ class Vessel:
             or progress >= self.config.episode.min_path_progress
         )
         self._reached_goal = reached_goal
+        path_error_x = relative_pos_nearest_path_point[0] / 100
+        path_error_y = relative_pos_nearest_path_point[1] / 100
+        lookahead_path_error_x = relative_pos_lookahead[0] / 100
+        lookahead_path_error_y = relative_pos_lookahead[1] / 100
 
-        # Concatenating states
         self._last_navi_state_dict = {
             "surge_velocity": self.velocity[0],
             "sway_velocity": self.velocity[1],
@@ -436,16 +427,29 @@ class Vessel:
             "vessel_arclength": vessel_arclength,
             "target_arclength": target_arclength,
             "goal_distance": goal_distance,
-            "path_error_x": relative_pos_nearest_path_point[0] / 100,
-            "path_error_y": relative_pos_nearest_path_point[1] / 100,
-            "lookahead_path_error_x": relative_pos_lookahead[0] / 100,
-            "lookahead_path_error_y": relative_pos_lookahead[1] / 100,
+            "path_error_x": path_error_x,
+            "path_error_y": path_error_y,
+            "lookahead_path_error_x": lookahead_path_error_x,
+            "lookahead_path_error_y": lookahead_path_error_y,
         }
-        navigation_states = np.array(
-            [self._last_navi_state_dict[state] for state in Vessel.NAVIGATION_FEATURES]
-        )
+        # navigation_states = np.array(
+        #     [self._last_navi_state_dict[state] for state in Vessel.NAVIGATION_FEATURES]
+        # )
+        navigation_states = []
 
-        return navigation_states
+        if self.config.sensor.observe_proprioceptive:
+            navigation_states.extend([self.velocity[0], self.velocity[1], self.yaw_rate])
+        
+        if self.config.sensor.observe_cross_track_error:
+            navigation_states.append(cross_track_error)
+
+        if self.config.sensor.observe_heading_error:
+            navigation_states.append(heading_error)
+        
+        if self.config.sensor.observe_la_heading_error:
+            navigation_states.append(look_ahead_heading_error)
+
+        return np.array(navigation_states)
 
     def req_latest_data(self) -> dict:
         """Returns dictionary containing the most recent perception and navigation
