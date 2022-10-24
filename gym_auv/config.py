@@ -46,17 +46,24 @@ class VesselConfig:
 
 @dataclass
 class SensorConfig:
-    use_relative_vectors: bool = True
+    use_dict_observation: bool = True
+
+    n_lidar_rays: int = 180
+    range: float = 150.0  # Range of rangefinder sensors [m]
+    apply_log_transform: bool = True  # Whether to use a log. transform when calculating closeness                 #
+
+    # use_relative_vectors: bool = True
+    observe_proprioceptive: bool = True  # Whether to include navigation states (surge, sway, yaw rate)
+    observe_cross_track_error: bool = True  # Whether to include cross-track error in the observation
+    observe_heading_error: bool = True  # Whether to include heading error in observation
+    observe_la_heading_error: bool = True  # Whether to include the look-ahead heading error in the observation
     use_lidar: bool = (
         True
         # Whether rangefinder sensors for perception should be activated
     )
-    n_lidar_rays: int = 180
     use_occupancy_grid: bool = True
     use_velocity_observations: bool = False
     occupancy_grid_size: int = 64
-    range: float = 150.0  # Range of rangefinder sensors [m]
-    apply_log_transform: bool = True  # Whether to use a log. transform when calculating closeness                 #
     observe_obstacle_fun: Callable[
         [int, float], bool
     ] = observe_obstacle_fun  
@@ -65,7 +72,6 @@ class SensorConfig:
     # This represents a trade-off between sensor accuracy and computation speed.
     # With real-world terrain, using virtual obstacles is critical for performance.
     
-    use_dict_observation: bool = False  # True
 
     @property
     def lidar_shape(self) -> Tuple[int, int]:
@@ -82,23 +88,36 @@ class SensorConfig:
 
     @property
     def dense_observation_size(self) -> int:
-        n_reward_insights = 0  # TODO
-        n_navigation_features = 6  # 7  # TODO
+        # n_reward_insights = 0  # TODO
+        n_dense_observations = 0
 
-        return n_reward_insights + n_navigation_features
+        if self.observe_proprioceptive:
+            n_dense_observations += 3
+        
+        if self.observe_cross_track_error:
+            n_dense_observations += 1
+
+        if self.observe_heading_error:
+            n_dense_observations += 1
+
+        if self.observe_la_heading_error:
+            n_dense_observations += 1
+
+        return n_dense_observations
 
 
 @dataclass
 class RenderingConfig:
-    show_indicators: bool = (
-        True  # Whether to show debug information on screen during 2d rendering.
-    )
-    autocamera3d: bool = (
-        True  # Whether to let the camera automatically rotate during 3d rendering
-    )
-    render_distance: Union[
-        int, str
-    ] = 300  # 3D rendering render distance, or "random" [m]
+    pass
+    # show_indicators: bool = (
+    #     True  # Whether to show debug information on screen during 2d rendering.
+    # )
+    # autocamera3d: bool = (
+    #     True  # Whether to let the camera automatically rotate during 3d rendering
+    # )
+    # render_distance: Union[
+    #     int, str
+    # ] = 300  # 3D rendering render distance, or "random" [m]
 
 
 @dataclass

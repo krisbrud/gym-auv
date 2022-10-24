@@ -1,3 +1,4 @@
+import math
 from typing import Tuple, Union
 import gym
 import numpy as np
@@ -109,40 +110,6 @@ class BaseEnvironment(gym.Env, ABC):
         #     len(Vessel.NAVIGATION_FEATURES)
         #     + self.config.vessel.n_lidar_observations + self._rewarder_class.N_INSIGHTS
         # )
-        self.n_observations = self.config.vessel.dense_observation_size
-        if self.config.vessel.use_lidar:
-            self.n_observations += self.config.vessel.n_lidar_observations
-
-        if self.config.vessel.use_dict_observation:
-            # Use a dictionary observation, as we want to encode the proprioceptive sensors (velocities etc)
-            # and LiDAR measurements differently, and keep the lidar measurements as a multi-channel "image",
-            # making it easier to apply Convolutional NNs etc. to
-            n_navigation_observations = len(Vessel.NAVIGATION_FEATURES)
-
-            # The LiDAR has a distance/closeness measurements, as well as two measurements
-            # that correspond to the planar velocity of an object obstructing the sensor (if there is one).
-
-            self._observation_space = gym.spaces.Dict(
-                {
-                    "proprioceptive": gym.spaces.Box(
-                        low=-1.0,
-                        high=1.0,
-                        shape=(n_navigation_observations,),
-                        dtype=np.float32,
-                    ),
-                    "lidar": gym.spaces.Box(
-                        low=-1.0, high=1.0, shape=self.config.vessel.lidar_shape
-                    ),
-                }
-            )
-        else:
-            self._observation_space = gym.spaces.Box(low=-1, high=1, shape=(1, 64, 64))
-            # self._observation_space = gym.spaces.Box(
-            #     low=np.array([-1] * self.n_observations),
-            #     high=np.array([1] * self.n_observations),
-            #     dtype=np.float32,
-            # )
-
         # Initializing rendering
         self._renderer2d = None
         self._viewer3d = None
@@ -151,18 +118,79 @@ class BaseEnvironment(gym.Env, ABC):
             self._renderer2d = Renderer2d(
                 render_fps=self.metadata["video.frames_per_second"]
             )
-        if self.renderer == "3d" or self.renderer == "both":
-            if self.config.vessel.render_distance == "random":
-                self.render_distance = self.rng.randint(300, 2000)
-            else:
-                self.render_distance = self.config.vessel.render_distance
-            # render3d.init_env_viewer(
-            #     self,
-            #     autocamera=self.config.rendering.autocamera3d,
-            #     render_dist=self.render_distance,
-            # )
+        # if self.renderer == "3d" or self.renderer == "both":
+        #     if self.config.vessel.render_distance == "random":
+        #         self.render_distance = self.rng.randint(300, 2000)
+        #     else:
+        #         self.render_distance = self.config.vessel.render_distance
+        #     # render3d.init_env_viewer(
+        #     #     self,
+        #     #     autocamera=self.config.rendering.autocamera3d,
+        #     #     render_dist=self.render_distance,
+        #     # )
 
         self.reset()
+
+    def _build_observation_space(self) -> None:
+        """Initializes the observation space according to the config"""
+
+        obs_space_dict = {}
+
+        if self.config.sensor.dense_observation_size > 0:
+            obs_space_dict["dense"] = (
+                gym.spaces.Box(
+                    low=-1.0,
+                    high=1.0,
+                    shape=(self.config.sensor.dense_observation_size,),
+                    dtype=np.float32,
+                ),
+            )
+
+        if self.config.sensor.use_lidar:
+            if self.config.sensor.use_occupancy_grid:
+                # Add an occupancy grid encoding lidar measurements as well
+                # as the path to the output
+                grid_size = self.config.sensor.occupancy_grid_size
+                obs_space_dict["occupancy"] = gym.spaces.Box(
+                    low=-1.0,
+                    high=1.0,
+                    shape=(2, grid_size, grid_size),
+                    dtype=np.float32,
+                )
+            else:
+                # Add lidar measurements to the output instead
+                obs_space_dict["lidar"] = gym.spaces.Box(
+                    low=-1.0,
+                    high=1.0,
+                    shape=self.config.sensor.lidar_shape,
+                    dtype=np.float32,
+                )
+
+        if self.config.sensor.use_dict_observation:
+            self._observation_space = gym.spaces.Dict(obs_space_dict)
+        else:
+            # Make a flattened observation, but use the dictionary that is built as a
+            # guide to which observations should be a part of the observation
+            observation_shapes = [space.shape for space in obs_space_dict]
+
+            # Calculate the internal size of the observation spaces by:
+            # 1. Calculating the flat size of individual spaces
+            # e.g. (2, 64, 64) -> 2 * 64 * 64
+            observation_sizes = [math.prod(shape) for shape in observation_shapes]
+
+            # Summing the individual contributions
+            observation_size = sum(observation_sizes)
+
+            self._observation_space = gym.spaces.Box(
+                low=-1, high=1, shape=(observation_size), dtype=np.float32
+            )
+
+            # self._observation_space = gym.spaces.Box(low=-1, high=1, shape=)
+            # self._observation_space = gym.spaces.Box(
+            #     low=np.array([-1] * self.n_observations),
+            #     high=np.array([1] * self.n_observations),
+            #     dtype=np.float32,
+            # )
 
     @property
     def action_space(self) -> gym.spaces.Box:
