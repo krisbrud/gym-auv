@@ -105,11 +105,9 @@ class BaseEnvironment(gym.Env, ABC):
             high=np.array([1, 0.15]),  # [1, 1]
             dtype=np.float32,
         )
-        # Setting dimension of observation vector
-        # self.n_observations = (
-        #     len(Vessel.NAVIGATION_FEATURES)
-        #     + self.config.vessel.n_lidar_observations + self._rewarder_class.N_INSIGHTS
-        # )
+
+        self._build_observation_space()
+
         # Initializing rendering
         self._renderer2d = None
         self._viewer3d = None
@@ -118,16 +116,6 @@ class BaseEnvironment(gym.Env, ABC):
             self._renderer2d = Renderer2d(
                 render_fps=self.metadata["video.frames_per_second"]
             )
-        # if self.renderer == "3d" or self.renderer == "both":
-        #     if self.config.vessel.render_distance == "random":
-        #         self.render_distance = self.rng.randint(300, 2000)
-        #     else:
-        #         self.render_distance = self.config.vessel.render_distance
-        #     # render3d.init_env_viewer(
-        #     #     self,
-        #     #     autocamera=self.config.rendering.autocamera3d,
-        #     #     render_dist=self.render_distance,
-        #     # )
 
         self.reset()
 
@@ -170,27 +158,20 @@ class BaseEnvironment(gym.Env, ABC):
             self._observation_space = gym.spaces.Dict(obs_space_dict)
         else:
             # Make a flattened observation, but use the dictionary that is built as a
-            # guide to which observations should be a part of the observation
+            # guide to which observations should be a part of it
             observation_shapes = [space.shape for space in obs_space_dict]
 
-            # Calculate the internal size of the observation spaces by:
-            # 1. Calculating the flat size of individual spaces
-            # e.g. (2, 64, 64) -> 2 * 64 * 64
+            # Calculate the size of the observation spaces by:
+            # 1. Calculate the flat size of individual spaces
+            # e.g. (2, 64, 64) -> 2 * 64 * 64 = 8192, or (6,) -> 6
             observation_sizes = [math.prod(shape) for shape in observation_shapes]
 
-            # Summing the individual contributions
+            # 2. Sum the individual contributions
             observation_size = sum(observation_sizes)
 
             self._observation_space = gym.spaces.Box(
                 low=-1, high=1, shape=(observation_size), dtype=np.float32
             )
-
-            # self._observation_space = gym.spaces.Box(low=-1, high=1, shape=)
-            # self._observation_space = gym.spaces.Box(
-            #     low=np.array([-1] * self.n_observations),
-            #     high=np.array([1] * self.n_observations),
-            #     dtype=np.float32,
-            # )
 
     @property
     def action_space(self) -> gym.spaces.Box:
@@ -263,8 +244,6 @@ class BaseEnvironment(gym.Env, ABC):
         self._tmp_storage = {
             "cross_track_error": [],
         }
-
-        # print('Reset environment')
 
         return obs
 
@@ -375,22 +354,12 @@ class BaseEnvironment(gym.Env, ABC):
         self._save_latest_step()
 
         self.t_step += 1
-        # if self.t_step % 50 == 1:
-        #     print("timestep:", self.t_step)
+        
         if self.t_step % 1000 == 0:
-            # print(f"time step = {self.t_step}, progress = {self.progress}, cumulative reward = {self.cumulative_reward}")
-            # # self.vessel.
-            # print(f"yaw rate: {self.vessel.yaw_rate}, cross-track-error: {vessel_data['navigation']['cross_track_error']}")
-            # print(f"velocity: {self.vessel.velocity}")
             self._print_info()
 
         if done:
             print(f"Done after {self.t_step} steps. Info: {info}")
-            # print(f"Cumulative reward: {self.cumulative_reward}")
-            # print(f"yaw rate: {self.vessel.yaw_rate}")
-            # actions_taken: np.ndarray = self.vessel.actions_taken
-            # print("Mean of actions this episode:", np.mean(actions_taken, axis=0))
-            # print("Std of actions this episode:", np.std(actions_taken, axis=0))
             self._print_info()
 
         return (obs, reward, done, info)
@@ -417,11 +386,9 @@ class BaseEnvironment(gym.Env, ABC):
 
     def _update(self) -> None:
         """Updates the environment at each time-step. Can be customized in sub-classes."""
-        [
-            obst.update(dt=self.config.simulation.t_step_size)
-            for obst in self.obstacles
-            if not obst.static
-        ]
+        for obst in self.obstacles:
+            if not obst.static:
+                obst.update(dt=self.config.simulation.t_step_size)
 
     @abstractmethod
     def _generate(self) -> None:
