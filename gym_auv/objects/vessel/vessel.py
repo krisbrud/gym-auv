@@ -246,11 +246,11 @@ class Vessel:
         # Initializing variables
         sensor_range = self.config.sensor.range
 
-        if (
-            self._step_counter % self.config.simulation.sensor_interval_load_obstacles
-            == 0
-        ):
-            self._load_nearby_obstacles(obstacles)
+        # if (
+        #     self._step_counter % self.config.simulation.sensor_interval_load_obstacles
+        #     == 0
+        # ):
+        self._load_nearby_obstacles(obstacles)
 
         # Loading nearby obstacles, i.e. obstacles within the vessel's detection range
         if not self._nearby_obstacles:
@@ -271,7 +271,7 @@ class Vessel:
 
             (
                 sensor_dist_measurements,
-                sensor_speed_measurements,
+                _,  # sensor_speed_measurements,
                 sensor_blocked_arr,
             ) = self._simulate_sensors_or_use_previous_measurement(
                 sensor_angles_ned, self._p0_point, sensor_range, geom_targets
@@ -299,9 +299,12 @@ class Vessel:
                 blocked_sensors=sensor_blocked_arr,
                 sensor_range=self.config.sensor.range,
             )
-            return occupancy_grid, None
+            return occupancy_grid
+        else:
+            if self.config.sensor.use_velocity_observations:
+                raise NotImplementedError
 
-        return (output_closenesses, output_velocities)
+            return output_closenesses 
 
     def _load_nearby_obstacles(self, obstacles) -> None:
         self._nearby_obstacles = list(

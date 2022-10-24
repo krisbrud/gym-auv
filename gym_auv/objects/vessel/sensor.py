@@ -154,7 +154,7 @@ def simulate_sensor(sensor_angle, p0_point, sensor_range, obstacles):
         measured_distance = sensor_range
         ray_blocked = False
 
-    return (measured_distance, (0, 0), ray_blocked)
+    return (measured_distance, None, ray_blocked)
 
 
 def make_occupancy_grid(
