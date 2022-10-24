@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 import dataclasses
 from functools import cached_property
+import math
 from typing import Any, Callable, Tuple, Union
 
 # import gym_auv
@@ -26,12 +27,13 @@ class EpisodeConfig:
 @dataclass
 class SimulationConfig:
     t_step_size: float = 1.0  # Length of simulation timestep [s]
-    sensor_frequency: float = (
-        1.0  # Sensor execution frequency (0.0 = never execute, 1.0 = always execute)
-    )
+    # sensor_frequency: float = (
+    #     1.0  # Sensor execution frequency (0.0 = never execute, 1.0 = always execute)
+    # )
     observe_frequency: float = (
         1.0  # Frequency of using actual obstacles instead of virtual ones for detection
     )
+    sensor_interval_load_obstacles: int = 25  # Interval for loading nearby obstacles
 
 
 @dataclass
@@ -39,58 +41,44 @@ class VesselConfig:
     thrust_max_auv: float = 2.0  # Maximum thrust of the AUV [N]
     moment_max_auv: float = 0.15  # maximum moment applied to the AUV [Nm]
     vessel_width: float = 1.255  # Width of vessel [m]
-    feasibility_width_multiplier: float = (
-        5.0  # Multiplier for vessel width in feasibility pooling algorithm
-    )
     look_ahead_distance: int = 300  # Path look-ahead distance for vessel [m]
-    render_distance: Union[
-        int, str
-    ] = 300  # 3D rendering render distance, or "random" [m]
-    include_original_observations: bool = False  # Whether to include cross-track-error, as well as two 
-    # path-relative angles in observation
+
+
+@dataclass
+class SensorConfig:
     use_relative_vectors: bool = True
     use_lidar: bool = (
         True
         # Whether rangefinder sensors for perception should be activated
     )
-    sensor_interval_load_obstacles: int = 25  # Interval for loading nearby obstacles
-    n_sensors_per_sector: int = 20  # Number of rangefinder sensors within each sector
-    n_sectors: int = 9  # Number of sensor sectors
-    sensor_use_feasibility_pooling: bool = False  # Whether to use the Feasibility pooling preprocessing for LiDAR measurements
-    sensor_use_occupancy_grid: bool = True
+    n_lidar_rays: int = 180
+    use_occupancy_grid: bool = True
+    use_velocity_observations: bool = False
     occupancy_grid_size: int = 64
-    sensor_use_velocity_observations: bool = False
-    sector_partition_fun: Callable[
-        [Any, int], int
-    ] = sector_partition_fun  # Function that returns corresponding sector for a given sensor index
-    sensor_rotation: bool = False  # Whether to activate the sectors in a rotating pattern (for performance reasons)
-    sensor_range: float = 150.0  # Range of rangefinder sensors [m]
-    sensor_log_transform: bool = True  # Whether to use a log. transform when calculating closeness                 #
+    range: float = 150.0  # Range of rangefinder sensors [m]
+    apply_log_transform: bool = True  # Whether to use a log. transform when calculating closeness                 #
     observe_obstacle_fun: Callable[
         [int, float], bool
-    ] = observe_obstacle_fun  # Function that outputs whether an obstacle should be observed (True),
+    ] = observe_obstacle_fun  
+    # Function that outputs whether an obstacle should be observed (True),
     # or if a virtual obstacle based on the latest reading should be used (False).
     # This represents a trade-off between sensor accuracy and computation speed.
     # With real-world terrain, using virtual obstacles is critical for performance.
+    
     use_dict_observation: bool = False  # True
-
-    @property
-    def n_sensors(self) -> int:
-        # Calculates the number of sensors in total
-        return self.n_sensors_per_sector * self.n_sectors
 
     @property
     def lidar_shape(self) -> Tuple[int, int]:
         lidar_channels = 1
 
-        if self.sensor_use_velocity_observations:
+        if self.use_velocity_observations:
             lidar_channels = 3
 
-        return (lidar_channels, self.n_sensors)
+        return (lidar_channels, self.n_lidar_rays)
 
     @property
     def n_lidar_observations(self) -> int:
-        return self.lidar_shape[0] * self.lidar_shape[1]
+        return math.prod(self.lidar_shape)
 
     @property
     def dense_observation_size(self) -> int:
@@ -108,11 +96,15 @@ class RenderingConfig:
     autocamera3d: bool = (
         True  # Whether to let the camera automatically rotate during 3d rendering
     )
+    render_distance: Union[
+        int, str
+    ] = 300  # 3D rendering render distance, or "random" [m]
 
 
 @dataclass
 class Config:
     episode: EpisodeConfig = EpisodeConfig()
+    sensor: SensorConfig = SensorConfig()
     simulation: SimulationConfig = SimulationConfig()
     vessel: VesselConfig = VesselConfig()
     rendering: RenderingConfig = RenderingConfig()

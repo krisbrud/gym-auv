@@ -12,9 +12,7 @@ import gym_auv.utils.geomutils as geom
 from gym_auv.objects.obstacles import BaseObstacle, LineObstacle
 from gym_auv.objects.path import Path
 from gym_auv.objects.vessel.sensor import (
-    LidarPreprocessor,
     make_occupancy_grid,
-    simulate_sensor_brute_force,
     find_rays_to_simulate_for_obstacles,
     simulate_sensor,
 )
@@ -59,8 +57,9 @@ class Vessel:
         # Initializing private attributes
         self._width = config.vessel.vessel_width
 
-        self._n_sectors = self.config.vessel.n_sectors
-        self._n_sensors = self.config.vessel.n_sensors_per_sector * self._n_sectors
+        # self._n_sectors = self.config.vessel.n_sectors
+        # self._n_sensors = self.config.vessel.n_sensors_per_sector * self._n_sectors
+        self._n_sensors = config.sensor.n_lidar_rays
         self._d_sensor_angle = (
             2 * np.pi / (self._n_sensors)
         )  # radians TODO: Move to sensor?
@@ -68,17 +67,17 @@ class Vessel:
             [-np.pi + (i + 1) * self._d_sensor_angle for i in range(self._n_sensors)]
         )
 
-        self._sensor_internal_indeces = []
-        self._sensor_interval = max(1, int(1 / self.config.simulation.sensor_frequency))
+        # self._sensor_internal_indeces = []
+        # self._sensor_interval = max(1, int(1 / self.config.simulation.sensor_frequency))
 
         # Calculating feasible closeness
-        if self.config.vessel.sensor_log_transform:
+        if self.config.sensor.apply_log_transform:
             self._get_closeness = lambda x: 1 - np.clip(
-                np.log(1 + x) / np.log(1 + self.config.vessel.sensor_range), 0, 1
+                np.log(1 + x) / np.log(1 + self.config.sensor.range), 0, 1
             )
         else:
             self._get_closeness = lambda x: 1 - np.clip(
-                x / self.config.vessel.sensor_range, 0, 1
+                x / self.config.sensor.range, 0, 1
             )
 
         # Initializing vessel to initial position
@@ -193,9 +192,6 @@ class Vessel:
             np.ones((self._n_sensors,)) * self.config.vessel.sensor_range
         )
         self._last_sensor_speed_measurements = np.zeros((2, self._n_sensors))
-        if self._use_feasibility_pooling:
-            self._last_sector_dist_measurements = np.zeros((self._n_sectors,))
-            self._last_sector_feasible_dists = np.zeros((self._n_sectors,))
         self._last_navi_state_dict = dict(
             (state, 0) for state in Vessel.NAVIGATION_FEATURES
         )
@@ -248,9 +244,12 @@ class Vessel:
         # Postprocess the observations
 
         # Initializing variables
-        sensor_range = self.config.vessel.sensor_range
+        sensor_range = self.config.sensor.range
 
-        if self._step_counter % self.config.vessel.sensor_interval_load_obstacles == 0:
+        if (
+            self._step_counter % self.config.simulation.sensor_interval_load_obstacles
+            == 0
+        ):
             self._load_nearby_obstacles(obstacles)
 
         # Loading nearby obstacles, i.e. obstacles within the vessel's detection range
@@ -258,9 +257,12 @@ class Vessel:
             # Set feasible distances to sensor range, closeness and velocities to zero
             collision = False
 
-            n_sensors = self.config.vessel.n_sensors
-            output_closenesses = np.zeros((n_sensors,))
-            output_velocities = np.zeros((2, n_sensors))
+            n_sensors = self.config.sensor.n_lidar_observations
+            sensor_dist_measurements = np.ones((n_sensors,)) * sensor_range
+            sensor_speed_measurements = np.zeros((2, n_sensors))
+            sensor_blocked_arr = [False] * n_sensors
+            output_closenesses = sensor_dist_measurements
+            output_velocities = sensor_dist_measurements
 
         else:
             geom_targets = self._nearby_obstacles
@@ -293,11 +295,11 @@ class Vessel:
             occupancy_grid = make_occupancy_grid(
                 lidar_ranges=sensor_dist_measurements,
                 sensor_angles=self.sensor_angles,
-                grid_size=self.config.vessel.occupancy_grid_size,
+                grid_size=self.config.sensor.occupancy_grid_size,
                 blocked_sensors=sensor_blocked_arr,
-                sensor_range=self.config.vessel.sensor_range,
+                sensor_range=self.config.sensor.range,
             )
-            return occupancy_grid
+            return occupancy_grid, None
 
         return (output_closenesses, output_velocities)
 
@@ -305,10 +307,10 @@ class Vessel:
         self._nearby_obstacles = list(
             filter(
                 lambda obst: float(self._p0_point.distance(obst.boundary)) - self._width
-                < self.config.vessel.sensor_range,
+                < self.config.sensor.range,
                 obstacles,
             )
-    )
+        )
 
     @property
     def _p0_point(self) -> shapely.geometry.Point:
@@ -455,8 +457,8 @@ class Vessel:
             # "max_progress":
         }
 
-        if self.config.vessel.sensor_use_feasibility_pooling:
-            latest_data["feasible_distances"] = self._last_sector_feasible_dists
+        # if self.config.sensor.use_feasibility_pooling:
+        #     latest_data["feasible_distances"] = self._last_sector_feasible_dists
 
         return latest_data
 

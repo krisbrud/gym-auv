@@ -226,11 +226,6 @@ class BaseEnvironment(gym.Env, ABC):
         if self.verbose:
             print("Generated scenario")
 
-        # Initializing 3d viewer
-        # if self.renderer == "3d":
-        # render3d.init_boat_model(self)
-        # self._viewer3d.create_path(self.path)
-
         # Getting initial observation vector
         obs = self.observe()
         if self.verbose:
