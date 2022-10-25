@@ -255,7 +255,6 @@ class BaseEnvironment(gym.Env, ABC):
         obs : np.ndarray
             The observation of the environment.
         """
-        reward_insight = self.rewarder.insight()
         navigation_states = self.vessel.navigate(self.path)
         if bool(self.config.vessel.use_lidar):
             sector_closenesses, sector_velocities = self.vessel.perceive(self.obstacles)
@@ -271,7 +270,6 @@ class BaseEnvironment(gym.Env, ABC):
         # Clamp/clip the observation to the valid domain as specified by the Space
         if isinstance(self.observation_space, gym.spaces.Box):
             raw_obs = [
-                # reward_insight,
                 navigation_states,
             ]
 

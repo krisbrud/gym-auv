@@ -219,7 +219,8 @@ def make_occupancy_grid(
         # Occupancy grid uses (row, col) i.e. (y, x) indexing
         occupancy_grid[valid_indices[:, 0], valid_indices[:, 1]] = 1.0
 
-    # Flip along the y-axis, such that north is up and east stays to the right
+    # Flip along the y-axis, such that straight ahead (first coordinate in body frame)
+    # is up and right (second coordinate in body frame) stays to the right
     flipped_occupancy_grid = np.flipud(occupancy_grid)
 
     return flipped_occupancy_grid

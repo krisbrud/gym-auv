@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import dataclasses
 from functools import cached_property
 import math
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, List, Tuple, Union
 
 # import gym_auv
 from gym_auv.utils.observe_functions import observe_obstacle_fun
@@ -50,7 +50,7 @@ class SensorConfig:
 
     n_lidar_rays: int = 180
     range: float = 150.0  # Range of rangefinder sensors [m]
-    apply_log_transform: bool = True  # Whether to use a log. transform when calculating closeness                 #
+    apply_log_transform: bool = False  # Whether to use a log. transform when calculating closeness                 #
 
     # use_relative_vectors: bool = True
     observe_proprioceptive: bool = True  # Whether to include navigation states (surge, sway, yaw rate)
@@ -88,7 +88,6 @@ class SensorConfig:
 
     @property
     def dense_observation_size(self) -> int:
-        # n_reward_insights = 0  # TODO
         n_dense_observations = 0
 
         if self.observe_proprioceptive:
@@ -104,6 +103,7 @@ class SensorConfig:
             n_dense_observations += 1
 
         return n_dense_observations
+    
 
 
 @dataclass

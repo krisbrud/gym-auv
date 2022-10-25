@@ -181,10 +181,9 @@ class Vessel:
             np.ones((self._n_sensors,)) * self.config.sensor.range
         )
         self._last_sensor_speed_measurements = np.zeros((2, self._n_sensors))
-        self._last_navi_state_dict = dict()
-        # dict(
-        #     (state, 0) for state in Vessel.NAVIGATION_FEATURES
-        # )
+        self._last_navi_state_dict = dict(
+            (state, 0) for state in self._get_navigation_observation_keys()
+        )
         self._collision = False
         self._progress = 0
         self._max_progress = 0
