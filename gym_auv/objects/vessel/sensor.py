@@ -157,34 +157,69 @@ def simulate_sensor(sensor_angle, p0_point, sensor_range, obstacles):
     return (measured_distance, None, ray_blocked)
 
 
-def make_occupancy_grid(
+def get_relative_positions_of_lidar_measurements(
     lidar_ranges: np.ndarray,
     sensor_angles: np.ndarray,
-    sensor_range: np.ndarray,
-    grid_size: int,
     blocked_sensors: np.ndarray,
 ) -> np.ndarray:
+    """Gets the positions of the lidar measurements in the body frame.
+
+    Returns
+    -------
+    np.ndarray of shape (c, 2), where c is the number of lidars with collisions
+    """
     # Each row are (north, east) coordinates of a ray
     pos = (
         np.vstack(
             [lidar_ranges * np.cos(sensor_angles), lidar_ranges * np.sin(sensor_angles)]
         )
-    ).T  
+    ).T
 
     # Only calculate occupancy for positions with measurements
     pos_with_collisions = pos[blocked_sensors, :]
+    return pos_with_collisions
 
+
+def _filter_valid_indices(indices: np.ndarray, grid_size: int) -> np.ndarray:
+    """Filters out the indices that are out of bounds, and returns the valid ones.
+    Takes a (N, 2) array as input, and outputs a (M, 2) as output, where M <= N
+    """
+    invalid_element_mask = (indices < 0) | (grid_size <= indices)
+
+    # As only one of the indices in a coordinate may be out of bounds,
+    # e.g. [67, 4] where valid indices are between 0 and 63
+    # We do the "OR" operation over columns within rows to find invalid rows
+    invalid_row_mask = invalid_element_mask[:, 0] | invalid_element_mask[:, 1]
+
+    if np.all(invalid_row_mask):
+        return np.array([])
+
+    # Choose all columns in the rows that are valid (not invalid)
+    valid_rows = indices[~invalid_row_mask]
+    return valid_rows
+
+
+def make_occupancy_grid(
+    positions_body: np.ndarray,
+    sensor_range: np.ndarray,
+    grid_size: int,
+) -> np.ndarray:
     # Calculate the indices in the grid
-    indices_decimals = (pos_with_collisions * (grid_size / 2) / sensor_range) + (
+    indices_decimals = (positions_body * (grid_size / 2) / sensor_range) + (
         grid_size / 2
     )
     # Round the indices to integers
     indices = np.floor(indices_decimals).astype(np.int32)
 
-    # Occupancy grid uses (row, col) i.e. (y, x) indexing
+    valid_indices = _filter_valid_indices(indices, grid_size)
+
     occupancy_grid = np.zeros((grid_size, grid_size))
-    occupancy_grid[indices[:, 1], indices[:, 0]] = 1.0
+    if len(valid_indices):
+        # Avoid error from indexing without any valid indices in the next line
+        # Occupancy grid uses (row, col) i.e. (y, x) indexing
+        occupancy_grid[valid_indices[:, 0], valid_indices[:, 1]] = 1.0
 
-    return occupancy_grid
+    # Flip along the y-axis, such that north is up and east stays to the right
+    flipped_occupancy_grid = np.flipud(occupancy_grid)
 
-
+    return flipped_occupancy_grid

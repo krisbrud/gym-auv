@@ -1,8 +1,15 @@
+from turtle import position
 import numpy as np
 
 
 def princip(angle):
     return ((angle + np.pi) % (2 * np.pi)) - np.pi
+
+def transform_ned_to_body(coordinates_ned: np.ndarray, position_ned: np.ndarray, heading:float) -> np.ndarray:
+    """Transforms an ndarray of shape (N, 2) array of (north, east) coordinates in the NED-frame to coordinates in the body frame"""
+    rotation_matrix = Rz(-heading)[:2,:2]
+    coordinates_body = (coordinates_ned - position_ned) @ np.transpose(rotation_matrix)
+    return coordinates_body
 
 
 def Rzyx(phi, theta, psi):

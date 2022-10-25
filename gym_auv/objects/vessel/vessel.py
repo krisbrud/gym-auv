@@ -13,6 +13,7 @@ import gym_auv.utils.geomutils as geom
 from gym_auv.objects.obstacles import BaseObstacle, LineObstacle
 from gym_auv.objects.path import Path
 from gym_auv.objects.vessel.sensor import (
+    get_relative_positions_of_lidar_measurements,
     make_occupancy_grid,
     find_rays_to_simulate_for_obstacles,
     simulate_sensor,
@@ -280,14 +281,21 @@ class Vessel:
         self._perceive_counter += 1
 
         if self.config.vessel.sensor_use_occupancy_grid:
-            occupancy_grid = make_occupancy_grid(
+            lidar_positions_body = get_relative_positions_of_lidar_measurements(
                 lidar_ranges=sensor_dist_measurements,
                 sensor_angles=self.sensor_angles,
-                grid_size=self.config.sensor.occupancy_grid_size,
                 blocked_sensors=sensor_blocked_arr,
+            )
+            lidar_occupancy_grid = make_occupancy_grid(
+                positions_body=lidar_positions_body,
+                grid_size=self.config.sensor.occupancy_grid_size,
                 sensor_range=self.config.sensor.range,
             )
-            return occupancy_grid
+
+            skip = 10  # Path points are pretty tight, only use every 10th one.
+            path_positions_body = np.ndarray([self.path.points[::10]])
+
+            # return occupancy_grid
         else:
             if self.config.sensor.use_velocity_observations:
                 raise NotImplementedError
