@@ -145,10 +145,10 @@ class Vessel:
         """Array containg the angles each sensor ray relative to the vessel heading."""
         return self._sensor_angles
 
-    @property
-    def sector_angles(self) -> np.ndarray:
-        """Array containg the angles of the center line of each sensor sector relative to the vessel heading."""
-        return self._sector_angles
+    # @property
+    # def sector_angles(self) -> np.ndarray:
+    #     """Array containg the angles of the center line of each sensor sector relative to the vessel heading."""
+    #     return self._sector_angles
 
     @property
     def progress(self) -> float:
@@ -178,12 +178,13 @@ class Vessel:
         self._input = [0, 0]
         self._prev_inputs = np.vstack([self._input])
         self._last_sensor_dist_measurements = (
-            np.ones((self._n_sensors,)) * self.config.vessel.sensor_range
+            np.ones((self._n_sensors,)) * self.config.sensor.range
         )
         self._last_sensor_speed_measurements = np.zeros((2, self._n_sensors))
-        self._last_navi_state_dict = dict(
-            (state, 0) for state in Vessel.NAVIGATION_FEATURES
-        )
+        self._last_navi_state_dict = dict()
+        # dict(
+        #     (state, 0) for state in Vessel.NAVIGATION_FEATURES
+        # )
         self._collision = False
         self._progress = 0
         self._max_progress = 0
@@ -280,7 +281,9 @@ class Vessel:
         self._collision = collision
         self._perceive_counter += 1
 
-        if self.config.vessel.sensor_use_occupancy_grid:
+        if self.config.sensor.use_occupancy_grid:
+            sensor_range = self.config.sensor.range
+            grid_size = self.config.sensor.occupancy_grid_size
             lidar_positions_body = get_relative_positions_of_lidar_measurements(
                 lidar_ranges=sensor_dist_measurements,
                 sensor_angles=self.sensor_angles,
@@ -288,19 +291,30 @@ class Vessel:
             )
             lidar_occupancy_grid = make_occupancy_grid(
                 positions_body=lidar_positions_body,
-                grid_size=self.config.sensor.occupancy_grid_size,
-                sensor_range=self.config.sensor.range,
+                grid_size=grid_size,
+                sensor_range=sensor_range,
             )
 
-            skip = 10  # Path points are pretty tight, only use every 10th one.
-            path_positions_body = np.ndarray([self.path.points[::10]])
+            every_n_path_point = (
+                10  # Path points are pretty tight, only use every 10th one.
+            )
+            path_positions_ned = np.ndarray([self.path.points[::every_n_path_point]])
 
-            # return occupancy_grid
+            path_coordinates_body = geom.transform_ned_to_body(
+                path_positions_ned, self.position, self.heading
+            )
+            path_occupancy_grid = make_occupancy_grid(
+                path_coordinates_body, sensor_range=sensor_range, grid_size=grid_size
+            )
+
+            occupancy_grid = np.stack([lidar_occupancy_grid, path_occupancy_grid])
+
+            return occupancy_grid
         else:
             if self.config.sensor.use_velocity_observations:
                 raise NotImplementedError
 
-            return output_closenesses 
+            return output_closenesses
 
     def _load_nearby_obstacles(self, obstacles) -> None:
         self._nearby_obstacles = list(
@@ -356,6 +370,7 @@ class Vessel:
             sensor_dist_measurements.append(dist)
             sensor_speed_measurements.append(speed)
             sensor_blocked_arr.append(blocked)
+
         sensor_dist_measurements = np.array(sensor_dist_measurements)
         sensor_speed_measurements = np.array(sensor_speed_measurements).T
 
@@ -440,24 +455,31 @@ class Vessel:
             "lookahead_path_error_x": lookahead_path_error_x,
             "lookahead_path_error_y": lookahead_path_error_y,
         }
-        # navigation_states = np.array(
-        #     [self._last_navi_state_dict[state] for state in Vessel.NAVIGATION_FEATURES]
-        # )
-        navigation_states = []
+
+        navigation_observation_keys = self._get_navigation_observation_keys()
+        navigation_states = np.array(
+            [self._last_navi_state_dict[key] for key in navigation_observation_keys]
+        )
+
+        return navigation_states
+
+    def _get_navigation_observation_keys(self) -> List[str]:
+        """Gets the navigation keys to include in the observation according to the settings in the config"""
+        navigation_keys = []
 
         if self.config.sensor.observe_proprioceptive:
-            navigation_states.extend([self.velocity[0], self.velocity[1], self.yaw_rate])
-        
+            navigation_keys.extend(["surge_velocity", "sway_velocity", "yaw_rate"])
+
         if self.config.sensor.observe_cross_track_error:
-            navigation_states.append(cross_track_error)
+            navigation_keys.append("cross_track_error")
 
         if self.config.sensor.observe_heading_error:
-            navigation_states.append(heading_error)
-        
-        if self.config.sensor.observe_la_heading_error:
-            navigation_states.append(look_ahead_heading_error)
+            navigation_keys.append("heading_error")
 
-        return np.array(navigation_states)
+        if self.config.sensor.observe_la_heading_error:
+            navigation_keys.append("lookahead_heading_error")
+
+        return navigation_keys
 
     def req_latest_data(self) -> dict:
         """Returns dictionary containing the most recent perception and navigation
