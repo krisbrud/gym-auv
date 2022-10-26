@@ -60,14 +60,18 @@ class Vessel:
         # self._sensor_interval = max(1, int(1 / self.config.simulation.sensor_frequency))
 
         # Calculating feasible closeness
+        if self.config.sensor.apply_log_transform and self.config.sensor.apply_distance_normalization:
+            raise ValueError("Log transform and distance normalization cannot be set to True at the same time!")
         if self.config.sensor.apply_log_transform:
             self._get_closeness = lambda x: 1 - np.clip(
                 np.log(1 + x) / np.log(1 + self.config.sensor.range), 0, 1
             )
-        else:
+        elif self.config.sensor.apply_distance_normalization:
             self._get_closeness = lambda x: 1 - np.clip(
                 x / self.config.sensor.range, 0, 1
             )
+        else:
+            self._get_closeness = lambda x: x  # Do nothing to the input
 
         # Initializing vessel to initial position
         self.reset(init_state)
@@ -251,7 +255,6 @@ class Vessel:
             sensor_speed_measurements = np.zeros((2, n_sensors))
             sensor_blocked_arr = [False] * n_sensors
             output_closenesses = sensor_dist_measurements
-            # output_velocities = sensor_dist_measurements
 
         else:
             geom_targets = self._nearby_obstacles
@@ -280,40 +283,10 @@ class Vessel:
         self._collision = collision
         self._perceive_counter += 1
 
-        if self.config.sensor.use_occupancy_grid:
-            sensor_range = self.config.sensor.range
-            grid_size = self.config.sensor.occupancy_grid_size
-            lidar_positions_body = get_relative_positions_of_lidar_measurements(
-                lidar_ranges=sensor_dist_measurements,
-                sensor_angles=self.sensor_angles,
-                blocked_sensors=sensor_blocked_arr,
-            )
-            lidar_occupancy_grid = make_occupancy_grid(
-                positions_body=lidar_positions_body,
-                grid_size=grid_size,
-                sensor_range=sensor_range,
-            )
+        if self.config.sensor.use_velocity_observations:
+            raise NotImplementedError
 
-            every_n_path_point = (
-                10  # Path points are pretty tight, only use every 10th one.
-            )
-            path_positions_ned = np.ndarray([self.path.points[::every_n_path_point]])
-
-            path_coordinates_body = geom.transform_ned_to_body(
-                path_positions_ned, self.position, self.heading
-            )
-            path_occupancy_grid = make_occupancy_grid(
-                path_coordinates_body, sensor_range=sensor_range, grid_size=grid_size
-            )
-
-            occupancy_grid = np.stack([lidar_occupancy_grid, path_occupancy_grid])
-
-            return occupancy_grid
-        else:
-            if self.config.sensor.use_velocity_observations:
-                raise NotImplementedError
-
-            return output_closenesses
+        return output_closenesses
 
     def _load_nearby_obstacles(self, obstacles) -> None:
         self._nearby_obstacles = list(
