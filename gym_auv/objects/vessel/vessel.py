@@ -251,7 +251,7 @@ class Vessel:
             sensor_speed_measurements = np.zeros((2, n_sensors))
             sensor_blocked_arr = [False] * n_sensors
             output_closenesses = sensor_dist_measurements
-            output_velocities = sensor_dist_measurements
+            # output_velocities = sensor_dist_measurements
 
         else:
             geom_targets = self._nearby_obstacles
@@ -267,9 +267,9 @@ class Vessel:
             )
 
             self._last_sensor_dist_measurements = sensor_dist_measurements
-            self._last_sensor_speed_measurements = sensor_speed_measurements
+            # self._last_sensor_speed_measurements = sensor_speed_measurements
             distances = sensor_dist_measurements
-            output_velocities = sensor_speed_measurements
+            # output_velocities = sensor_speed_measurements
 
             # Calculating feasible closeness
             output_closenesses = self._get_closeness(distances)
@@ -476,7 +476,7 @@ class Vessel:
             navigation_keys.append("heading_error")
 
         if self.config.sensor.observe_la_heading_error:
-            navigation_keys.append("lookahead_heading_error")
+            navigation_keys.append("look_ahead_heading_error")
 
         return navigation_keys
 

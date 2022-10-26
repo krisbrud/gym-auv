@@ -131,7 +131,7 @@ class BaseEnvironment(gym.Env, ABC):
                     high=1.0,
                     shape=(self.config.sensor.dense_observation_size,),
                     dtype=np.float32,
-                ),
+                )
             )
 
         if self.config.sensor.use_lidar:
@@ -256,9 +256,9 @@ class BaseEnvironment(gym.Env, ABC):
             The observation of the environment.
         """
         navigation_states = self.vessel.navigate(self.path)
-        if bool(self.config.vessel.use_lidar):
+        if bool(self.config.sensor.use_lidar):
             sector_closenesses, sector_velocities = self.vessel.perceive(self.obstacles)
-            if self.config.vessel.sensor_use_occupancy_grid:
+            if self.config.sensor.use_occupancy_grid:
                 occupancy_grid = self.vessel.perceive(self.obstacles)
                 print("Made occupancy grid!")
                 # Add a leading channel to the occupancy grid, so it resembles a
@@ -273,9 +273,10 @@ class BaseEnvironment(gym.Env, ABC):
                 navigation_states,
             ]
 
-            if self.config.vessel.use_lidar:
+            if self.config.sensor.use_lidar:
                 raw_obs.append(sector_closenesses.flatten())
-            if self.config.vessel.sensor_use_velocity_observations:
+            if self.config.sensor.use_velocity_observations:
+                raise NotImplementedError
                 raw_obs.append(sector_velocities.flatten())
 
             raw_obs = np.hstack(raw_obs)
