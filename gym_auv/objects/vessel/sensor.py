@@ -160,7 +160,7 @@ def simulate_sensor(sensor_angle, p0_point, sensor_range, obstacles):
 def get_relative_positions_of_lidar_measurements(
     lidar_ranges: np.ndarray,
     sensor_angles: np.ndarray,
-    blocked_sensors: np.ndarray,
+    indices_to_plot: np.ndarray,
 ) -> np.ndarray:
     """Gets the positions of the lidar measurements in the body frame.
 
@@ -176,7 +176,7 @@ def get_relative_positions_of_lidar_measurements(
     ).T
 
     # Only calculate occupancy for positions with measurements
-    pos_with_collisions = pos[blocked_sensors, :]
+    pos_with_collisions = pos[indices_to_plot, :]
     return pos_with_collisions
 
 

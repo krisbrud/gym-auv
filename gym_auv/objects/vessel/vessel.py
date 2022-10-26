@@ -286,7 +286,7 @@ class Vessel:
         if self.config.sensor.use_velocity_observations:
             raise NotImplementedError
 
-        return output_closenesses
+        return output_closenesses, None
 
     def _load_nearby_obstacles(self, obstacles) -> None:
         self._nearby_obstacles = list(

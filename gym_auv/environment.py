@@ -9,13 +9,17 @@ from gym_auv.objects.path import Path
 from gym_auv.objects.vessel import Vessel
 from gym_auv.objects.rewarder import ColavRewarder
 from gym_auv.render2d.state import RenderableState
-from gym_auv.objects.vessel.sensor import make_occupancy_grid, get_relative_positions_of_lidar_measurements
+from gym_auv.objects.vessel.sensor import (
+    make_occupancy_grid,
+    get_relative_positions_of_lidar_measurements,
+)
 from gym_auv.render2d.renderer import Renderer2d
 from gym_auv.render2d.renderer import FPS as rendererFPS2D
 import gym_auv.render2d.renderer
 
 # import gym_auv.rendering.render3d as render3d
 from gym_auv.utils.clip_to_space import clip_to_space
+import gym_auv.utils.geomutils as geom
 import gym.spaces
 from abc import ABC, abstractmethod
 
@@ -126,13 +130,11 @@ class BaseEnvironment(gym.Env, ABC):
         obs_space_dict = {}
 
         if self.config.sensor.dense_observation_size > 0:
-            obs_space_dict["dense"] = (
-                gym.spaces.Box(
-                    low=-1.0,
-                    high=1.0,
-                    shape=(self.config.sensor.dense_observation_size,),
-                    dtype=np.float32,
-                )
+            obs_space_dict["dense"] = gym.spaces.Box(
+                low=-1.0,
+                high=1.0,
+                shape=(self.config.sensor.dense_observation_size,),
+                dtype=np.float32,
             )
 
         if self.config.sensor.use_lidar:
@@ -163,11 +165,11 @@ class BaseEnvironment(gym.Env, ABC):
             observation_shapes = [space.shape for space in obs_space_dict]
 
             # Calculate the flattened size of the observation spaces by:
-            # 1. Calculate the flat size of individual spaces by multiplying them out
+            # 1. Calculating the flat size of individual spaces by multiplying them out
             # e.g. (2, 64, 64) -> 2 * 64 * 64 = 8192, or (6,) -> 6
             observation_sizes = [math.prod(shape) for shape in observation_shapes]
 
-            # 2. Sum the individual contributions
+            # 2. Summing the individual contributions
             observation_size = sum(observation_sizes)
 
             self._observation_space = gym.spaces.Box(
@@ -256,73 +258,40 @@ class BaseEnvironment(gym.Env, ABC):
         obs : np.ndarray
             The observation of the environment.
         """
+        observations = {}
+        
         navigation_states = self.vessel.navigate(self.path)
+        observations["dense"] = navigation_states
+
         if bool(self.config.sensor.use_lidar):
             sensor_closenesses, sector_velocities = self.vessel.perceive(self.obstacles)
+
             if self.config.sensor.use_occupancy_grid:
-                sensor_closenesses = self.vessel.perceive(self.obstacles)
-                print("Made occupancy grid!")
-                sensor_range = self.config.sensor.range
-                grid_size = self.config.sensor.occupancy_grid_size
-                lidar_positions_body = get_relative_positions_of_lidar_measurements(
-                    lidar_ranges=sensor_closenesses,
-                    sensor_angles=self.vessel.sensor_angles,
-                    blocked_sensors=sensor_blocked_arr,
-                )
-                lidar_occupancy_grid = make_occupancy_grid(
-                    positions_body=lidar_positions_body,
-                    grid_size=grid_size,
-                    sensor_range=sensor_range,
-                )
-
-                every_n_path_point = (
-                    10  # Path points are pretty tight, only use every 10th one.
-                )
-                path_positions_ned = np.ndarray([self.path.points[::every_n_path_point]])
-
-                path_coordinates_body = geom.transform_ned_to_body(
-                    path_positions_ned, self.position, self.heading
-                )
-                path_occupancy_grid = make_occupancy_grid(
-                    path_coordinates_body, sensor_range=sensor_range, grid_size=grid_size
-                )
-
-                occupancy_grid = np.stack([lidar_occupancy_grid, path_occupancy_grid])
-
-                return occupancy_grid
-                # # Add a leading channel to the occupancy grid, so it resembles a
-                # # 1-channel image
-                # return occupancy_grid.reshape(1, 64, 64)
-        else:
-            sensor_closenesses, sector_velocities = [], []
+                occupancy_grids = self._make_occupancy_grids(sensor_closenesses, self.path)
+                observations["occupancy"] = occupancy_grids
+            else:
+                observations["lidar"] = sensor_closenesses
 
         # Clamp/clip the observation to the valid domain as specified by the Space
         if isinstance(self.observation_space, gym.spaces.Box):
-            raw_obs = [
-                navigation_states,
-            ]
-
-            if self.config.sensor.use_lidar:
-                raw_obs.append(sensor_closenesses.flatten())
-            if self.config.sensor.use_velocity_observations:
-                raise NotImplementedError
-                raw_obs.append(sector_velocities.flatten())
-
-            raw_obs = np.hstack(raw_obs)
+            flat_obs = []
+            for o in observations.values():
+                flat_obs.append(o.flatten())
 
             obs = np.clip(
-                raw_obs,
+                flat_obs,
                 a_min=self.observation_space.low,
                 a_max=self.observation_space.high,
             )
         elif isinstance(self.observation_space, gym.spaces.Dict):
-            sensor_closenesses = sensor_closenesses.reshape(1, -1)  # Add leading axis
-            raw_lidar_obs = np.vstack((sensor_closenesses, sector_velocities))
-            raw_obs = {
-                "proprioceptive": navigation_states,
-                "lidar": raw_lidar_obs,
-            }
-            obs = clip_to_space(raw_obs, self.observation_space)
+            # TODO: Remove this code if it works
+            # sensor_closenesses = sensor_closenesses.reshape(1, -1)  # Add leading axis
+            # raw_lidar_obs = np.vstack((sensor_closenesses, sector_velocities))
+            # raw_obs = {
+            #     "proprioceptive": navigation_states,
+            #     "lidar": raw_lidar_obs,
+            # }
+            obs = clip_to_space(observations, self.observation_space)
 
         return obs
 
@@ -382,7 +351,7 @@ class BaseEnvironment(gym.Env, ABC):
         self._save_latest_step()
 
         self.t_step += 1
-        
+
         if self.t_step % 1000 == 0:
             self._print_info()
 
@@ -400,19 +369,27 @@ class BaseEnvironment(gym.Env, ABC):
         print("Mean of actions this episode:", np.mean(actions_taken, axis=0))
         print("Std of actions this episode:", np.std(actions_taken, axis=0))
 
-    def _make_occupancy_grids(self, lidar_distances: np.ndarray, path: Path) -> np.ndarray:
+    def _make_occupancy_grids(
+        self, lidar_distances: np.ndarray, path: Path
+    ) -> np.ndarray:
         """Makes an occupancy grid containing the lidar measurements and path in cartesian coordinates
-        
+
         Returns
         -------
         occupancy_grid: numpy ndarray of shape (2, G, G), where G is the grid size
         """
-        sensor_range = self.config.sensor.range
+        sensor_closenesses = self.vessel.perceive(self.obstacles)
         grid_size = self.config.sensor.occupancy_grid_size
+        
+        # Make lidar occupancy grid
+        sensor_range = self.config.sensor.range
+        indices_to_plot = (
+            sensor_closenesses < self.config.sensor.range
+        )  # Plot only indices with measurements
         lidar_positions_body = get_relative_positions_of_lidar_measurements(
-            lidar_ranges=sensor_dist_measurements,
-            sensor_angles=self.sensor_angles,
-            blocked_sensors=sensor_blocked_arr,
+            lidar_ranges=sensor_closenesses,
+            sensor_angles=self.vessel.sensor_angles,
+            indices_to_plot=indices_to_plot,
         )
         lidar_occupancy_grid = make_occupancy_grid(
             positions_body=lidar_positions_body,
@@ -420,22 +397,27 @@ class BaseEnvironment(gym.Env, ABC):
             sensor_range=sensor_range,
         )
 
+        # Make path occupancy grid
         every_n_path_point = (
-            10  # Path points are pretty tight, only use every 10th one.
+            10  # Path points are pretty close, only use every 10th one.
         )
-        path_positions_ned = np.ndarray([self.path.points[::every_n_path_point]])
+        path_positions_ned = np.ndarray(
+            [self.path.points[::every_n_path_point]]
+        )
 
         path_coordinates_body = geom.transform_ned_to_body(
             path_positions_ned, self.position, self.heading
         )
         path_occupancy_grid = make_occupancy_grid(
-            path_coordinates_body, sensor_range=sensor_range, grid_size=grid_size
+            path_coordinates_body,
+            sensor_range=sensor_range,
+            grid_size=grid_size,
         )
 
         occupancy_grid = np.stack([lidar_occupancy_grid, path_occupancy_grid])
 
         return occupancy_grid
-
+        
     def _isdone(self) -> bool:
         return any(
             [
