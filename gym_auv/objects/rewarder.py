@@ -198,7 +198,7 @@ class ColavRewarder(BaseRewarder):
                 x = measured_distances[isensor]
                 speed_vec = measured_speeds[:, isensor]
                 weight = 1 / (1 + np.abs(self.params["gamma_theta"] * angle))
-                raw_penalty = self._vessel.config.vessel.sensor_range * np.exp(
+                raw_penalty = self._vessel.config.sensor.range * np.exp(
                     -self.params["gamma_x"] * x
                     + self.params["gamma_v_y"] * max(0, speed_vec[1])
                 )

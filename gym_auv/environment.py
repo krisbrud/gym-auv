@@ -378,16 +378,15 @@ class BaseEnvironment(gym.Env, ABC):
         -------
         occupancy_grid: numpy ndarray of shape (2, G, G), where G is the grid size
         """
-        sensor_closenesses = self.vessel.perceive(self.obstacles)
         grid_size = self.config.sensor.occupancy_grid_size
         
         # Make lidar occupancy grid
         sensor_range = self.config.sensor.range
         indices_to_plot = (
-            sensor_closenesses < self.config.sensor.range
+            lidar_distances < self.config.sensor.range
         )  # Plot only indices with measurements
         lidar_positions_body = get_relative_positions_of_lidar_measurements(
-            lidar_ranges=sensor_closenesses,
+            lidar_ranges=lidar_distances,
             sensor_angles=self.vessel.sensor_angles,
             indices_to_plot=indices_to_plot,
         )
@@ -401,12 +400,10 @@ class BaseEnvironment(gym.Env, ABC):
         every_n_path_point = (
             10  # Path points are pretty close, only use every 10th one.
         )
-        path_positions_ned = np.ndarray(
-            [self.path.points[::every_n_path_point]]
-        )
+        path_positions_ned = path.points[::every_n_path_point]
 
         path_coordinates_body = geom.transform_ned_to_body(
-            path_positions_ned, self.position, self.heading
+            path_positions_ned, self.vessel.position, self.vessel.heading
         )
         path_occupancy_grid = make_occupancy_grid(
             path_coordinates_body,

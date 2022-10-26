@@ -22,7 +22,7 @@ def test_single_step(scenario_name):
     """Simple end-to-end test of environment"""
     # Do a single non-zero action in the environment, see that the observation changes
     env = _make_env(scenario_name)
-    first_obs = env.reset()  # Reset
+    first_obs = env.reset() 
 
     mock_action = np.array([0.5, 0.6])
     obs, reward, done, info = env.step(mock_action)
