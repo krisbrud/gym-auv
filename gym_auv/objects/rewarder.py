@@ -235,8 +235,8 @@ class ColavRewarder(BaseRewarder):
             + slow_penalty
         )
 
-        if reward < 0:
-            reward *= self.params["negative_multiplier"]
+        # if reward < 0:
+        #     reward *= self.params["negative_multiplier"]
 
         return reward
 
