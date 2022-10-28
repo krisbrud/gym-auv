@@ -154,7 +154,7 @@ class ColavRewarder(BaseRewarder):
         self.params["slow_speed"] = 0.04
         self.params["neutral_speed"] = 0.05
         self.params["negative_multiplier"] = 2.0
-        self.params["collision"] = -10000.0
+        self.params["collision"] = -1000.0
         self.params["lambda"] = 0.5  # _sample_lambda(scale=0.2)
         self.params["eta"] = 0  # _sample_eta()
 
@@ -200,7 +200,7 @@ class ColavRewarder(BaseRewarder):
                 weight = 1 / (1 + np.abs(self.params["gamma_theta"] * angle))
                 raw_penalty = self._vessel.config.sensor.range * np.exp(
                     -self.params["gamma_x"] * x
-                    + self.params["gamma_v_y"] * max(0, speed_vec[1])
+                    # + self.params["gamma_v_y"] * max(0, speed_vec[1])
                 )
                 weighted_penalty = weight * raw_penalty
                 closeness_penalty_num += weighted_penalty
