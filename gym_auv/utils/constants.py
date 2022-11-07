@@ -30,11 +30,15 @@ N_uudr = -0.4*Y_uudr
 
 MAX_SPEED = 2
 
-M =  np.array([[m - X_udot, 0, 0],
-    [0, m - Y_vdot, m*x_g - Y_rdot],
-    [0, m*x_g - N_vdot, I_z - N_rdot]]
-)   
-M_inv = np.linalg.inv(M)
+M =  np.array([[m, 0, 0],
+    [0, m, m*x_g],
+    [0, m*x_g, I_z]]
+)  
+# Added mass 
+M_A = np.array([[-X_udot, 0, 0],
+                [0, -Y_vdot, -Y_rdot],
+                [0, -N_vdot, -N_rdot]])
+M_inv = np.linalg.inv(M + M_A)
 
 D =  np.array([
     [2.0, 0, 0],
