@@ -57,12 +57,19 @@ def C(nu):
     u = nu[0]
     v = nu[1]
     r = nu[2]
-    C = np.array([
-        [0, 0, -33.8*v + 11.748*r],
-        [0, 0, 25.8*u],
-        [33.8*v - 11.748*r, -25.8*u, 0]
+    C_RB = np.array([
+        [0, 0, -m(x_g * r + v)],
+        [0, 0, m * u],
+        [m(x_g * r + v), -m * u, 0]
     ])  
-    return C
+    c13 = Y_vdot + 0.5 * (N_vdot + Y_rdot) * r
+    c23 = -X_udot * u
+    C_A = np.array([
+        [0, 0, c13],
+        [0, 0, c23],
+        [-c13, -c23, 0]])
+
+    return C_RB + C_A
 
 def N(nu):
     u = nu[0]
