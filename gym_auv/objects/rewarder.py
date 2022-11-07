@@ -69,6 +69,8 @@ class PathFollowRewarder(BaseRewarder):
         self.params["lambda"] = 0.5  # _sample_lambda(scale=0.2)
         self.params["eta"] = 0  # _sample_eta()
 
+        self.counter = 0
+
     N_INSIGHTS = 0
 
     def insight(self):
@@ -133,6 +135,15 @@ class PathFollowRewarder(BaseRewarder):
             - self.params["penalty_yawrate"] * abs(self._vessel.yaw_rate)
             + slow_penalty
         )
+        
+        self.counter += 1
+        if self.counter == 500:
+            print(f"{path_reward = }")
+            print(f"{living_penalty = }")
+            print(f"{self.params['eta'] * self._vessel.speed / self._vessel.max_speed = }")
+            print(f"{self.params['penalty_yawrate'] * abs(self._vessel.yaw_rate) = }")
+            print(f"{slow_penalty = }")
+            self.counter = 0
 
         # if reward < 0:
         #     reward *= self.params["negative_multiplier"]
@@ -151,12 +162,14 @@ class ColavRewarder(BaseRewarder):
         self.params["penalty_torque_change"] = 0.0
         self.params["penalty_slow"] = -2
         self.params["cruise_speed"] = 0.1
-        self.params["slow_speed"] = 0.04
+        self.params["slow_speed"] = 0.03
         self.params["neutral_speed"] = 0.05
         self.params["negative_multiplier"] = 2.0
         self.params["collision"] = -1000.0
-        self.params["lambda"] = 0.5  # _sample_lambda(scale=0.2)
+        self.params["lambda"] = 0.9 # 0.5  # _sample_lambda(scale=0.2)
         self.params["eta"] = 0  # _sample_eta()
+
+        self.counter = 0
 
     N_INSIGHTS = 0
 
@@ -235,6 +248,14 @@ class ColavRewarder(BaseRewarder):
             + slow_penalty
         )
 
+        self.counter += 1
+        if self.counter == 500:
+            print(f"{self.params['lambda'] * path_reward = }")
+            print(f"{(1 - self.params['lambda']) * closeness_reward = }")
+            print(f"{-living_penalty = }")
+            print(f"{-self.params['penalty_yawrate'] * abs(self._vessel.yaw_rate) = }")
+            print(f"{slow_penalty = }")
+            self.counter = 0
         # if reward < 0:
         #     reward *= self.params["negative_multiplier"]
 

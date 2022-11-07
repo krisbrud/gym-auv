@@ -53,7 +53,7 @@ class SensorConfig:
 
     # Log transform and the distance normalization cannot be True at the same time
     apply_log_transform: bool = False  # Whether to use a log. transform when calculating closeness
-    apply_distance_normalization: bool = False  # Whether to normalize the sensor measurements from the Vessel to [0, 1]
+    apply_distance_normalization: bool = True  # Whether to normalize the sensor measurements from the Vessel to [0, 1]
 
     # use_relative_vectors: bool = True
     observe_proprioceptive: bool = True  # Whether to include navigation states (surge, sway, yaw rate)
@@ -64,7 +64,7 @@ class SensorConfig:
         True
         # Whether rangefinder sensors for perception should be activated
     )
-    use_occupancy_grid: bool = True
+    use_occupancy_grid: bool = False  # True
     use_velocity_observations: bool = False
     occupancy_grid_size: int = 64
     observe_obstacle_fun: Callable[

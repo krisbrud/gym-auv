@@ -370,6 +370,16 @@ class BaseEnvironment(gym.Env, ABC):
         print("Mean of actions this episode:", np.mean(actions_taken, axis=0))
         print("Std of actions this episode:", np.std(actions_taken, axis=0))
 
+    @property
+    def episode_action_mean(self) -> np.ndarray:
+        """Returns the mean of actions taken this episode"""
+        return np.mean(self.vessel.actions_taken, axis=0)
+
+    @property
+    def episode_action_std(self) -> np.ndarray:
+        """Returns the standard deviation of actions taken this episode"""
+        return np.std(self.vessel.actions_taken, axis=0)
+
     def _make_occupancy_grids(
         self, lidar_distances: np.ndarray, path: Path
     ) -> np.ndarray:
