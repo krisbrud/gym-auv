@@ -24,14 +24,6 @@ N_vv = 3.95645
 N_rr = -0.750
 N_rv = 0.13
 N_vr = 0.080
-Y_uvb = -0.5*1000*np.pi*1.24*(0.15/2)**2
-Y_uvf = -1000*3*0.0064
-Y_urf = -0.4*Y_uvf
-N_uvb = (-0.65*1.08 + 0.4)*Y_uvb
-N_uvf = -0.4*Y_uvf
-N_urf = -0.4*Y_urf
-Y_uudr = 19.2
-N_uudr = -0.4*Y_uudr
 
 MAX_SPEED = 2
 
