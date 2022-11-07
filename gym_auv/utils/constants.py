@@ -15,10 +15,15 @@ Y_r = -0.1
 N_v = -0.1
 N_r = -0.5
 X_uu = -1.32742
+X_uuu = -5.86643
 Y_vv = -80
 Y_rr = 0.3
+Y_rv = -0.805
+Y_vr = -0.845
 N_vv = -1.5
 N_rr = -9.1
+N_rv = 0.13
+N_vr = 0.080
 Y_uvb = -0.5*1000*np.pi*1.24*(0.15/2)**2
 Y_uvf = -1000*3*0.0064
 Y_urf = -0.4*Y_uvf
@@ -40,11 +45,28 @@ M_A = np.array([[-X_udot, 0, 0],
                 [0, -N_vdot, -N_rdot]])
 M_inv = np.linalg.inv(M + M_A)
 
-D =  np.array([
-    [2.0, 0, 0],
-    [0, 7.0, -2.5425],
-    [0, -2.5425, 1.422]
-])  
+def D(nu):
+    # Use second order modulus model (Clarke 2003) - see Cybership paper
+    D_linear =  np.array([
+        [-X_u, 0, 0],
+        [0, -Y_v, -Y_r],
+        [0, -Y_r, -N_r]
+    ])
+    
+    u, v, r = nu[0], nu[1], nu[2]
+    d11 = X_uu * abs(u) + X_uuu * (u **2)
+    d22 = Y_vv * abs(v) + Y_rv * abs(r)
+    d23 = Y_vr * abs(v) + Y_rr * abs(r)
+    d32 = N_vv * abs(v) + N_rv * abs(r)
+    d33 = N_vr * abs(v) + N_rr * abs(r)
+
+    D_nonlinear = np.array([
+        [-d11,0, 0],
+        [0, -d22, -d23],
+        [0, -d32, -d33]
+    ])
+
+    return D_linear + D_nonlinear
 
 def B(nu):
     return np.array([
