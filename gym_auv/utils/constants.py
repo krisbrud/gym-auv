@@ -72,9 +72,9 @@ def C(nu):
     v = nu[1]
     r = nu[2]
     C_RB = np.array([
-        [0, 0, -m(x_g * r + v)],
+        [0, 0, -m * (x_g * r + v)],
         [0, 0, m * u],
-        [m(x_g * r + v), -m * u, 0]
+        [m * (x_g * r + v), -m * u, 0]
     ])  
     c13 = Y_vdot + 0.5 * (N_vdot + Y_rdot) * r
     c23 = -X_udot * u
