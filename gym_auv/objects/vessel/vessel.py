@@ -392,6 +392,7 @@ class Vessel:
 
         # Calculating path progress
         progress = vessel_arclength / path.length
+        self._prev_progress = self._progress
         self._progress = progress
 
         self._max_progress = max(progress, self._max_progress)
@@ -476,9 +477,10 @@ class Vessel:
         nu = state[3:]
 
         tau = np.array([self._input[0], 0, self._input[1]])
+            # TODO: Look over rudder action
 
         eta_dot = geom.Rz(geom.princip(psi)).dot(nu)
-        nu_dot = const.M_inv.dot(tau - const.D.dot(nu) - const.N(nu).dot(nu))
+        nu_dot = const.M_inv.dot(tau - const.D(nu).dot(nu) - const.C(nu).dot(nu)) # const.N(nu).dot(nu))
         state_dot = np.concatenate([eta_dot, nu_dot])
         return state_dot
 

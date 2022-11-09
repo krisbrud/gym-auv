@@ -42,7 +42,7 @@ def D(nu):
     D_linear =  np.array([
         [-X_u, 0, 0],
         [0, -Y_v, -Y_r],
-        [0, -Y_r, -N_r]
+        [0, -N_v, -N_r]
     ])
     
     u, v, r = nu[0], nu[1], nu[2]

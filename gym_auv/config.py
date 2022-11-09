@@ -48,7 +48,7 @@ class VesselConfig:
 class SensorConfig:
     use_dict_observation: bool = True
 
-    n_lidar_rays: int = 180
+    n_lidar_rays: int = 256  # 180
     range: float = 150.0  # Range of rangefinder sensors [m]
 
     # Log transform and the distance normalization cannot be True at the same time

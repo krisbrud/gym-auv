@@ -21,6 +21,7 @@ MOVING_CONFIG = Config()
 # MOVING_CONFIG.vessel.observe_obstacle_fun = observe_obstacle_fun
 # MOVING_CONFIG["observe_obstacle_fun"] = return_true_fun
 
+
 DEBUG_CONFIG = Config()
 DEBUG_CONFIG.simulation.t_step_size = 0.5
 DEBUG_CONFIG.episode.min_goal_distance = 0.1
@@ -103,6 +104,10 @@ SCENARIOS = {
     #     'config': REALWORLD_CONFIG
     # },
     "MovingObstaclesNoRules-v0": {
+        "entry_point": "gym_auv.envs:MovingObstaclesNoRules",
+        "config": MOVING_CONFIG,
+    },
+    "MovingObstaclesSimpleRewarder-v0": {
         "entry_point": "gym_auv.envs:MovingObstaclesNoRules",
         "config": MOVING_CONFIG,
     },

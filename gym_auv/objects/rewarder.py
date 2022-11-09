@@ -60,7 +60,7 @@ class PathFollowRewarder(BaseRewarder):
         self.params["gamma_x"] = 0.1
         self.params["gamma_v_y"] = 1.0
         self.params["gamma_y_e"] = 5.0
-        self.params["penalty_yawrate"] = 10.0 # 20  # 0.0
+        self.params["penalty_yawrate"] = 0  # 10.0 # 20  # 0.0
         self.params["penalty_torque_change"] = 0.0
         self.params["cruise_speed"] = 0.1
         self.params["neutral_speed"] = 0.05  # 0.05
@@ -108,7 +108,6 @@ class PathFollowRewarder(BaseRewarder):
         #     # path_reward = min(path_reward, 0)
         #     path_reward = 0
 
-
         # Extra penalty for going backwards, as going continously in a circle is
         # a local minima giving an average positive reward with this strategy.
         # gamma_backwards = 2.5
@@ -118,9 +117,9 @@ class PathFollowRewarder(BaseRewarder):
         #     * self._vessel.speed / self._vessel.max_speed
         # ) * (1 + cross_track_performance) - 1
 
-        slow_penalty = 0
-        if self._vessel.speed < self.params["cruise_speed"]:
-            slow_penalty = -2
+        # slow_penalty = 0
+        # if self._vessel.speed < self.params["cruise_speed"]:
+        #     slow_penalty = -2
         # Calculating living penalty
         living_penalty = (
             self.params["lambda"] * (2 * self.params["neutral_speed"] + 1)
@@ -133,20 +132,20 @@ class PathFollowRewarder(BaseRewarder):
             - living_penalty
             + self.params["eta"] * self._vessel.speed / self._vessel.max_speed
             - self.params["penalty_yawrate"] * abs(self._vessel.yaw_rate)
-            + slow_penalty
+            # + slow_penalty
         )
-        
-        self.counter += 1
-        if self.counter == 500:
-            print(f"{path_reward = }")
-            print(f"{living_penalty = }")
-            print(f"{self.params['eta'] * self._vessel.speed / self._vessel.max_speed = }")
-            print(f"{self.params['penalty_yawrate'] * abs(self._vessel.yaw_rate) = }")
-            print(f"{slow_penalty = }")
-            self.counter = 0
 
-        # if reward < 0:
-        #     reward *= self.params["negative_multiplier"]
+        # self.counter += 1
+        # if self.counter == 500:
+        #     print(f"{path_reward = }")
+        #     print(f"{living_penalty = }")
+        #     print(f"{self.params['eta'] * self._vessel.speed / self._vessel.max_speed = }")
+        #     print(f"{self.params['penalty_yawrate'] * abs(self._vessel.yaw_rate) = }")
+        #     print(f"{slow_penalty = }")
+        #     self.counter = 0
+
+        if reward < 0:
+            reward *= self.params["negative_multiplier"]
 
         return reward
 
@@ -158,15 +157,15 @@ class ColavRewarder(BaseRewarder):
         self.params["gamma_x"] = 0.1
         self.params["gamma_v_y"] = 1.0
         self.params["gamma_y_e"] = 5.0
-        self.params["penalty_yawrate"] = 10.0
+        self.params["penalty_yawrate"] = 0  # 10.0
         self.params["penalty_torque_change"] = 0.0
         self.params["penalty_slow"] = -2
         self.params["cruise_speed"] = 0.1
-        self.params["slow_speed"] = 0.03
+        # self.params["slow_speed"] = 0.03
         self.params["neutral_speed"] = 0.05
         self.params["negative_multiplier"] = 2.0
-        self.params["collision"] = -1000.0
-        self.params["lambda"] = 0.9 # 0.5  # _sample_lambda(scale=0.2)
+        self.params["collision"] = -10000.0
+        self.params["lambda"] = 0.5  # 0.5  # _sample_lambda(scale=0.2)
         self.params["eta"] = 0  # _sample_eta()
 
         self.counter = 0
@@ -212,7 +211,8 @@ class ColavRewarder(BaseRewarder):
                 speed_vec = measured_speeds[:, isensor]
                 weight = 1 / (1 + np.abs(self.params["gamma_theta"] * angle))
                 raw_penalty = self._vessel.config.sensor.range * np.exp(
-                    -self.params["gamma_x"] * x
+                    -self.params["gamma_x"]
+                    * x
                     # + self.params["gamma_v_y"] * max(0, speed_vec[1])
                 )
                 weighted_penalty = weight * raw_penalty
@@ -222,16 +222,15 @@ class ColavRewarder(BaseRewarder):
             closeness_reward = -closeness_penalty_num / closeness_penalty_den
         else:
             closeness_reward = 0
-        
-        
-        if self.vessel.progress < self.vessel.max_progress: # or path_reward < 0:
-            # Has not gone forward past the current maximum path progress. Clip reward to be 0 at maximum.
-            path_reward = min(path_reward, 0)
+
+        # if self.vessel.progress < self.vessel.max_progress: # or path_reward < 0:
+        #     # Has not gone forward past the current maximum path progress. Clip reward to be 0 at maximum.
+        #     path_reward = min(path_reward, 0)
         # path_reward = 0
-        
-        slow_penalty = 0
-        if self._vessel.speed < self.params["slow_speed"]:
-            slow_penalty = self.params["penalty_slow"]
+
+        # slow_penalty = 0
+        # if self._vessel.speed < self.params["slow_speed"]:
+        #     slow_penalty = self.params["penalty_slow"]
         # Calculating living penalty
         living_penalty = (
             self.params["lambda"] * (2 * self.params["neutral_speed"] + 1)
@@ -245,22 +244,67 @@ class ColavRewarder(BaseRewarder):
             - living_penalty
             + self.params["eta"] * self._vessel.speed / self._vessel.max_speed
             - self.params["penalty_yawrate"] * abs(self._vessel.yaw_rate)
-            + slow_penalty
+            # + slow_penalty
         )
 
-        self.counter += 1
-        if self.counter == 500:
-            print(f"{self.params['lambda'] * path_reward = }")
-            print(f"{(1 - self.params['lambda']) * closeness_reward = }")
-            print(f"{-living_penalty = }")
-            print(f"{-self.params['penalty_yawrate'] * abs(self._vessel.yaw_rate) = }")
-            print(f"{slow_penalty = }")
-            self.counter = 0
-        # if reward < 0:
-        #     reward *= self.params["negative_multiplier"]
+        # self.counter += 1
+        # if self.counter == 500:
+        #     print(f"{self.params['lambda'] * path_reward = }")
+        #     print(f"{(1 - self.params['lambda']) * closeness_reward = }")
+        #     print(f"{-living_penalty = }")
+        #     print(f"{-self.params['penalty_yawrate'] * abs(self._vessel.yaw_rate) = }")
+        #     print(f"{slow_penalty = }")
+        #     self.counter = 0
+        if reward < 0:
+            reward *= self.params["negative_multiplier"]
 
         return reward
 
+
+class BasicRewarder(BaseRewarder):
+    def __init__(self, vessel, test_mode):
+        super().__init__(vessel, test_mode)
+        self.params["gamma_y_e"] = 5.0
+        self.params["gamma_prog"] = 1000
+
+    def calculate(self) -> float:
+        latest_data = self._vessel.req_latest_data()
+        nav_states = latest_data["navigation"]
+        collision = latest_data["collision"]
+
+        progress = self.vessel.progress
+        prev_progress = self.vessel._prev_progress
+        progress_diff = progress - prev_progress
+        max_progress = self.vessel.max_progress
+
+        reward_progress = 0
+        if progress >= max_progress:
+            reward_progress += progress_diff * self.params["gamma_prog"]
+
+        cross_track_error = nav_states["cross_track_error"]
+        cross_track_performance = np.exp(
+            -self.params["gamma_y_e"] * np.abs(cross_track_error)
+        )
+
+        collision_penalty = 0
+        if collision:
+            collision_penalty += 10
+
+        living_penalty = 0.1
+
+        goal_reward = 0
+        reached_goal = nav_states["reached_goal"]
+        if reached_goal:
+            goal_reward = 10
+
+        total_reward = (
+            reward_progress
+            + cross_track_performance
+            + goal_reward
+            - living_penalty
+            - collision_penalty
+        )
+        return total_reward
 
 class ColregRewarder(BaseRewarder):
     def __init__(self, vessel, test_mode):
