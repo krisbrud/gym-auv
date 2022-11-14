@@ -19,7 +19,7 @@ from gym_auv.objects.vessel.sensor import (
     simulate_sensor,
 )
 from gym_auv.objects.vessel.odesolver import odesolver45
-
+from gym_auv.objects.vessel.otter import Otter
 
 class Vessel:
     def __init__(
@@ -55,6 +55,8 @@ class Vessel:
         self._sensor_angles = np.array(
             [-np.pi + (i + 1) * self._d_sensor_angle for i in range(self._n_sensors)]
         )
+        self._max_speed = 2
+        self.dynamics_model = Otter()
 
         # self._sensor_internal_indeces = []
         # self._sensor_interval = max(1, int(1 / self.config.simulation.sensor_frequency))
@@ -101,7 +103,7 @@ class Vessel:
     @property
     def heading_taken(self) -> np.ndarray:
         """Returns an array holding the heading of the AUV for all timesteps."""
-        return self._prev_states[:, 2]
+        return self._prev_states[:, 5]
 
     @property
     def actions_taken(self) -> np.ndarray:
@@ -111,12 +113,12 @@ class Vessel:
     @property
     def heading(self) -> float:
         """Returns the heading of the AUV with respect to true north."""
-        return self._state[2]
+        return self._state[5]
 
     @property
     def velocity(self) -> np.ndarray:
         """Returns the surge and sway velocity of the AUV."""
-        return self._state[3:5]
+        return self._state[6:8]
 
     @property
     def speed(self) -> float:
@@ -126,17 +128,17 @@ class Vessel:
     @property
     def yaw_rate(self) -> float:
         """Returns the rate of rotation about the z-axis."""
-        return self._state[5]
+        return self._state[11]
 
     @property
     def yaw_rate_taken(self) -> np.ndarray:
         """Returns the history of yaw rates"""
-        return self._prev_states[:, 5]
+        return self._prev_states[:, 11]
 
     @property
     def max_speed(self) -> float:
         """Returns the maximum speed of the AUV."""
-        return 2
+        return self._max_speed
 
     @property
     def course(self) -> float:
@@ -179,7 +181,10 @@ class Vessel:
             The initial attitude of the veHssel [x, y, psi], where
             psi is the initial heading of the AUV.
         """
-        init_speed = [0, 0, 0]
+        # convert to 6dof
+        init_state = np.array(init_state[0], init_state[1], 0, 0, 0, init_state[2])
+        init_speed = np.zeros(6, dtype=np.float64)
+        # init_speed = [0, 0, 0]
         init_state = np.array(init_state, dtype=np.float64)
         init_speed = np.array(init_speed, dtype=np.float64)
         self._state = np.hstack([init_state, init_speed])
@@ -482,17 +487,26 @@ class Vessel:
 
         return latest_data
 
+    # def _state_dot_meyer(self, state):
+    #     psi = state[2]
+    #     nu = state[3:]
+
+    #     tau = np.array([self._input[0], 0, self._input[1]])
+    #         # TODO: Look over rudder action
+
+    #     eta_dot = geom.Rz(geom.princip(psi)).dot(nu)
+    #     nu_dot = const.M_inv.dot(const.B(nu).dot(self._input) - const.D(nu).dot(nu) - const.C(nu).dot(nu)) # const.N(nu).dot(nu))
+    #     state_dot = np.concatenate([eta_dot, nu_dot])
+    #     return state_dot
+
     def _state_dot(self, state):
-        psi = state[2]
-        nu = state[3:]
+        psi = state[5]
+        eta = state[:6]
+        nu = state[6:12]
+        n = state[12:]  # Propeller speeds
 
-        tau = np.array([self._input[0], 0, self._input[1]])
-            # TODO: Look over rudder action
-
-        eta_dot = geom.Rz(geom.princip(psi)).dot(nu)
-        nu_dot = const.M_inv.dot(const.B(nu).dot(self._input) - const.D(nu).dot(nu) - const.C(nu).dot(nu)) # const.N(nu).dot(nu))
-        state_dot = np.concatenate([eta_dot, nu_dot])
-        return state_dot
+        # Input consists of commanded moment forward and commanded torque.
+        # We use the Otter's included function for allocating them
 
     def _thrust_surge(self, surge):
         surge = np.clip((surge + 1.0) / 2, 0, 1)
