@@ -505,6 +505,19 @@ class Vessel:
         nu = state[6:12]
         n = state[12:]  # Propeller speeds
 
+        demanded_forward_force = self._input[0]
+        demanded_yaw_moment = self._input[1]
+
+        u1, u2 = self.dynamics_model.controlAllocation(tau_N=demanded_forward_force, tau_n=demanded_yaw_moment)
+        u = np.array([u1, u2])
+
+        nu_dot = self.dynamics_model.dynamics(
+            eta=eta,
+            nu=nu,
+            u_actual=n,
+            u_control=u,
+        )
+        eta_dot = 
         # Input consists of commanded moment forward and commanded torque.
         # We use the Otter's included function for allocating them
 
