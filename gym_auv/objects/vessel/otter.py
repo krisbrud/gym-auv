@@ -27,6 +27,7 @@ SOFTWARE."""
 import numpy as np
 import math
 
+from gym_auv.objects.vessel.otterutils import crossFlowDrag, Hmtrx, m2c, Smtrx
 # TODO: Find maximum force from reference model - max propeller rotation given
 # TODO: Find maximum torque from reference model
 # TODO: Implement clipping
@@ -48,7 +49,7 @@ class Otter:
         r = 0, 
         V_current = 0, 
         beta_current = 0,
-        tau_X = 120
+        # tau_X = 120
     ):
         
         # Constants
@@ -59,7 +60,7 @@ class Otter:
         self.ref = r
         self.V_c = V_current
         self.beta_c = beta_current * D2R
-        self.tauX = tau_X  # surge force (N)
+        # self.tauX = tau_X  # surge force (N)
 
         # Initialize the Otter USV model
         self.T_n = 1.0  # propeller time constants (s)
@@ -231,7 +232,7 @@ class Otter:
         thrust = np.zeros(2)
         for i in range(0, 2):
 
-            n[i] = sat(n[i], self.n_min, self.n_max)  # saturation, physical limits
+            n[i] = np.clip(n[i], self.n_min, self.n_max)  # saturation, physical limits
 
             if n[i] > 0:  # positive thrust
                 thrust[i] = self.k_pos * n[i] * abs(n[i])
