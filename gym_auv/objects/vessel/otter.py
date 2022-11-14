@@ -27,7 +27,7 @@ SOFTWARE."""
 import numpy as np
 import math
 
-from gym_auv.objects.vessel.otterutils import crossFlowDrag, Hmtrx, m2c, Smtrx
+from gym_auv.objects.vessel.otterutils import crossFlowDrag, Hmtrx, m2c, Smtrx, eta_dot
 # TODO: Find maximum force from reference model - max propeller rotation given
 # TODO: Find maximum torque from reference model
 # TODO: Implement clipping
@@ -267,8 +267,12 @@ class Otter:
         )
 
         nu_dot = np.matmul(self.Minv, sum_tau)  # USV dynamics
+        
+        eta_dot_ = eta_dot(eta, nu)
+        
         n_dot = (u_control - n) / self.T_n  # propeller dynamics
         # trim_dot = (self.trim_setpoint - self.trim_moment) / 5  # trim dynamics
+
 
         # Forward Euler integration [k+1]
         # nu = nu + sampleTime * nu_dot
@@ -277,7 +281,7 @@ class Otter:
 
         # u_actual = np.array(n, float)
 
-        return nu_dot, n_dot
+        return np.concatenate([eta_dot_, nu_dot, n_dot])
 
 
     def controlAllocation(self, tau_X, tau_N):

@@ -184,10 +184,11 @@ class Vessel:
         # convert to 6dof
         init_state = np.array([init_state[0], init_state[1], 0, 0, 0, init_state[2]])
         init_speed = np.zeros(6, dtype=np.float64)
+        init_propeller = np.zeros(2, dtype=np.float64)
         # init_speed = [0, 0, 0]
         init_state = np.array(init_state, dtype=np.float64)
         init_speed = np.array(init_speed, dtype=np.float64)
-        self._state = np.hstack([init_state, init_speed])
+        self._state = np.hstack([init_state, init_speed, init_propeller])
         self._prev_states = np.vstack([self._state])
         self._input = [0, 0]
         self._prev_inputs = np.vstack([self._input])
@@ -223,7 +224,7 @@ class Vessel:
         )
 
         self._state = q
-        self._state[2] = geom.princip(self._state[2])
+        self._state[5] = geom.princip(self._state[5])
 
         self._prev_states = np.vstack([self._prev_states, self._state])
         self._prev_inputs = np.vstack([self._prev_inputs, self._input])
@@ -509,7 +510,7 @@ class Vessel:
         demanded_forward_force = self._input[0]
         demanded_yaw_moment = self._input[1]
 
-        u1, u2 = self.dynamics_model.controlAllocation(tau_N=demanded_forward_force, tau_n=demanded_yaw_moment)
+        u1, u2 = self.dynamics_model.controlAllocation(tau_N=demanded_forward_force, tau_X=demanded_yaw_moment)
         u = np.array([u1, u2])
 
         state_dot = self.dynamics_model.dynamics(
@@ -518,7 +519,7 @@ class Vessel:
             u_actual=n,
             u_control=u,
         )
-        return state_dot
+        return np.array(state_dot)
 
     def _thrust_surge(self, surge):
         surge = np.clip((surge + 1.0) / 2, 0, 1)

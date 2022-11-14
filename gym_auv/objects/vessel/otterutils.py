@@ -25,7 +25,7 @@ SOFTWARE."""
 # -*- coding: utf-8 -*-
 
 import numpy as np
-
+import math
 
 def Smtrx(a):
     """
@@ -177,7 +177,7 @@ def crossFlowDrag(L,B,T,nu_r):
         
     tau_crossflow = np.array([0, Yh, 0, 0, 0, Nh],float)
 
-    return 
+    return tau_crossflow
 
 
 def Hoerner(B,T):
