@@ -160,6 +160,11 @@ class Vessel:
         return self._progress
 
     @property
+    def prev_timestep_progress(self) -> float:
+        """Returns the progress during the previous timestep"""
+        return self._prev_progress
+
+    @property
     def max_progress(self) -> float:
         """Returns the maximum progress along the path in the current episode. Can take values between 0 and 1."""
         return self._max_progress
@@ -391,11 +396,12 @@ class Vessel:
         heading_error = float(geom.princip(target_heading - self.heading))
 
         # Calculating path progress
-        progress = vessel_arclength / path.length
         self._prev_progress = self._progress
+        progress = vessel_arclength / path.length
         self._progress = progress
 
         self._max_progress = max(progress, self._max_progress)
+        new_progress = max(0, self.progress - self.prev_timestep_progress)
 
         # Deciding if vessel has reached the goal
         goal_distance = linalg.norm(path.end - self.position)
@@ -416,6 +422,7 @@ class Vessel:
             "look_ahead_heading_error": look_ahead_heading_error,
             "heading_error": heading_error,
             "cross_track_error": cross_track_error / 100,
+            "new_progress": new_progress,
             "target_heading": target_heading,
             "target_vector": relative_pos_lookahead,
             "look_ahead_path_direction": look_ahead_path_direction,
@@ -452,6 +459,9 @@ class Vessel:
         if self.config.sensor.observe_la_heading_error:
             navigation_keys.append("look_ahead_heading_error")
 
+        if self.config.sensor.observe_new_progress:
+            navigation_keys.append("new_progress")
+
         return navigation_keys
 
     def req_latest_data(self) -> dict:
@@ -480,7 +490,7 @@ class Vessel:
             # TODO: Look over rudder action
 
         eta_dot = geom.Rz(geom.princip(psi)).dot(nu)
-        nu_dot = const.M_inv.dot(tau - const.D(nu).dot(nu) - const.C(nu).dot(nu)) # const.N(nu).dot(nu))
+        nu_dot = const.M_inv.dot(const.B(nu).dot(self._input) - const.D(nu).dot(nu) - const.C(nu).dot(nu)) # const.N(nu).dot(nu))
         state_dot = np.concatenate([eta_dot, nu_dot])
         return state_dot
 

@@ -27,4 +27,4 @@ class RenderableState:
     path: Path
 
     # Config
-    show_indicators: bool
+    # show_indicators: bool

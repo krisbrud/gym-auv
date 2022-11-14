@@ -25,6 +25,8 @@ N_rr = -0.750
 N_rv = 0.13
 N_vr = 0.080
 
+L_xr1 = -0.549  # Position of rudder along 
+
 MAX_SPEED = 2
 
 M =  np.array([[m, 0, 0],
@@ -63,8 +65,8 @@ def D(nu):
 def B(nu):
     return np.array([
         [1, 0],
-        [0, -1.7244],
         [0, 1],
+        [0, -abs(L_xr1)],
     ])
 
 def C(nu):
@@ -76,7 +78,7 @@ def C(nu):
         [0, 0, m * u],
         [m * (x_g * r + v), -m * u, 0]
     ])  
-    c13 = Y_vdot + 0.5 * (N_vdot + Y_rdot) * r
+    c13 = Y_vdot * v + 0.5 * (N_vdot + Y_rdot) * r
     c23 = -X_udot * u
     C_A = np.array([
         [0, 0, c13],
@@ -93,5 +95,5 @@ def N(nu):
         [-X_u, 0, 0],
         [0, -Y_v, m*u - Y_r],
         [0, -N_v, m*x_g*u-N_r]
-    ])  
+    ])
     return N

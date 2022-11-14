@@ -108,7 +108,7 @@ SCENARIOS = {
         "config": MOVING_CONFIG,
     },
     "MovingObstaclesSimpleRewarder-v0": {
-        "entry_point": "gym_auv.envs:MovingObstaclesNoRules",
+        "entry_point": "gym_auv.envs:MovingObstaclesBasic",
         "config": MOVING_CONFIG,
     },
     "PathFollowNoObstacles-v0": {

@@ -282,7 +282,7 @@ class BasicRewarder(BaseRewarder):
             reward_progress += progress_diff * self.params["gamma_prog"]
 
         cross_track_error = nav_states["cross_track_error"]
-        cross_track_performance = np.exp(
+        cross_track_performance = 0.1 *  np.exp(
             -self.params["gamma_y_e"] * np.abs(cross_track_error)
         )
 
@@ -293,7 +293,7 @@ class BasicRewarder(BaseRewarder):
         living_penalty = 0.1
 
         goal_reward = 0
-        reached_goal = nav_states["reached_goal"]
+        reached_goal = latest_data["reached_goal"]
         if reached_goal:
             goal_reward = 10
 

@@ -17,7 +17,7 @@ class EpisodeConfig:
     min_cumulative_reward: float = float(
         -2000
     )  # Minimum cumulative reward received before episode ends
-    max_timesteps: int = 10000  # Maximum amount of timesteps before episode ends
+    max_timesteps: int = 5000 # 10000  # Maximum amount of timesteps before episode ends
     min_goal_distance: float = float(
         5
     )  # Minimum aboslute distance to the goal position before episode ends
@@ -60,6 +60,7 @@ class SensorConfig:
     observe_cross_track_error: bool = True  # Whether to include cross-track error in the observation
     observe_heading_error: bool = True  # Whether to include heading error in observation
     observe_la_heading_error: bool = True  # Whether to include the look-ahead heading error in the observation
+    observe_new_progress: bool = True  # Whether to include how much new progress was made in the observation
     use_lidar: bool = (
         True
         # Whether rangefinder sensors for perception should be activated
@@ -103,6 +104,9 @@ class SensorConfig:
             n_dense_observations += 1
 
         if self.observe_la_heading_error:
+            n_dense_observations += 1
+
+        if self.observe_new_progress:
             n_dense_observations += 1
 
         return n_dense_observations
