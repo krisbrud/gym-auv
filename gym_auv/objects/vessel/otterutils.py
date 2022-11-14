@@ -27,8 +27,6 @@ SOFTWARE."""
 import numpy as np
 
 
-
-
 def Smtrx(a):
     """
     S = Smtrx(a) computes the 3x3 vector skew-symmetric matrix S(a) = -S(a)'.
@@ -56,6 +54,62 @@ def Hmtrx(r):
     H[0:3, 3:6] = Smtrx(r).T
 
     return H
+
+
+def Rzyx(phi,theta,psi):
+    """
+    R = Rzyx(phi,theta,psi) computes the Euler angle rotation matrix R in SO(3)
+    using the zyx convention
+    """
+    
+    cphi = math.cos(phi)
+    sphi = math.sin(phi)
+    cth  = math.cos(theta)
+    sth  = math.sin(theta)
+    cpsi = math.cos(psi)
+    spsi = math.sin(psi)
+    
+    R = np.array([
+        [ cpsi*cth, -spsi*cphi+cpsi*sth*sphi, spsi*sphi+cpsi*cphi*sth ],
+        [ spsi*cth,  cpsi*cphi+sphi*sth*spsi, -cpsi*sphi+sth*spsi*cphi ],
+        [ -sth,      cth*sphi,                 cth*cphi ] ])
+
+    return R
+
+
+def Tzyx(phi,theta):
+    """
+    T = Tzyx(phi,theta) computes the Euler angle attitude
+    transformation matrix T using the zyx convention
+    """
+    
+    cphi = math.cos(phi)
+    sphi = math.sin(phi)
+    cth  = math.cos(theta)
+    sth  = math.sin(theta)    
+
+    try: 
+        T = np.array([
+            [ 1,  sphi*sth/cth,  cphi*sth/cth ],
+            [ 0,  cphi,          -sphi],
+            [ 0,  sphi/cth,      cphi/cth] ])
+        
+    except ZeroDivisionError:  
+        print ("Tzyx is singular for theta = +-90 degrees." )
+        
+    return T
+
+def eta_dot(eta, nu):
+    """Calculates the derivative of the pose eta.
+    
+    Based on Fossen's implemenation of attitudeEuler
+    """
+    p_dot   = np.matmul( Rzyx(eta[3], eta[4], eta[5]), nu[0:3] )
+    v_dot   = np.matmul( Tzyx(eta[3], eta[4]), nu[3:6] )
+
+    eta_dot = np.concatenate([p_dot, v_dot])
+    return eta_dot 
+
 
 def m2c(M, nu):
     """
