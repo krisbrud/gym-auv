@@ -18,8 +18,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."""
 
-# Based on an implementation from Thor Inge Fossen 
-# https://github.com/cybergalactic/PythonVehicleSimulator/blob/master/src/python_vehicle_simulator/vehicles/otter.py 
+# Based on an implementation from Thor Inge Fossen
+# https://github.com/cybergalactic/PythonVehicleSimulator/blob/master/src/python_vehicle_simulator/vehicles/otter.py
 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
@@ -28,34 +28,36 @@ import numpy as np
 import math
 
 from gym_auv.objects.vessel.otterutils import crossFlowDrag, Hmtrx, m2c, Smtrx, eta_dot
+
 # TODO: Find maximum force from reference model - max propeller rotation given
 # TODO: Find maximum torque from reference model
 # TODO: Implement clipping
+
 
 class Otter:
     """
     otter()                                           Propeller step inputs
     otter('headingAutopilot',psi_d,V_c,beta_c,tau_X)  Heading autopilot
-    
+
     Inputs:
         psi_d: desired heading angle (deg)
         V_c: current speed (m/s)
         beta_c: current direction (deg)
-        tau_X: surge force, pilot input (N)        
+        tau_X: surge force, pilot input (N)
     """
 
     def __init__(
-        self, 
-        r = 0, 
-        V_current = 0, 
-        beta_current = 0,
+        self,
+        r=0,
+        V_current=0,
+        beta_current=0,
         # tau_X = 120
     ):
-        
+
         # Constants
-        D2R = math.pi / 180     # deg2rad
-        g = 9.81                # acceleration of gravity (m/s^2)
-        rho = 1026              # density of water (kg/m^3)
+        D2R = math.pi / 180  # deg2rad
+        g = 9.81  # acceleration of gravity (m/s^2)
+        rho = 1026  # density of water (kg/m^3)
 
         self.ref = r
         self.V_c = V_current
@@ -64,25 +66,25 @@ class Otter:
 
         # Initialize the Otter USV model
         self.T_n = 1.0  # propeller time constants (s)
-        self.L = 2.0    # Length (m)
-        self.B = 1.08   # beam (m)
+        self.L = 2.0  # Length (m)
+        self.B = 1.08  # beam (m)
         self.u = np.array([0, 0, 0, 0, 0, 0], float)  # velocity vector
         self.u_actual = np.array([0, 0], float)  # propeller revolution states
         self.name = "Otter USV (see 'otter.py' for more details)"
 
         self.controls = [
             "Left propeller shaft speed (rad/s)",
-            "Right propeller shaft speed (rad/s)"
+            "Right propeller shaft speed (rad/s)",
         ]
         self.dimU = len(self.controls)
 
         # Vehicle parameters
-        m = 55.0                                # mass (kg)
-        mp = 25.0                               # Payload (kg)
+        m = 55.0  # mass (kg)
+        mp = 25.0  # Payload (kg)
         self.m_total = m + mp
-        rp = np.array([0, 0, -0.35], float)     # location of payload (m)
-        rg = np.array([0.2, 0, -0.2], float)    # CG for hull only (m)
-        rg = (m * rg + mp * rp) / (m + mp)      # CG corrected for payload
+        rp = np.array([0, 0, -0.35], float)  # location of payload (m)
+        rg = np.array([0.2, 0, -0.2], float)  # CG for hull only (m)
+        rg = (m * rg + mp * rp) / (m + mp)  # CG corrected for payload
         self.S_rg = Smtrx(rg)
         self.H_rg = Hmtrx(rg)
         self.S_rp = Smtrx(rp)
@@ -90,19 +92,19 @@ class Otter:
         R44 = 0.4 * self.B  # radii of gyration (m)
         R55 = 0.25 * self.L
         R66 = 0.25 * self.L
-        T_yaw = 1.0         # time constant in yaw (s)
-        Umax = 6 * 0.5144   # max forward speed (m/s)
+        T_yaw = 1.0  # time constant in yaw (s)
+        Umax = 6 * 0.5144  # max forward speed (m/s)
 
         # Data for one pontoon
         self.B_pont = 0.25  # beam of one pontoon (m)
-        y_pont = 0.395      # distance from centerline to waterline centroid (m)
-        Cw_pont = 0.75      # waterline area coefficient (-)
-        Cb_pont = 0.4       # block coefficient, computed from m = 55 kg
+        y_pont = 0.395  # distance from centerline to waterline centroid (m)
+        Cw_pont = 0.75  # waterline area coefficient (-)
+        Cb_pont = 0.4  # block coefficient, computed from m = 55 kg
 
         # Inertia dyadic, volume displacement and draft
         nabla = (m + mp) / rho  # volume
         self.T = nabla / (2 * Cb_pont * self.B_pont * self.L)  # draft
-        Ig_CG = m * np.diag(np.array([R44 ** 2, R55 ** 2, R66 ** 2]))
+        Ig_CG = m * np.diag(np.array([R44**2, R55**2, R66**2]))
         self.Ig = Ig_CG - m * self.S_rg @ self.S_rg - mp * self.S_rp @ self.S_rp
 
         # Experimental propeller data including lever arms
@@ -111,7 +113,7 @@ class Otter:
         self.k_pos = 0.02216 / 2  # Positive Bollard, one propeller
         self.k_neg = 0.01289 / 2  # Negative Bollard, one propeller
         self.n_max = math.sqrt((0.5 * 24.4 * g) / self.k_pos)  # max. prop. rev.
-        self.n_min = -math.sqrt((0.5 * 13.6 * g) / self.k_neg) # min. prop. rev.
+        self.n_min = -math.sqrt((0.5 * 13.6 * g) / self.k_neg)  # min. prop. rev.
 
         # MRB_CG = [ (m+mp) * I3  O3      (Fossen 2021, Chapter 3)
         #               O3       Ig ]
@@ -140,18 +142,18 @@ class Otter:
             2
             * (1 / 12)
             * self.L
-            * self.B_pont ** 3
-            * (6 * Cw_pont ** 3 / ((1 + Cw_pont) * (1 + 2 * Cw_pont)))
-            + 2 * Aw_pont * y_pont ** 2
+            * self.B_pont**3
+            * (6 * Cw_pont**3 / ((1 + Cw_pont) * (1 + 2 * Cw_pont)))
+            + 2 * Aw_pont * y_pont**2
         )
-        I_L = 0.8 * 2 * (1 / 12) * self.B_pont * self.L ** 3
+        I_L = 0.8 * 2 * (1 / 12) * self.B_pont * self.L**3
         KB = (1 / 3) * (5 * self.T / 2 - 0.5 * nabla / (self.L * self.B_pont))
         BM_T = I_T / nabla  # BM values
         BM_L = I_L / nabla
-        KM_T = KB + BM_T    # KM values
+        KM_T = KB + BM_T  # KM values
         KM_L = KB + BM_L
         KG = self.T - rg[2]
-        GM_T = KM_T - KG    # GM values
+        GM_T = KM_T - KG  # GM values
         GM_L = KM_L - KG
 
         G33 = rho * g * (2 * Aw_pont)  # spring stiffness
@@ -185,7 +187,6 @@ class Otter:
         B = self.k_pos * np.array([[1, 1], [-self.l1, -self.l2]])
         self.Binv = np.linalg.inv(B)
 
-
     def dynamics(self, eta, nu, u_actual, u_control):
         """
         Returns the derivatives of the vessel.
@@ -195,7 +196,7 @@ class Otter:
         eta (np.ndarray): 6DoF pose of the vehicle
         nu  (np.ndarray): 6DoF velocities of the vehicle
         n_actual (np.ndarray): (2,) array of the actual propeller speeds
-        force_command 
+        force_command
 
         [nu,u_actual] = dynamics(eta,nu,u_actual,u_control,sampleTime) integrates
         the Otter USV equations of motion using Euler's method.
@@ -275,12 +276,11 @@ class Otter:
         print("\n")
 
         nu_dot = np.matmul(self.Minv, sum_tau)  # USV dynamics
-        
+
         eta_dot_ = eta_dot(eta, nu)
-        
+
         n_dot = (u_control - n) / self.T_n  # propeller dynamics
         # trim_dot = (self.trim_setpoint - self.trim_moment) / 5  # trim dynamics
-
 
         # Forward Euler integration [k+1]
         # nu = nu + sampleTime * nu_dot
@@ -290,7 +290,6 @@ class Otter:
         # u_actual = np.array(n, float)
 
         return np.concatenate([eta_dot_, nu_dot, n_dot])
-
 
     def controlAllocation(self, tau_X, tau_N):
         """
@@ -304,3 +303,53 @@ class Otter:
         n2 = np.sign(u_alloc[1]) * math.sqrt(abs(u_alloc[1]))
 
         return n1, n2
+
+
+class Otter3DoF:
+    def __init__(self):
+        TODO = 123
+        self.mass = TODO
+        self.length = TODO
+        self.xg = TODO
+        Iz = TODO
+
+        self.X_udot = TODO
+        self.Y_vdot = TODO
+        self.N_rdot = TODO
+
+        self.Y_rdot = TODO  # Note: Not actually known from Fossen's model
+
+        M_RB = np.diag([self.mass, self.mass, Iz])
+        M_A = np.diag([self.X_udot, self.Y_vdot, self.N_rdot])
+
+        self.M = M_RB + M_A
+
+        self.X_u = TODO
+        self.Y_v = TODO
+        self.N_r = TODO
+
+        self.D_L = np.diag([self.X_u, self.Y_v, self.N_r])
+
+    def dynamics(self, eta, nu):
+        TODO = 123
+        r = TODO
+        v = TODO
+        C_RB = np.array(
+            [
+                [0, -self.mass * r, -self.mass * self.xg * r],
+                [self.mass * r, 0, 0],
+                [self.mass * self.xg * r, 0, 0],
+            ]
+        )
+        C_A = np.array(
+            [[0, 0, self.Y_vdot * v, self.Y_rdot * r], [0, 0, -self.X_udot], [0, 0, 0]]
+        )
+
+        C = C_RB + C_A
+
+        D_N = np.zeros((3, 3))
+        D_N[2, 2] = -10 * self.N_r * abs(r)
+
+        D = self.D_L + D_N
+        
+
