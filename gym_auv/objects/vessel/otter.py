@@ -66,7 +66,7 @@ class Otter:
         self.T_n = 1.0  # propeller time constants (s)
         self.L = 2.0    # Length (m)
         self.B = 1.08   # beam (m)
-        self.nu = np.array([0, 0, 0, 0, 0, 0], float)  # velocity vector
+        self.u = np.array([0, 0, 0, 0, 0, 0], float)  # velocity vector
         self.u_actual = np.array([0, 0], float)  # propeller revolution states
         self.name = "Otter USV (see 'otter.py' for more details)"
 
@@ -265,6 +265,14 @@ class Otter:
             - np.matmul(self.G, eta)
             - g_0
         )
+
+        print(f"{tau = }")
+        print(f"{tau_damp = }")
+        print(f"{tau_crossflow = }")
+        print(f"{np.matmul(C, nu_r) = }")
+        print(f"{np.matmul(self.G, eta) = }")
+        print("-" * 20)
+        print("\n")
 
         nu_dot = np.matmul(self.Minv, sum_tau)  # USV dynamics
         

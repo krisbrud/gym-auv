@@ -26,7 +26,7 @@ class EpisodeConfig:
 
 @dataclass
 class SimulationConfig:
-    t_step_size: float = 1.0  # Length of simulation timestep [s]
+    t_step_size: float = 0.1 #  1.0  # Length of simulation timestep [s]
     # sensor_frequency: float = (
     #     1.0  # Sensor execution frequency (0.0 = never execute, 1.0 = always execute)
     # )

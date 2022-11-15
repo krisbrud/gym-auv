@@ -224,6 +224,8 @@ class Vessel:
         )
 
         self._state = q
+        self._state[3] = geom.princip(self._state[3])
+        self._state[4] = geom.princip(self._state[4])
         self._state[5] = geom.princip(self._state[5])
 
         self._prev_states = np.vstack([self._prev_states, self._state])
@@ -510,8 +512,9 @@ class Vessel:
         demanded_forward_force = self._input[0]
         demanded_yaw_moment = self._input[1]
 
-        u1, u2 = self.dynamics_model.controlAllocation(tau_N=demanded_forward_force, tau_X=demanded_yaw_moment)
-        u = np.array([u1, u2])
+        # u1, u2 = self.dynamics_model.controlAllocation(tau_X=demanded_forward_force, tau_N=demanded_yaw_moment)
+        # u = np.array([u1, u2])
+        u = np.array([1, 1])
 
         state_dot = self.dynamics_model.dynamics(
             eta=eta,
