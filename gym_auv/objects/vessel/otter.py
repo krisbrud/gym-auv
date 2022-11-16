@@ -327,9 +327,9 @@ class Otter3DoF:
         y_pont = 0.395  # distance from centerline to waterline centroid (m)
         self.l1 = -y_pont
         self.l2 = y_pont
-        self.B = np.array([[1, 1], [0, 0], [-self.l1, self.l2]])
+        self.B = np.array([[1, 1], [0, 0], [-self.l1, -self.l2]])
 
-        Umax = 6 * 0.5144
+        Umax = 6 * 0.5144  # 6 knots
         g = 9.81
         self.X_u = -24.4 * g / Umax
         self.Y_v = 0

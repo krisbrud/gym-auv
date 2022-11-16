@@ -213,15 +213,16 @@ class Vessel:
         ----------
         action : np.ndarray[thrust_input, torque_input]
         """
-        self._input = np.array(
-            [self._thrust_surge(action[0]), self._moment_steer(action[1])]
-        )
+        # self._input = np.array(
+        #     [self._thrust_surge(action[0]), self._moment_steer(action[1])]
+        # )
+        self._input = np.array(action)
         w, q = odesolver45(
             self._state_dot, self._state, self.config.simulation.t_step_size
         )
 
         self._state = q
-        self._state[5] = geom.princip(self._state[5])
+        # self._state[5] = geom.princip(self._state[5])
 
         self._prev_states = np.vstack([self._prev_states, self._state])
         self._prev_inputs = np.vstack([self._prev_inputs, self._input])
@@ -509,7 +510,7 @@ class Vessel:
 
         # u1, u2 = self.dynamics_model.controlAllocation(tau_X=demanded_forward_force, tau_N=demanded_yaw_moment)
         # u = np.array([u1, u2])
-        u = np.array([1, 1])
+        u = np.array(self._input)
 
         state_dot = self.dynamics_model.dynamics(
             eta=eta,
