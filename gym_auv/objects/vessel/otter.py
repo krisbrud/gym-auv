@@ -28,6 +28,7 @@ import numpy as np
 import math
 
 from gym_auv.objects.vessel.otterutils import crossFlowDrag, Hmtrx, m2c, Smtrx, eta_dot
+import gym_auv.utils.geomutils as geom
 
 # TODO: Find maximum force from reference model - max propeller rotation given
 # TODO: Find maximum torque from reference model
@@ -311,17 +312,14 @@ class Otter3DoF:
         self.mass = 55.0
         self.length = 2.0
         self.xg = 0.2
-        R66 = 0.25 * self.length
-        self.Iz = self.mass * (R66 ** 2)
+        R66 = 0.25 * self.length  # Radii of gyration (m)
+        self.Iz = self.mass * (R66**2)  # Moment of inertia around z-axis
 
         self.X_udot = -0.1 * self.mass
         self.Y_vdot = -1.5 * self.mass
         self.N_rdot = -1.7 * self.Iz
 
-        # self.Y_rdot = TODO  # Note: Not actually known from Fossen's model
-
         M_RB = np.diag([self.mass, self.mass, self.Iz])
-        # M_A = np.diag([self.X_udot, self.Y_vdot, self.N_rdot])
 
         self.M = M_RB  # + M_A
         self.M_inv = np.linalg.inv(self.M)
@@ -329,9 +327,7 @@ class Otter3DoF:
         y_pont = 0.395  # distance from centerline to waterline centroid (m)
         self.l1 = -y_pont
         self.l2 = y_pont
-        self.B = np.array([[1, 1], 
-                           [0, 0],
-                           [-self.l1, self.l2]])
+        self.B = np.array([[1, 1], [0, 0], [-self.l1, self.l2]])
 
         Umax = 6 * 0.5144
         g = 9.81
@@ -343,25 +339,25 @@ class Otter3DoF:
         self.D_L = np.diag([self.X_u, self.Y_v, self.N_r])
 
     def dynamics(self, eta, nu, u):
-        r = eta[2]
-        C_RB = np.array(
+        """Calculates the derivatives of eta and nu"""
+        r = nu[2]  # Yaw rate
+        psi = eta[2]  # Heading
+        C = np.array(
             [
                 [0, -self.mass * r, -self.mass * self.xg * r],
                 [self.mass * r, 0, 0],
                 [self.mass * self.xg * r, 0, 0],
             ]
         )
-        # C_A = np.array(
-        #     [[0, 0, self.Y_vdot * v, self.Y_rdot * r], [0, 0, -self.X_udot], [0, 0, 0]]
-        # )
-
-        C = C_RB #  + C_A
 
         D_N = np.zeros((3, 3))
         D_N[2, 2] = -10 * self.N_r * abs(r)
 
         D = self.D_L + D_N
 
+        eta_dot = geom.Rz(psi).dot(nu)
         nu_dot = self.M_inv.dot(self.B.dot(u) - C.dot(nu) - D.dot(nu))
-        
 
+        state_dot = np.concatenate(eta_dot, nu_dot)
+
+        return state_dot
