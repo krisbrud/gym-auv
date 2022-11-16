@@ -358,6 +358,6 @@ class Otter3DoF:
         eta_dot = geom.Rz(psi).dot(nu)
         nu_dot = self.M_inv.dot(self.B.dot(u) - C.dot(nu) - D.dot(nu))
 
-        state_dot = np.concatenate(eta_dot, nu_dot)
+        state_dot = np.concatenate([eta_dot, nu_dot])
 
         return state_dot
