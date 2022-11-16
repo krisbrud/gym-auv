@@ -336,12 +336,12 @@ class Otter3DoF:
         T_yaw = 1.0
         self.N_r = -1.7 * self.Iz / T_yaw
 
-        self.D_L = np.diag([self.X_u, self.Y_v, self.N_r])
+        self.D_L = -np.diag([self.X_u, self.Y_v, self.N_r])
 
     def dynamics(self, eta, nu, u):
         """Calculates the derivatives of eta and nu"""
-        r = nu[2]  # Yaw rate
         psi = eta[2]  # Heading
+        r = nu[2]  # Yaw rate
         C = np.array(
             [
                 [0, -self.mass * r, -self.mass * self.xg * r],
@@ -355,7 +355,7 @@ class Otter3DoF:
 
         D = self.D_L + D_N
 
-        eta_dot = geom.Rz(psi).dot(nu)
+        eta_dot = geom.Rz(-psi).dot(nu)
         nu_dot = self.M_inv.dot(self.B.dot(u) - C.dot(nu) - D.dot(nu))
 
         state_dot = np.concatenate([eta_dot, nu_dot])

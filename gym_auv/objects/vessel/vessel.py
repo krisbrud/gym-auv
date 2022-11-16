@@ -221,8 +221,6 @@ class Vessel:
         )
 
         self._state = q
-        self._state[3] = geom.princip(self._state[3])
-        self._state[4] = geom.princip(self._state[4])
         self._state[5] = geom.princip(self._state[5])
 
         self._prev_states = np.vstack([self._prev_states, self._state])
