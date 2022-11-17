@@ -223,9 +223,9 @@ class ColavRewarder(BaseRewarder):
         else:
             closeness_reward = 0
 
-        # if self.vessel.progress < self.vessel.max_progress: # or path_reward < 0:
-        #     # Has not gone forward past the current maximum path progress. Clip reward to be 0 at maximum.
-        #     path_reward = min(path_reward, 0)
+        if self.vessel.progress < self.vessel.max_progress: # or path_reward < 0:
+            # Has not gone forward past the current maximum path progress. Clip reward to be 0 at maximum.
+            path_reward = min(path_reward, 0)
         # path_reward = 0
 
         # slow_penalty = 0
