@@ -144,8 +144,8 @@ class PathFollowRewarder(BaseRewarder):
         #     print(f"{slow_penalty = }")
         #     self.counter = 0
 
-        if reward < 0:
-            reward *= self.params["negative_multiplier"]
+        # if reward < 0:
+        #     reward *= self.params["negative_multiplier"]
 
         return reward
 

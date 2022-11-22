@@ -332,7 +332,7 @@ class Otter3DoF:
         Umax = 6 * 0.5144  # 6 knots
         g = 9.81
         self.X_u = -24.4 * g / Umax
-        self.Y_v = 0
+        self.Y_v = -1.5 * self.mass
         T_yaw = 1.0
         self.N_r = -1.7 * self.Iz / T_yaw
 
@@ -351,7 +351,7 @@ class Otter3DoF:
         )
 
         D_N = np.zeros((3, 3))
-        D_N[2, 2] = -10 * self.N_r * abs(r)
+        # D_N[2, 2] = -10 * self.N_r * abs(r)
 
         D = self.D_L + D_N
 
