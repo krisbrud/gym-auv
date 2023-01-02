@@ -219,7 +219,6 @@ class LOSColavRewarder(BaseRewarder):
         self.params["gamma_y_e"] = 5.0
         self.params["penalty_yawrate"] = 0  # 10.0
         self.params["penalty_torque_change"] = 0.0
-        self.params["penalty_slow"] = -2
         self.params["cruise_speed"] = 0.1
         # self.params["slow_speed"] = 0.03
         self.params["neutral_speed"] = 0.05
@@ -282,7 +281,6 @@ class LOSColavRewarder(BaseRewarder):
             - living_penalty
             + self.params["eta"] * self._vessel.speed / self._vessel.max_speed
             - self.params["penalty_yawrate"] * abs(self._vessel.yaw_rate)
-            # + slow_penalty
         )
 
         if reward < 0:
