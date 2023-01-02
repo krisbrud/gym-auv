@@ -1,4 +1,5 @@
 import numpy as np
+from copy import deepcopy
 from gym.envs.registration import register
 from gym_auv.config import Config
 from gym_auv.envs import (
@@ -14,28 +15,28 @@ from gym_auv.envs.testscenario import DebugScenario, EmptyScenario, TestHeadOn
 # import gym_auv.config.Config
 
 
-DEFAULT_CONFIG = Config()
+DEFAULT_CONFIG = deepcopy(Config())
 
-MOVING_CONFIG = Config()
+MOVING_CONFIG = deepcopy(Config())
 # MOVING_CONFIG.vessel.sector_partition_fun = sector_partition_fun
 # MOVING_CONFIG.vessel.observe_obstacle_fun = observe_obstacle_fun
 # MOVING_CONFIG["observe_obstacle_fun"] = return_true_fun
 
 
-DEBUG_CONFIG = Config()
+DEBUG_CONFIG = deepcopy(Config())
 DEBUG_CONFIG.simulation.t_step_size = 0.5
 DEBUG_CONFIG.episode.min_goal_distance = 0.1
 # DEBUG_CONFIG["t_step_size"] = 0.5
 # DEBUG_CONFIG["min_goal_distance"] = 0.1
 
-REALWORLD_CONFIG = Config()
+REALWORLD_CONFIG = deepcopy(Config())
 
-PATHFOLLOW_CONFIG = Config()
-PATHFOLLOW_CONFIG.sensor.use_lidar = False
+PATHFOLLOW_CONFIG = deepcopy(Config())
+# PATHFOLLOW_CONFIG.sensor.use_lidar = False
 # PATHFOLLOW_CONFIG.episode.min_cumulative_reward = -1000
 # REALWORLD_CONFIG.simulation.t_step_size = 0.2
 
-LOS_COLAV_CONFIG = Config()
+LOS_COLAV_CONFIG = deepcopy(Config())
 LOS_COLAV_CONFIG.sensor.observe_new_progress = False
 
 # REALWORLD_CONFIG.vessel.render_distance = 300
