@@ -283,9 +283,6 @@ class LOSColavRewarder(BaseRewarder):
             - self.params["penalty_yawrate"] * abs(self._vessel.yaw_rate)
         )
 
-        if reward < 0:
-            reward *= self.params["negative_multiplier"]
-
         return reward
 
 
