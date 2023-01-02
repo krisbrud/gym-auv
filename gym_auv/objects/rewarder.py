@@ -246,8 +246,8 @@ class LOSColavRewarder(BaseRewarder):
             return reward
 
         # Calculating path following reward component
-        lookahead_vector_normalized_ned = latest_data["lookahead_vector_normalized_ned"]
-        velocity_ned = latest_data["velocity_ned"]
+        lookahead_vector_normalized_ned = nav_states["lookahead_vector_normalized_ned"]
+        velocity_ned = nav_states["velocity_ned"]
 
         path_reward = los_path_reward(
             lookahead_unit_vec_ned=lookahead_vector_normalized_ned,

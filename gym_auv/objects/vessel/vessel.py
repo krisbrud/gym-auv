@@ -447,6 +447,7 @@ class Vessel:
             "lookahead_path_error_x": lookahead_path_error_x,
             "lookahead_path_error_y": lookahead_path_error_y,
             "lookahead_vector_normalized_ned": lookahead_vector_normalized_ned,
+            "velocity_ned": self.velocity_ned,
         }
 
         navigation_observation_keys = self._get_navigation_observation_keys()
