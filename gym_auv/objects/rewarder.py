@@ -247,8 +247,6 @@ class LOSColavRewarder(BaseRewarder):
             reward = self.params["collision"] * (1 - self.params["lambda"])
             return reward
 
-        reward = 0
-
         # Calculating path following reward component
         lookahead_vector_normalized_ned = latest_data["lookahead_vector_normalized_ned"]
         velocity_ned = latest_data["velocity_ned"]
