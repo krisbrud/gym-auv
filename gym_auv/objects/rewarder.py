@@ -285,14 +285,6 @@ class LOSColavRewarder(BaseRewarder):
             # + slow_penalty
         )
 
-        # self.counter += 1
-        # if self.counter == 500:
-        #     print(f"{self.params['lambda'] * path_reward = }")
-        #     print(f"{(1 - self.params['lambda']) * closeness_reward = }")
-        #     print(f"{-living_penalty = }")
-        #     print(f"{-self.params['penalty_yawrate'] * abs(self._vessel.yaw_rate) = }")
-        #     print(f"{slow_penalty = }")
-        #     self.counter = 0
         if reward < 0:
             reward *= self.params["negative_multiplier"]
 
