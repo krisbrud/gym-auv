@@ -109,7 +109,7 @@ class BaseEnvironment(gym.Env, ABC):
             # low=np.array([-1, -0.15]),  # [-1, -1]
             # low=np.array([-10, -10]),  # -0.15]),  # [-1, -1]
             low=np.array([0, 0]),  # -0.15]),  # [-1, -1]
-            high=np.array([20, 20]), # 0.15]),  # [1, 1]
+            high=np.array([50, 50]), # 0.15]),  # [1, 1]
             dtype=np.float32,
         )
 
