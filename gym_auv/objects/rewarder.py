@@ -256,9 +256,20 @@ class LOSColavRewarder(BaseRewarder):
         path_reward = los_path_reward(
             lookahead_unit_vec_ned=lookahead_vector_normalized_ned,
             velocity_ned=velocity_ned,
+            coeff=0.5,
         )
 
         # Calculating obstacle avoidance reward component
+        closeness_reward = meyer_colav_reward(
+            n_sensors=self.vessel.n_sensors,
+            sensor_angles=self.vessel.sensor_angles,
+            measured_distances=measured_distances,
+            measured_speeds=measured_speeds,
+            sensor_range=self.vessel.config.sensor.range,
+            gamma_theta=self.params["gamma_theta"],
+            gamma_x=self.params["gamma_x"],
+            gamma_v_y=self.params["gamma_v_y"],
+        )
 
         if self.vessel.progress < self.vessel.max_progress:  # or path_reward < 0:
             # Has not gone forward past the current maximum path progress. Clip reward to be 0 at maximum.
