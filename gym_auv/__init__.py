@@ -35,6 +35,8 @@ PATHFOLLOW_CONFIG.vessel.sensing = False
 # PATHFOLLOW_CONFIG.episode.min_cumulative_reward = -1000
 # REALWORLD_CONFIG.simulation.t_step_size = 0.2
 
+LOS_COLAV_CONFIG = Config()
+
 # REALWORLD_CONFIG.vessel.render_distance = 300
 # REALWORLD_CONFIG = DEFAULT_CONFIG.copy()
 # REALWORLD_CONFIG["t_step_size"] = 0.2
@@ -110,6 +112,10 @@ SCENARIOS = {
     "MovingObstaclesSimpleRewarder-v0": {
         "entry_point": "gym_auv.envs:MovingObstaclesBasic",
         "config": MOVING_CONFIG,
+    },
+    "MovingObstaclesLosRewarder-v0": {
+        "entry_point": "gym_auv.envs:MovingObstaclesLosRewarder",
+        "config": LOS_COLAV_CONFIG,
     },
     "PathFollowNoObstacles-v0": {
         "entry_point": "gym_auv.envs:PathFollowNoObstacles",
