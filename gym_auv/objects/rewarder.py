@@ -210,17 +210,14 @@ class LOSColavRewarder(BaseRewarder):
 
         reward = 0
 
-        # Extracting navigation states
-        cross_track_error = nav_states["cross_track_error"]
-        heading_error = nav_states["heading_error"]
-
         # Calculating path following reward component
-        cross_track_performance = np.exp(
-            -self.params["gamma_y_e"] * np.abs(cross_track_error)
+        lookahead_vector_normalized_ned = latest_data["lookahead_vector_normalized_ned"]
+        velocity_ned = latest_data["velocity_ned"]
+ 
+        path_reward = los_path_reward(
+            lookahead_unit_vec_ned=lookahead_vector_normalized_ned,
+            velocity_ned=velocity_ned,
         )
-        path_reward = (
-            1 + np.cos(heading_error) * self._vessel.speed / self._vessel.max_speed
-        ) * (1 + cross_track_performance) - 1
 
         # Calculating obstacle avoidance reward component
         closeness_penalty_num = 0
