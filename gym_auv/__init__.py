@@ -31,11 +31,12 @@ DEBUG_CONFIG.episode.min_goal_distance = 0.1
 REALWORLD_CONFIG = Config()
 
 PATHFOLLOW_CONFIG = Config()
-PATHFOLLOW_CONFIG.vessel.sensing = False
+PATHFOLLOW_CONFIG.sensor.use_lidar = False
 # PATHFOLLOW_CONFIG.episode.min_cumulative_reward = -1000
 # REALWORLD_CONFIG.simulation.t_step_size = 0.2
 
 LOS_COLAV_CONFIG = Config()
+LOS_COLAV_CONFIG.sensor.observe_new_progress = False
 
 # REALWORLD_CONFIG.vessel.render_distance = 300
 # REALWORLD_CONFIG = DEFAULT_CONFIG.copy()
