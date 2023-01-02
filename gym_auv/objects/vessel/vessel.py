@@ -121,6 +121,11 @@ class Vessel:
         return self._state[3:5]
 
     @property
+    def velocity_ned(self) -> np.ndarray:
+        """Returns the surge and sway velocity of the AUV in the NED frame."""
+        return geom.transform_ned_to_body(self.velocity, np.zeros(2), self.heading)
+
+    @property
     def speed(self) -> float:
         """Returns the speed of the AUV."""
         return linalg.norm(self.velocity)
