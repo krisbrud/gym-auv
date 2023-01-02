@@ -15,7 +15,7 @@ def transform_ned_to_body(coordinates_ned: np.ndarray, position_ned: np.ndarray,
 def transform_body_to_ned(coordinates_body: np.ndarray, position_ned: np.ndarray, heading:float) -> np.ndarray:
     """Transforms an ndarray of shape (N, 2) array of (north, east) coordinates in the NED-frame to coordinates in the body frame"""
     rotation_matrix = Rz(heading)[:2,:2]
-    coordinates_ned = coordinates_body @ rotation_matrix + position_ned
+    coordinates_ned = coordinates_body @ np.transpose(rotation_matrix) + position_ned
     return coordinates_ned
 
 
