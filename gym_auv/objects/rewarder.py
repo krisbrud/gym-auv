@@ -149,6 +149,27 @@ class PathFollowRewarder(BaseRewarder):
 
         return reward
 
+def los_path_reward(velocity_ned: np.ndarray, lookahead_unit_vec_ned: np.ndarray, coeff: float = 1.0):
+    """Calculates the path following reward based on Fossen-style Line-of-Sight Guidance
+    
+    Parameters
+    ----------
+    velocity_ned : np.ndarray
+        The velocity vector in NED coordinates
+    lookahead_unit_vec_ned : np.ndarray
+        The unit vector pointing in the direction of the lookahead point
+    coeff : float, optional
+    
+    Returns
+    -------
+    float
+        The path following reward
+    """
+    path_reward = np.dot(velocity_ned, lookahead_unit_vec_ned) * coeff
+
+    return path_reward
+
+
 class LOSColavRewarder(BaseRewarder):
     """Similar to Colavrewarder, but with new path following reward based on Fossen-style Line-of-Sight Guidance"""
     def __init__(self, vessel: Vessel, test_mode):
