@@ -149,9 +149,47 @@ class PathFollowRewarder(BaseRewarder):
 
         return reward
 
-def los_path_reward(velocity_ned: np.ndarray, lookahead_unit_vec_ned: np.ndarray, coeff: float = 1.0):
+
+def meyer_colav_reward(
+    n_sensors: int,
+    sensor_angles: np.ndarray,
+    measured_distances: np.ndarray,
+    measured_speeds: np.ndarray,
+    sensor_range: float,
+    gamma_theta: float,
+    gamma_x: float,
+    gamma_v_y: float,
+):
+    """Calculate reward/penalty based on how close the vessel is to obstacles according to the sensors."""
+    closeness_penalty_num = 0
+    closeness_penalty_den = 0
+    if n_sensors > 0:
+        for isensor in range(n_sensors):
+            angle = sensor_angles[isensor]
+            x = measured_distances[isensor]
+            speed_vec = measured_speeds[:, isensor]
+            weight = 1 / (1 + np.abs(gamma_theta * angle))
+            raw_penalty = sensor_range * np.exp(
+                -gamma_x
+                * x
+                # + self.params["gamma_v_y"] * max(0, speed_vec[1])
+            )
+            weighted_penalty = weight * raw_penalty
+            closeness_penalty_num += weighted_penalty
+            closeness_penalty_den += weight
+
+        closeness_reward = -closeness_penalty_num / closeness_penalty_den
+    else:
+        closeness_reward = 0
+
+    return closeness_reward
+
+
+def los_path_reward(
+    velocity_ned: np.ndarray, lookahead_unit_vec_ned: np.ndarray, coeff: float = 1.0
+):
     """Calculates the path following reward based on Fossen-style Line-of-Sight Guidance
-    
+
     Parameters
     ----------
     velocity_ned : np.ndarray
@@ -159,7 +197,7 @@ def los_path_reward(velocity_ned: np.ndarray, lookahead_unit_vec_ned: np.ndarray
     lookahead_unit_vec_ned : np.ndarray
         The unit vector pointing in the direction of the lookahead point
     coeff : float, optional
-    
+
     Returns
     -------
     float
@@ -172,6 +210,7 @@ def los_path_reward(velocity_ned: np.ndarray, lookahead_unit_vec_ned: np.ndarray
 
 class LOSColavRewarder(BaseRewarder):
     """Similar to Colavrewarder, but with new path following reward based on Fossen-style Line-of-Sight Guidance"""
+
     def __init__(self, vessel: Vessel, test_mode):
         super().__init__(vessel, test_mode)
         self.params["gamma_theta"] = 10.0
@@ -213,35 +252,15 @@ class LOSColavRewarder(BaseRewarder):
         # Calculating path following reward component
         lookahead_vector_normalized_ned = latest_data["lookahead_vector_normalized_ned"]
         velocity_ned = latest_data["velocity_ned"]
- 
+
         path_reward = los_path_reward(
             lookahead_unit_vec_ned=lookahead_vector_normalized_ned,
             velocity_ned=velocity_ned,
         )
 
         # Calculating obstacle avoidance reward component
-        closeness_penalty_num = 0
-        closeness_penalty_den = 0
-        if self._vessel.n_sensors > 0:
-            for isensor in range(self._vessel.n_sensors):
-                angle = self._vessel.sensor_angles[isensor]
-                x = measured_distances[isensor]
-                speed_vec = measured_speeds[:, isensor]
-                weight = 1 / (1 + np.abs(self.params["gamma_theta"] * angle))
-                raw_penalty = self._vessel.config.sensor.range * np.exp(
-                    -self.params["gamma_x"]
-                    * x
-                    # + self.params["gamma_v_y"] * max(0, speed_vec[1])
-                )
-                weighted_penalty = weight * raw_penalty
-                closeness_penalty_num += weighted_penalty
-                closeness_penalty_den += weight
 
-            closeness_reward = -closeness_penalty_num / closeness_penalty_den
-        else:
-            closeness_reward = 0
-
-        if self.vessel.progress < self.vessel.max_progress: # or path_reward < 0:
+        if self.vessel.progress < self.vessel.max_progress:  # or path_reward < 0:
             # Has not gone forward past the current maximum path progress. Clip reward to be 0 at maximum.
             path_reward = min(path_reward, 0)
         # path_reward = 0
@@ -277,7 +296,6 @@ class LOSColavRewarder(BaseRewarder):
             reward *= self.params["negative_multiplier"]
 
         return reward
-
 
 
 class ColavRewarder(BaseRewarder):
@@ -353,7 +371,7 @@ class ColavRewarder(BaseRewarder):
         else:
             closeness_reward = 0
 
-        if self.vessel.progress < self.vessel.max_progress: # or path_reward < 0:
+        if self.vessel.progress < self.vessel.max_progress:  # or path_reward < 0:
             # Has not gone forward past the current maximum path progress. Clip reward to be 0 at maximum.
             path_reward = min(path_reward, 0)
         # path_reward = 0
@@ -412,7 +430,7 @@ class BasicRewarder(BaseRewarder):
             reward_progress += progress_diff * self.params["gamma_prog"]
 
         cross_track_error = nav_states["cross_track_error"]
-        cross_track_performance = 0.1 *  np.exp(
+        cross_track_performance = 0.1 * np.exp(
             -self.params["gamma_y_e"] * np.abs(cross_track_error)
         )
 
@@ -435,6 +453,7 @@ class BasicRewarder(BaseRewarder):
             - collision_penalty
         )
         return total_reward
+
 
 class ColregRewarder(BaseRewarder):
     def __init__(self, vessel, test_mode):
