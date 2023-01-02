@@ -2,6 +2,7 @@ import numpy as np
 from abc import ABC, abstractmethod
 from gym_auv.objects.vessel import Vessel
 
+# TODO remove these
 deg2rad = np.pi / 180
 rad2deg = 180 / np.pi
 
@@ -220,9 +221,7 @@ class LOSColavRewarder(BaseRewarder):
         self.params["penalty_yawrate"] = 0  # 10.0
         self.params["penalty_torque_change"] = 0.0
         self.params["cruise_speed"] = 0.1
-        # self.params["slow_speed"] = 0.03
         self.params["neutral_speed"] = 0.05
-        self.params["negative_multiplier"] = 2.0
         self.params["collision"] = -10000.0
         self.params["lambda"] = 0.5  # 0.5  # _sample_lambda(scale=0.2)
         self.params["eta"] = 0  # _sample_eta()
