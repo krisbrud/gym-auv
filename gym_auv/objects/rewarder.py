@@ -269,14 +269,6 @@ class LOSColavRewarder(BaseRewarder):
             gamma_v_y=self.params["gamma_v_y"],
         )
 
-        if self.vessel.progress < self.vessel.max_progress:  # or path_reward < 0:
-            # Has not gone forward past the current maximum path progress. Clip reward to be 0 at maximum.
-            path_reward = min(path_reward, 0)
-        # path_reward = 0
-
-        # slow_penalty = 0
-        # if self._vessel.speed < self.params["slow_speed"]:
-        #     slow_penalty = self.params["penalty_slow"]
         # Calculating living penalty
         living_penalty = (
             self.params["lambda"] * (2 * self.params["neutral_speed"] + 1)
