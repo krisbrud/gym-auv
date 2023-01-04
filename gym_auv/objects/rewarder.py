@@ -252,7 +252,7 @@ class LOSColavRewarder(BaseRewarder):
         path_reward = los_path_reward(
             lookahead_unit_vec_ned=lookahead_vector_normalized_ned,
             velocity_ned=velocity_ned,
-            coeff=0.5,
+            coeff=1.0,  #0.5,
         )
 
         # Calculating obstacle avoidance reward component
