@@ -513,6 +513,7 @@ class Vessel:
         nu = state[3:]
         # n = state[12:]  # Propeller speeds
 
+
         # Input consists of commanded moment forward and commanded torque.
         # We use the Otter's included function for allocating them
         demanded_forward_force = self._input[0]
@@ -527,6 +528,10 @@ class Vessel:
             nu=nu,
             u=u
         )
+
+        if np.linalg.norm(state_dot) > 1000:
+            breakpoint()
+
         return np.array(state_dot)
 
     def _thrust_surge(self, surge):

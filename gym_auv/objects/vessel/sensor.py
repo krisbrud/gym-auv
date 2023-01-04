@@ -90,7 +90,23 @@ def find_rays_to_simulate_for_obstacles(
         # they aren't a problem
         for i in range(idx_min_ray - 1, idx_max_ray % n_rays):
             # -1 as first sensor has angle -pi + "angle between rays"
-            obstacles_to_simulate_per_ray[i].append(obstacle)
+            try:
+                obstacles_to_simulate_per_ray[i].append(obstacle)
+            except IndexError:
+                print("Index error")
+                print(i)
+                print(idx_min_ray)
+                print(idx_max_ray)
+                print(n_rays)
+                print(obstacle.enclosing_circle.center.centroid)
+                print("radius", obstacle.enclosing_circle.radius)
+                print(p0_point.centroid)
+                breakpoint()
+                idx_min_ray, idx_max_ray = _find_limit_angle_rays(
+                    obstacle.enclosing_circle, p0_point, heading, angle_per_ray
+                )
+
+                raise IndexError
 
     return obstacles_to_simulate_per_ray
 
