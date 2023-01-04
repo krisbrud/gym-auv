@@ -45,12 +45,12 @@ def _find_limit_angle_rays(
     angle_per_ray: float,  # radians
 ) -> Tuple[int, int]:
     """Finds the indices of the rays that may collide with an obstacle (so that we do not need to simulate this for every other ray)"""
-    obstacle_relative_pos = np.array(obstacle_enclosing_circle.center) - np.array(
+    obstacle_relative_pos_ned = np.array(obstacle_enclosing_circle.center) - np.array(
         p0_point
     )
     # Find the relative angle from the heading to the obstacle. Use clockwise positive rotation, as this is
     # done in the NED plane
-    n, e = obstacle_relative_pos
+    n, e = obstacle_relative_pos_ned
     obstacle_relative_bearing = np.arctan2(e, n) - heading
     feasible_angle_diff = _find_feasible_angle_diff(obstacle_enclosing_circle, p0_point)
 
@@ -77,7 +77,7 @@ def find_rays_to_simulate_for_obstacles(
     n_rays: int,
 ) -> List[List[BaseObstacle]]:
     # Make a list of obstacles that may intersect per ray.
-    # They are passed by reference in python, so it should be pretty fast.
+    # They are passed by reference in python, so it should still be pretty fast.
     obstacles_to_simulate_per_ray = [[] for _ in range(n_rays)]
 
     for obstacle in obstacles:
@@ -88,10 +88,11 @@ def find_rays_to_simulate_for_obstacles(
         # Add obstacle to all rays which may collide with it
         # Because negative indices wrap around (in the same way as the sensor!),
         # they aren't a problem
-        for i in range(idx_min_ray - 1, idx_max_ray % n_rays):
+        for i in range(idx_min_ray - 1, idx_max_ray):
             # -1 as first sensor has angle -pi + "angle between rays"
             try:
-                obstacles_to_simulate_per_ray[i].append(obstacle)
+                i_safe = i % n_rays
+                obstacles_to_simulate_per_ray[i_safe].append(obstacle)
             except IndexError:
                 print("Index error")
                 print(i)
