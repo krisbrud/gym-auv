@@ -1,3 +1,5 @@
+import numpy as np
+from scipy.integrate import odeint
 
 def meyer_odesolver45(f, y, h):
     """Calculate the next step of an IVP of a time-invariant ODE with a RHS
@@ -46,3 +48,21 @@ def meyer_odesolver45(f, y, h):
     )
     return w, q
 
+
+def scipy_ode_solver(f, y0, T, intermediate_steps=20):
+    """Solve an IVP of a time-invariant ODE with a RHS described by f.
+
+    This function takes intermediate steps, and returns the final state after T (not the intermediate steps or time).
+
+    Parameters:
+        f: function. RHS of ODE.
+        y0: float. Initial position.
+        T: float. Step size.
+    Returns:
+        y_final: array. Solution.
+    """
+    t = np.linspace(0, T, intermediate_steps)
+    y = odeint(f, y0, t)
+    y_final = y[-1]
+
+    return y_final
