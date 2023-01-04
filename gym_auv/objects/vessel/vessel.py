@@ -103,7 +103,7 @@ class Vessel:
     @property
     def heading_taken(self) -> np.ndarray:
         """Returns an array holding the heading of the AUV for all timesteps."""
-        return self._prev_states[:, 5]
+        return self._prev_states[:, 2]
 
     @property
     def actions_taken(self) -> np.ndarray:
@@ -113,7 +113,7 @@ class Vessel:
     @property
     def heading(self) -> float:
         """Returns the heading of the AUV with respect to true north."""
-        return self._state[5]
+        return self._state[2]
 
     @property
     def velocity(self) -> np.ndarray:
