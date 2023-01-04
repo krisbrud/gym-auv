@@ -1,5 +1,5 @@
 
-def odesolver45(f, y, h):
+def meyer_odesolver45(f, y, h):
     """Calculate the next step of an IVP of a time-invariant ODE with a RHS
     described by f, with an order 4 approx. and an order 5 approx.
     Parameters:

@@ -18,7 +18,7 @@ from gym_auv.objects.vessel.sensor import (
     find_rays_to_simulate_for_obstacles,
     simulate_sensor,
 )
-from gym_auv.objects.vessel.odesolver import odesolver45
+from gym_auv.objects.vessel.odesolver import meyer_odesolver45
 from gym_auv.objects.vessel.otter import Otter3DoF
 
 class Vessel:
@@ -222,7 +222,7 @@ class Vessel:
         #     [self._thrust_surge(action[0]), self._moment_steer(action[1])]
         # )
         self._input = np.array(action)
-        w, q = odesolver45(
+        w, q = meyer_odesolver45(
             self._state_dot, self._state, self.config.simulation.t_step_size
         )
 
