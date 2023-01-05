@@ -346,7 +346,7 @@ class Otter3DoF:
         psi = eta[2]  # Heading
         r = nu[2]  # Yaw rate
 
-                C = np.array(
+        C = np.array(
             [
                 [0, -self.mass * r, -self.mass * self.xg * r],
                 [self.mass * r, 0, 0],
