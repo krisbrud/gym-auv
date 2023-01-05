@@ -105,8 +105,8 @@ class BaseEnvironment(gym.Env, ABC):
         self._last_image_frame = None
 
         self._action_space = gym.spaces.Box(
-            low=[0.0, -1.0],
-            high=[1.0, 1.0],
+            low=np.array([0.0, -1.0]),
+            high=np.array([1.0, 1.0]),
             dtype=np.float32,
         )
 
