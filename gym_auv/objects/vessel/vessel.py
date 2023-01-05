@@ -218,10 +218,10 @@ class Vessel:
         ----------
         action : np.ndarray[thrust_input, torque_input]
         """
-        # self._input = np.array(
-        #     [self._thrust_surge(action[0]), self._moment_steer(action[1])]
-        # )
-        self._input = np.array(action)
+        self._input = np.array(
+            [self._thrust_surge(action[0]), self._moment_steer(action[1])]
+        )
+        # self._input = np.array(action)
         # w, q = meyer_odesolver45(
         #     self._state_dot, self._state, self.config.simulation.t_step_size
         # )
