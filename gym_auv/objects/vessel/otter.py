@@ -328,7 +328,7 @@ class Otter3DoF:
         self.l1 = -y_pont
         self.l2 = y_pont
         self.B = np.array([[1, 1], [0, 0], [-self.l1, -self.l2]])
-        self.B_pseudoinv = np.linalg.inv(self.B)
+        self.B_pseudoinv = np.linalg.pinv(self.B)
 
         Umax = 6 * 0.5144  # 6 knots
         g = 9.81
