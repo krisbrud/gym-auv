@@ -40,7 +40,7 @@ class SimulationConfig:
 @dataclass
 class VesselConfig:
     thrust_max_auv: float = 100.0  # Maximum thrust of the AUV [N]
-    moment_max_auv: float = 30  # maximum moment applied to the AUV [Nm]
+    moment_max_auv: float = 5  # maximum moment applied to the AUV [Nm]
     vessel_width: float = 1.255  # Width of vessel [m]
     look_ahead_distance: int = 150 # 300  # Path look-ahead distance for vessel [m]
 
