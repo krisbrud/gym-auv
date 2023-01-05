@@ -222,7 +222,7 @@ class LOSColavRewarder(BaseRewarder):
         self.params["penalty_torque_change"] = 0.0
         self.params["cruise_speed"] = 0.1
         self.params["neutral_speed"] = 0.05
-        self.params["collision"] = -10000.0
+        self.params["collision"] = 0 #  -10000.0
         self.params["lambda"] = 0.5  # 0.5  # _sample_lambda(scale=0.2)
         self.params["eta"] = 0  # _sample_eta()
 

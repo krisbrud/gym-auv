@@ -328,6 +328,7 @@ class Otter3DoF:
         self.l1 = -y_pont
         self.l2 = y_pont
         self.B = np.array([[1, 1], [0, 0], [-self.l1, -self.l2]])
+        self.B_pseudoinv = np.linalg.inv(self.B)
 
         Umax = 6 * 0.5144  # 6 knots
         g = 9.81
@@ -338,11 +339,14 @@ class Otter3DoF:
 
         self.D_L = -np.diag([self.X_u, self.Y_v, self.N_r])
 
+
+
     def dynamics(self, eta, nu, u):
         """Calculates the derivatives of eta and nu"""
         psi = eta[2]  # Heading
         r = nu[2]  # Yaw rate
-        C = np.array(
+
+                C = np.array(
             [
                 [0, -self.mass * r, -self.mass * self.xg * r],
                 [self.mass * r, 0, 0],
@@ -356,7 +360,16 @@ class Otter3DoF:
         D = self.D_L + D_N
 
         eta_dot = geom.Rz(-psi).dot(nu)
-        nu_dot = self.M_inv.dot(self.B.dot(u) - C.dot(nu) - D.dot(nu))
+        
+        surge_force_command = u[0]
+        torque_command = u[1]
+
+        force_command = np.array([surge_force_command, 0, torque_command])  # No sway force command
+        propeller_forces = np.matmul(self.B_pseudoinv, force_command)
+
+        propeller_forces = propeller_forces.clip(0, 100)  # Newtons
+
+        nu_dot = self.M_inv.dot(self.B.dot(propeller_forces) - C.dot(nu) - D.dot(nu))  
 
         state_dot = np.concatenate([eta_dot, nu_dot])
 
