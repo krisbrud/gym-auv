@@ -223,7 +223,7 @@ class LOSColavRewarder(BaseRewarder):
         self.params["cruise_speed"] = 0.1
         self.params["neutral_speed"] = 0.05
         self.params["collision"] = -2000.0 #  -10000.0
-        self.params["lambda"] = 0.5  # 0.5  # _sample_lambda(scale=0.2)
+        self.params["lambda"] = 0.7  # 0.5  # _sample_lambda(scale=0.2)
         self.params["eta"] = 0  # _sample_eta()
 
         self.counter = 0
@@ -252,7 +252,7 @@ class LOSColavRewarder(BaseRewarder):
         path_reward = los_path_reward(
             lookahead_unit_vec_ned=lookahead_vector_normalized_ned,
             velocity_ned=velocity_ned,
-            coeff=2,  #0.5,
+            coeff=1.0,  #0.5,
         )
 
         # Calculating obstacle avoidance reward component
