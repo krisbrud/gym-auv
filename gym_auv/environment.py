@@ -343,6 +343,7 @@ class BaseEnvironment(gym.Env, ABC):
         info["reached_goal"] = self.reached_goal
         info["goal_distance"] = self.goal_distance
         info["progress"] = self.progress
+        info["collision_or_reached_goal"] = self.collision or self.reached_goal
 
         # Testing criteria for ending the episode
         done = self._isdone()
