@@ -18,6 +18,7 @@ from gym_auv.envs.testscenario import DebugScenario, EmptyScenario, TestHeadOn
 DEFAULT_CONFIG = deepcopy(Config())
 
 MOVING_CONFIG = deepcopy(Config())
+MOVING_CONFIG.sensor.observe_new_progress = False
 # MOVING_CONFIG.vessel.sector_partition_fun = sector_partition_fun
 # MOVING_CONFIG.vessel.observe_obstacle_fun = observe_obstacle_fun
 # MOVING_CONFIG["observe_obstacle_fun"] = return_true_fun
