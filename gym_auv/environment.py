@@ -429,10 +429,10 @@ class BaseEnvironment(gym.Env, ABC):
             [
                 self.collision,
                 self.reached_goal,
-                self.t_step >= self.config.episode.max_timesteps - 1
-                and not self.test_mode,
-                self.cumulative_reward < self.config.episode.min_cumulative_reward
-                and not self.test_mode,
+                # self.t_step >= self.config.episode.max_timesteps - 1
+                # and not self.test_mode,
+                # self.cumulative_reward < self.config.episode.min_cumulative_reward
+                # and not self.test_mode,
             ]
         )
 
