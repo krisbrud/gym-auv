@@ -478,6 +478,9 @@ class Vessel:
 
         if self.config.sensor.observe_la_heading_error:
             navigation_keys.append("look_ahead_heading_error")
+        
+        # if self.config.sensor.observe_los_heading_error:
+        #     navigation_keys.append("los_heading_error")
 
         if self.config.sensor.observe_new_progress:
             navigation_keys.append("new_progress")
