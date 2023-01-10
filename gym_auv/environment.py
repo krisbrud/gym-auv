@@ -272,7 +272,7 @@ class BaseEnvironment(gym.Env, ABC):
             else:
                 if self.config.sensor.use_velocity_observations:
                     # Add the velocity of the obstacles to the lidar observations
-                    sensor_closenesses = np.vstack(
+                    observations["lidar"] = np.vstack(
                         (sensor_closenesses, sensor_velocities)
                     )
                 else: 

@@ -268,7 +268,7 @@ class Vessel:
             # Set feasible distances to sensor range, closeness and velocities to zero
             collision = False
 
-            n_sensors = self.config.sensor.n_lidar_observations
+            n_sensors = self.config.sensor.n_lidar_rays
             sensor_dist_measurements = np.ones((n_sensors,)) * sensor_range
             sensor_speed_measurements = np.zeros((2, n_sensors))
             sensor_blocked_arr = [False] * n_sensors

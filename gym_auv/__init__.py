@@ -39,6 +39,7 @@ PATHFOLLOW_CONFIG = deepcopy(Config())
 
 LOS_COLAV_CONFIG = deepcopy(Config())
 LOS_COLAV_CONFIG.sensor.observe_new_progress = False
+LOS_COLAV_CONFIG.sensor.use_velocity_observations = True
 
 # REALWORLD_CONFIG.vessel.render_distance = 300
 # REALWORLD_CONFIG = DEFAULT_CONFIG.copy()
