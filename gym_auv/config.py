@@ -112,8 +112,8 @@ class SensorConfig:
         if self.observe_la_heading_error:
             n_dense_observations += 1
         
-        if self.observe_los_heading_error:
-            n_dense_observations += 1
+        # if self.observe_los_heading_error:
+        #     n_dense_observations += 1
 
         if self.observe_new_progress:
             n_dense_observations += 1
