@@ -281,7 +281,7 @@ class Vessel:
 
             (
                 sensor_dist_measurements,
-                _,  # sensor_speed_measurements,
+                sensor_speed_measurements,
                 sensor_blocked_arr,
             ) = self._simulate_sensors_or_use_previous_measurement(
                 sensor_angles_ned, self._p0_point, sensor_range, geom_targets
@@ -302,7 +302,8 @@ class Vessel:
         self._perceive_counter += 1
 
         if self.config.sensor.use_velocity_observations:
-            raise NotImplementedError
+            return output_closenesses, sensor_speed_measurements
+            # raise NotImplementedError
 
         return output_closenesses, None
 

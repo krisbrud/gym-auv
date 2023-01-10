@@ -215,7 +215,7 @@ class LOSColavRewarder(BaseRewarder):
     def __init__(self, vessel: Vessel, test_mode):
         super().__init__(vessel, test_mode)
         self.params["gamma_theta"] = 10.0
-        self.params["gamma_x"] = 0.1
+        self.params["gamma_x"] = 0.1  # 0.1
         self.params["gamma_v_y"] = 1.0
         self.params["gamma_y_e"] = 5.0
         self.params["penalty_yawrate"] = 0  # 10.0
@@ -223,7 +223,7 @@ class LOSColavRewarder(BaseRewarder):
         self.params["cruise_speed"] = 0.1
         self.params["neutral_speed"] = 0.05
         self.params["collision"] = -2000.0 #  -10000.0
-        self.params["lambda"] = 0.7  # 0.5  # _sample_lambda(scale=0.2)
+        self.params["lambda"] = 0.8  # 0.5  # _sample_lambda(scale=0.2)
         self.params["eta"] = 0  # _sample_eta()
 
         self.counter = 0
@@ -245,6 +245,8 @@ class LOSColavRewarder(BaseRewarder):
             reward = self.params["collision"] * (1 - self.params["lambda"])
             return reward
 
+        # breakpoint()
+
         # Calculating path following reward component
         lookahead_vector_normalized_ned = nav_states["lookahead_vector_normalized_ned"]
         velocity_ned = nav_states["velocity_ned"]
@@ -252,7 +254,7 @@ class LOSColavRewarder(BaseRewarder):
         path_reward = los_path_reward(
             lookahead_unit_vec_ned=lookahead_vector_normalized_ned,
             velocity_ned=velocity_ned,
-            coeff=1.0,  #0.5,
+            coeff=1.5,  #0.5,
         )
 
         # Calculating obstacle avoidance reward component

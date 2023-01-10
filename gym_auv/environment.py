@@ -39,6 +39,7 @@ class BaseEnvironment(gym.Env, ABC):
         renderer: Union[str, None] = "2d",
         # render_mode: str = "rgb_array",  # "human",
         verbose: bool = False,
+        **kwargs,
     ):
         """The __init__ method declares all class atributes and calls
         the self.reset() to intialize them properly.
@@ -263,13 +264,19 @@ class BaseEnvironment(gym.Env, ABC):
         observations["dense"] = navigation_states
 
         if bool(self.config.sensor.use_lidar):
-            sensor_closenesses, sector_velocities = self.vessel.perceive(self.obstacles)
+            sensor_closenesses, sensor_velocities = self.vessel.perceive(self.obstacles)
 
             if self.config.sensor.use_occupancy_grid:
                 occupancy_grids = self._make_occupancy_grids(sensor_closenesses, self.path)
                 observations["occupancy"] = occupancy_grids
             else:
-                observations["lidar"] = sensor_closenesses
+                if self.config.sensor.use_velocity_observations:
+                    # Add the velocity of the obstacles to the lidar observations
+                    sensor_closenesses = np.vstack(
+                        (sensor_closenesses, sensor_velocities)
+                    )
+                else: 
+                    observations["lidar"] = sensor_closenesses
 
         # Clamp/clip the observation to the valid domain as specified by the Space
         if isinstance(self.observation_space, gym.spaces.Box):

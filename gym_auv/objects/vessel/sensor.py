@@ -161,17 +161,37 @@ def simulate_sensor(sensor_angle, p0_point, sensor_range, obstacles):
 
     obst_intersections = [sector_ray.intersection(elm.boundary) for elm in obstacles]
     obst_intersections = list(map(_standardize_intersect, obst_intersections))
+    obst_references = list(
+        chain.from_iterable(
+            repeat(obstacles[i], len(obst_intersections[i]))
+            for i in range(len(obst_intersections))
+        )
+    )
     obst_intersections = list(chain(*obst_intersections))
 
     if obst_intersections:
         distances = [p0_point.distance(elm) for elm in obst_intersections]
-        measured_distance = np.min(distances)
+        min_idx = np.argmin(distances)
+        measured_distance = distances[min_idx]  # np.min(distances)
+
+        closest_obstacle = obst_references[min_idx]
+        
+        if not closest_obstacle.static:
+            obst_speed_homogenous = geom.to_homogeneous([closest_obstacle.dx, closest_obstacle.dy])
+            obst_speed_rel_homogenous = geom.Rz(-sensor_angle - np.pi / 2).dot(
+                obst_speed_homogenous
+            )
+            obst_speed_vec_rel = geom.to_cartesian(obst_speed_rel_homogenous)
+        else:
+            obst_speed_vec_rel = (0, 0)
         ray_blocked = True
+        
     else:
         measured_distance = sensor_range
+        obst_speed_vec_rel = (0, 0)
         ray_blocked = False
 
-    return (measured_distance, None, ray_blocked)
+    return (measured_distance, obst_speed_vec_rel, ray_blocked)
 
 
 def get_relative_positions_of_lidar_measurements(
