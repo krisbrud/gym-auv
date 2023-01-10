@@ -42,7 +42,7 @@ class VesselConfig:
     thrust_max_auv: float = 100.0  # Maximum thrust of the AUV [N]
     moment_max_auv: float = 5  # maximum moment applied to the AUV [Nm]
     vessel_width: float = 1.255  # Width of vessel [m]
-    look_ahead_distance: int = 150 # 300  # Path look-ahead distance for vessel [m]
+    look_ahead_distance: int = 300  # Path look-ahead distance for vessel [m]
 
 
 @dataclass
@@ -60,7 +60,12 @@ class SensorConfig:
     observe_proprioceptive: bool = True  # Whether to include navigation states (surge, sway, yaw rate)
     observe_cross_track_error: bool = True  # Whether to include cross-track error in the observation
     observe_heading_error: bool = True  # Whether to include heading error in observation
+
     observe_la_heading_error: bool = True  # Whether to include the look-ahead heading error in the observation
+    # observe_los_heading_error: bool = True  # Whether to include the line-of-sight heading error in the observation
+    # Note: la_heading error is defined as the difference between the path direction and the current heading, while
+    # los_heading_error is the angle error between the current heading and the line-of-sight vector.
+    
     observe_new_progress: bool = True  # Whether to include how much new progress was made in the observation
     use_lidar: bool = (
         True
@@ -105,6 +110,9 @@ class SensorConfig:
             n_dense_observations += 1
 
         if self.observe_la_heading_error:
+            n_dense_observations += 1
+        
+        if self.observe_los_heading_error:
             n_dense_observations += 1
 
         if self.observe_new_progress:
