@@ -173,7 +173,7 @@ def meyer_colav_reward(
             raw_penalty = sensor_range * np.exp(
                 -gamma_x
                 * x
-                # + self.params["gamma_v_y"] * max(0, speed_vec[1])
+                + gamma_v_y * max(0, speed_vec[1])
             )
             weighted_penalty = weight * raw_penalty
             closeness_penalty_num += weighted_penalty
