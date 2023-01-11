@@ -243,7 +243,7 @@ class LOSColavRewarder(BaseRewarder):
 
         if collision:
             reward = self.params["collision"] * (1 - self.params["lambda"])
-            return reward
+            return np.tanh(reward)
 
         # breakpoint()
 
@@ -289,7 +289,7 @@ class LOSColavRewarder(BaseRewarder):
             # - self.params["penalty_yawrate"] * abs(self._vessel.yaw_rate)
         )
 
-        return reward
+        return np.tanh(reward)
 
 
 class ColavRewarder(BaseRewarder):
