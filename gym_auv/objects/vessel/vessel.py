@@ -454,6 +454,7 @@ class Vessel:
             "lookahead_path_error_y": lookahead_path_error_y,
             "lookahead_vector_normalized_ned": lookahead_vector_normalized_ned,
             "velocity_ned": self.velocity_ned,
+            "progress": progress,
         }
 
         navigation_observation_keys = self._get_navigation_observation_keys()
@@ -481,6 +482,9 @@ class Vessel:
         
         # if self.config.sensor.observe_los_heading_error:
         #     navigation_keys.append("los_heading_error")
+
+        if self.config.sensor.observe_progress:
+            navigation_keys.append("progress")
 
         if self.config.sensor.observe_new_progress:
             navigation_keys.append("new_progress")

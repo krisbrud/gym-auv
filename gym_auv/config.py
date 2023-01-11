@@ -60,6 +60,7 @@ class SensorConfig:
     observe_proprioceptive: bool = True  # Whether to include navigation states (surge, sway, yaw rate)
     observe_cross_track_error: bool = True  # Whether to include cross-track error in the observation
     observe_heading_error: bool = True  # Whether to include heading error in observation
+    observe_progress: bool = True  # Observe the path progress in range [0, 1]
 
     observe_la_heading_error: bool = True  # Whether to include the look-ahead heading error in the observation
     # observe_los_heading_error: bool = True  # Whether to include the line-of-sight heading error in the observation
@@ -114,6 +115,9 @@ class SensorConfig:
         
         # if self.observe_los_heading_error:
         #     n_dense_observations += 1
+
+        if self.observe_progress:
+            n_dense_observations += 1
 
         if self.observe_new_progress:
             n_dense_observations += 1

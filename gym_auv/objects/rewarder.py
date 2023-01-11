@@ -275,14 +275,14 @@ class LOSColavRewarder(BaseRewarder):
             + self.params["eta"] * self.params["neutral_speed"]
         )
 
-        # reached_goal_reward = 0
-        # if latest_data["reached_goal"]:
-        #     reached_goal_reward = 1000
+        reached_goal_reward = 0
+        if latest_data["reached_goal"]:
+            reached_goal_reward = 10
 
         # Calculating total reward
         reward = (
             self.params["lambda"] * path_reward
-            # + reached_goal_reward
+            + reached_goal_reward
             + (1 - self.params["lambda"]) * closeness_reward
             - living_penalty
             # + self.params["eta"] * self._vessel.speed / self._vessel.max_speed
