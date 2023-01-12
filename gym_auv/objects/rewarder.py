@@ -327,7 +327,7 @@ class ColavRewarder(BaseRewarder):
 
         if collision:
             reward = self.params["collision"] * (1 - self.params["lambda"])
-            return reward
+            return np.tanh(reward)
 
         reward = 0
 
@@ -355,7 +355,7 @@ class ColavRewarder(BaseRewarder):
                 raw_penalty = self._vessel.config.sensor.range * np.exp(
                     -self.params["gamma_x"]
                     * x
-                    # + self.params["gamma_v_y"] * max(0, speed_vec[1])
+                    + self.params["gamma_v_y"] * max(0, speed_vec[1])
                 )
                 weighted_penalty = weight * raw_penalty
                 closeness_penalty_num += weighted_penalty
@@ -365,9 +365,12 @@ class ColavRewarder(BaseRewarder):
         else:
             closeness_reward = 0
 
-        if self.vessel.progress < self.vessel.max_progress:  # or path_reward < 0:
-            # Has not gone forward past the current maximum path progress. Clip reward to be 0 at maximum.
-            path_reward = min(path_reward, 0)
+
+        closeness_reward *= (180 / 256)  # Scale closeness reward down because of more sensors
+        
+        # if self.vessel.progress < self.vessel.max_progress:  # or path_reward < 0:
+        #     # Has not gone forward past the current maximum path progress. Clip reward to be 0 at maximum.
+        #     path_reward = min(path_reward, 0)
         # path_reward = 0
 
         # slow_penalty = 0
@@ -400,8 +403,7 @@ class ColavRewarder(BaseRewarder):
         if reward < 0:
             reward *= self.params["negative_multiplier"]
 
-        return reward
-
+        return np.tanh(reward)
 
 class BasicRewarder(BaseRewarder):
     def __init__(self, vessel, test_mode):
