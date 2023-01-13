@@ -60,6 +60,10 @@ class Renderer2d:
         self.zoom = zoom
 
     def render(self, state: RenderableState, render_mode="human"):
+        """Renders the environment.
+        
+        render_mode: "human" or "rgb_array"
+        """
         Renderer2d._validate_render_mode(render_mode)
 
         if self.screen is None:

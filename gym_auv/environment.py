@@ -136,6 +136,25 @@ class BaseEnvironment(gym.Env, ABC):
                 shape=(self.config.sensor.dense_observation_size,),
                 dtype=np.float32,
             )
+        
+        if self.config.sensor.use_image_observation:
+            width, height = self.config.sensor.image_shape
+            self.image_output_renderer = Renderer2d(width=width, height=height)
+
+            image_channels = 3  # RGB
+            if self.config.sensor.image_channel_first:
+                image_shape_with_channels = (image_channels, *self.config.sensor.image_shape)
+            else:
+                image_shape_with_channels = (*self.config.sensor.image_shape, image_channels)
+
+            assert len(image_shape_with_channels) == 3, "Image shape must be 3-dimensional!"
+
+            obs_space_dict["image"] = gym.spaces.Box(
+                low=0.0,
+                high=255.0,
+                shape=image_shape_with_channels,
+                dtype=np.float32,
+            )
 
         if self.config.sensor.use_lidar:
             if self.config.sensor.use_occupancy_grid:
@@ -263,6 +282,10 @@ class BaseEnvironment(gym.Env, ABC):
         navigation_states = self.vessel.navigate(self.path)
         observations["dense"] = navigation_states
 
+        if self.config.sensor.use_image_observation:
+            image = self._make_image()
+            observations["image"] = image
+
         if bool(self.config.sensor.use_lidar):
             sensor_closenesses, sensor_velocities = self.vessel.perceive(self.obstacles)
 
@@ -300,6 +323,20 @@ class BaseEnvironment(gym.Env, ABC):
             obs = clip_to_space(observations, self.observation_space)
 
         return obs
+
+    def _make_image(self) -> np.ndarray:
+        """Returns the image observation at the current time-step.
+
+        Returns
+        -------
+        image : np.ndarray
+            The image observation of the environment.
+        """
+        width, height = self.config.sensor.image_shape
+        renderer = Renderer2d(width=width, height=height)
+        
+        image = renderer.render(state=self.renderable_state, render_mode="rgb_array")
+        return image
 
     def step(self, action: list) -> Tuple[np.ndarray, float, bool, dict]:
         """

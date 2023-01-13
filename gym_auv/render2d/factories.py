@@ -119,7 +119,8 @@ def make_world_frame_geoms(state: RenderableState) -> List[BaseGeom]:
 
     if state.path is not None:
         geoms.append(_render_path(path=state.path))
-        geoms.append(_render_path_taken(vessel=state.vessel))
+        if len(state.vessel.path_taken) > 1:  # Avoid rendering a single point, which causes a crash
+            geoms.append(_render_path_taken(vessel=state.vessel))
     geoms.extend(_render_obstacles(obstacles=state.obstacles))
     if state.path is not None:
         geoms.extend(_render_progress(path=state.path, vessel=state.vessel))
