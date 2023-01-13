@@ -301,9 +301,9 @@ class DebugScenario(BaseEnvironment):
 
         for vessel_idx in range(5):
             other_vessel_trajectory = []
-            trajectory_shift = self.rng.rand() * 2 * np.pi
-            trajectory_radius = self.rng.rand() * 40 + 30
-            trajectory_speed = self.rng.rand() * 0.003 + 0.003
+            trajectory_shift = self.rng.random() * 2 * np.pi
+            trajectory_radius = self.rng.random() * 40 + 30
+            trajectory_speed = self.rng.random() * 0.003 + 0.003
             for i in range(10000):
                 # other_vessel_trajectory.append((10*i, (250, 400-10*i)))
                 other_vessel_trajectory.append(
@@ -329,9 +329,9 @@ class DebugScenario(BaseEnvironment):
 
         for vessel_idx in range(5):
             other_vessel_trajectory = []
-            trajectory_start = self.rng.rand() * 200 + 150
-            trajectory_speed = self.rng.rand() * 0.03 + 0.03
-            trajectory_shift = 10 * self.rng.rand()
+            trajectory_start = self.rng.random() * 200 + 150
+            trajectory_speed = self.rng.random() * 0.03 + 0.03
+            trajectory_shift = 10 * self.rng.random()
             for i in range(10000):
                 other_vessel_trajectory.append(
                     (

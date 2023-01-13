@@ -114,10 +114,10 @@ SCENARIOS = {
         "entry_point": "gym_auv.envs:MovingObstaclesNoRules",
         "config": MOVING_CONFIG,
     },
-    "MovingObstaclesSimpleRewarder-v0": {
-        "entry_point": "gym_auv.envs:MovingObstaclesBasic",
-        "config": MOVING_CONFIG,
-    },
+    # "MovingObstaclesSimpleRewarder-v0": {
+    #     "entry_point": "gym_auv.envs:MovingObstaclesBasic",
+    #     "config": MOVING_CONFIG,
+    # },
     "MovingObstaclesLosRewarder-v0": {
         "entry_point": "gym_auv.envs:MovingObstaclesLosRewarder",
         "config": LOS_COLAV_CONFIG,

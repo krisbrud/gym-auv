@@ -13,7 +13,7 @@ def generate_obstacle(
     min_distance = 0
     while min_distance <= 0:
         obst_displacement_dist = np.random.normal(0, displacement_dist_std)
-        obst_arclength = (0.1 + 0.8 * rng.rand()) * path.length
+        obst_arclength = (0.1 + 0.8 * rng.random()) * path.length
         obst_position = path(obst_arclength)
         obst_displacement_angle = geom.princip(
             path.get_direction(obst_arclength) - np.pi / 2

@@ -108,8 +108,9 @@ def _render_obstacles(obstacles: List[BaseObstacle]) -> List[BaseGeom]:
             geoms.append(PolyLine(pygame.Vector2(points, color=c)))
 
         elif isinstance(obst, VesselObstacle):
+            vessel_obstacle_color = colors.RED
             points = ndarray_to_vector2_list(obst.boundary.exterior.coords)
-            geoms.append(FilledPolygon(points, color=c))
+            geoms.append(FilledPolygon(points, color=vessel_obstacle_color))
 
     return geoms
 
@@ -128,9 +129,10 @@ def make_world_frame_geoms(state: RenderableState) -> List[BaseGeom]:
     return geoms
 
 
-def make_body_frame_geoms(state: RenderableState) -> List[BaseGeom]:
+def make_body_frame_geoms(state: RenderableState, render_sensors: bool = True) -> List[BaseGeom]:
     geoms = []
     geoms.append(_render_vessel(vessel=state.vessel))
-    geoms.extend(_render_sensors(vessel=state.vessel))
+    if render_sensors:
+        geoms.extend(_render_sensors(vessel=state.vessel))
 
     return geoms

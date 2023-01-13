@@ -136,24 +136,32 @@ class BaseEnvironment(gym.Env, ABC):
                 shape=(self.config.sensor.dense_observation_size,),
                 dtype=np.float32,
             )
-        
+
         if self.config.sensor.use_image_observation:
             width, height = self.config.sensor.image_shape
             self.image_output_renderer = Renderer2d(width=width, height=height)
 
             image_channels = 3  # RGB
             if self.config.sensor.image_channel_first:
-                image_shape_with_channels = (image_channels, *self.config.sensor.image_shape)
+                image_shape_with_channels = (
+                    image_channels,
+                    *self.config.sensor.image_shape,
+                )
             else:
-                image_shape_with_channels = (*self.config.sensor.image_shape, image_channels)
+                image_shape_with_channels = (
+                    *self.config.sensor.image_shape,
+                    image_channels,
+                )
 
-            assert len(image_shape_with_channels) == 3, "Image shape must be 3-dimensional!"
+            assert (
+                len(image_shape_with_channels) == 3
+            ), "Image shape must be 3-dimensional!"
 
             obs_space_dict["image"] = gym.spaces.Box(
-                low=0.0,
-                high=255.0,
+                low=0,
+                high=255,
                 shape=image_shape_with_channels,
-                dtype=np.float32,
+                dtype=np.uint8,
             )
 
         if self.config.sensor.use_lidar:
@@ -278,7 +286,7 @@ class BaseEnvironment(gym.Env, ABC):
             The observation of the environment.
         """
         observations = {}
-        
+
         navigation_states = self.vessel.navigate(self.path)
         observations["dense"] = navigation_states
 
@@ -290,7 +298,9 @@ class BaseEnvironment(gym.Env, ABC):
             sensor_closenesses, sensor_velocities = self.vessel.perceive(self.obstacles)
 
             if self.config.sensor.use_occupancy_grid:
-                occupancy_grids = self._make_occupancy_grids(sensor_closenesses, self.path)
+                occupancy_grids = self._make_occupancy_grids(
+                    sensor_closenesses, self.path
+                )
                 observations["occupancy"] = occupancy_grids
             else:
                 if self.config.sensor.use_velocity_observations:
@@ -298,7 +308,7 @@ class BaseEnvironment(gym.Env, ABC):
                     observations["lidar"] = np.vstack(
                         (sensor_closenesses, sensor_velocities)
                     )
-                else: 
+                else:
                     observations["lidar"] = sensor_closenesses
 
         # Clamp/clip the observation to the valid domain as specified by the Space
@@ -333,9 +343,9 @@ class BaseEnvironment(gym.Env, ABC):
             The image observation of the environment.
         """
         width, height = self.config.sensor.image_shape
-        renderer = Renderer2d(width=width, height=height)
-        
-        image = renderer.render(state=self.renderable_state, render_mode="rgb_array")
+        renderer = Renderer2d(width=width, height=height, zoom=0.5)
+
+        image = renderer.render(state=self.renderable_state, render_mode="rgb_array", image_observation_mode=True)
         return image
 
     def step(self, action: list) -> Tuple[np.ndarray, float, bool, dict]:
@@ -433,7 +443,7 @@ class BaseEnvironment(gym.Env, ABC):
         occupancy_grid: numpy ndarray of shape (2, G, G), where G is the grid size
         """
         grid_size = self.config.sensor.occupancy_grid_size
-        
+
         # Make lidar occupancy grid
         sensor_range = self.config.sensor.range
         indices_to_plot = (
@@ -468,7 +478,7 @@ class BaseEnvironment(gym.Env, ABC):
         occupancy_grid = np.stack([lidar_occupancy_grid, path_occupancy_grid])
 
         return occupancy_grid
-        
+
     def _isdone(self) -> bool:
         return any(
             [

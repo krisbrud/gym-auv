@@ -410,6 +410,7 @@ class BasicRewarder(BaseRewarder):
         super().__init__(vessel, test_mode)
         self.params["gamma_y_e"] = 5.0
         self.params["gamma_prog"] = 1000
+        self.params["lambda"] = 0.5  # Needed for RenderableState
 
     def calculate(self) -> float:
         latest_data = self._vessel.req_latest_data()

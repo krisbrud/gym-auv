@@ -59,10 +59,16 @@ class Renderer2d:
         self.clock = None
         self.zoom = zoom
 
-    def render(self, state: RenderableState, render_mode="human"):
+    def render(
+        self,
+        state: RenderableState,
+        render_mode: str = "human",
+        image_observation_mode: bool = False,
+    ):
         """Renders the environment.
-        
+
         render_mode: "human" or "rgb_array"
+        render_sensors: Whether to render sensor data. Should be False for image observations
         """
         Renderer2d._validate_render_mode(render_mode)
 
@@ -80,7 +86,9 @@ class Renderer2d:
         self.surf.fill(colors.LIGHT_BLUE)
         # Make geometry
         world_geoms = make_world_frame_geoms(state=state)
-        body_geoms = make_body_frame_geoms(state=state)
+
+        should_render_sensors = not image_observation_mode  # Don't render sensors if we're making an image observation
+        body_geoms = make_body_frame_geoms(state=state, render_sensors=should_render_sensors)
 
         # Transform world geoms to body frame
         world_to_body_transformation = Transformation(
@@ -91,22 +99,29 @@ class Renderer2d:
         )
 
         # Center camera on vessel by applying transform
+        if image_observation_mode:
+            rotation = 0
+        else:
+            rotation = state.vessel.heading
+
         zoom_transformation = Transformation(
             translation=pygame.Vector2(0, 0),
-            angle=-np.pi / 2 + state.vessel.heading,
+            angle=-np.pi / 2 + rotation, #  state.vessel.heading,
             scale=self.zoom,
         )
         zoomed_geoms = apply_transformation(zoom_transformation, body_geoms)
-
+       
+        # Center camera on vessel, as coordinate (0, 0) is a corner
         centering_translation = pygame.Vector2(x=self.width / 2, y=self.height / 2)
         camera_transformation = Transformation(
             translation=centering_translation,
             angle=0,
         )
 
-        centered_geoms = list(
-            map(lambda geom: geom.transform(camera_transformation), zoomed_geoms)
-        )
+        # centered_geoms = list(  # TODO use apply_transformation
+        #     map(lambda geom: geom.transform(camera_transformation), zoomed_geoms)
+        # )
+        centered_geoms = apply_transformation(camera_transformation, zoomed_geoms)
 
         for geom in centered_geoms:
             self.render_geom(geom)

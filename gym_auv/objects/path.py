@@ -95,7 +95,8 @@ class Path:
 
 class RandomCurveThroughOrigin(Path):
     def __init__(self, rng, nwaypoints, length=400):
-        angle_init = 2 * np.pi * (rng.rand() - 0.5)
+        assert isinstance(rng, np.random.Generator)  # Help the type checker
+        angle_init = 2 * np.pi * (rng.random() - 0.5)
         start = np.array(
             [0.5 * length * np.cos(angle_init), 0.5 * length * np.sin(angle_init)]
         )
@@ -104,10 +105,10 @@ class RandomCurveThroughOrigin(Path):
         for waypoint in range(nwaypoints // 2):
             newpoint1 = (nwaypoints // 2 - waypoint) * start / (
                 nwaypoints // 2 + 1
-            ) + length / (nwaypoints // 2 + 1) * (rng.rand() - 0.5)
+            ) + length / (nwaypoints // 2 + 1) * (rng.random() - 0.5)
             newpoint2 = (nwaypoints // 2 - waypoint) * end / (
                 nwaypoints // 2 + 1
-            ) + length / (nwaypoints // 2 + 1) * (rng.rand() - 0.5)
+            ) + length / (nwaypoints // 2 + 1) * (rng.random() - 0.5)
             waypoints = np.vstack(
                 [
                     waypoints[: waypoint + 1, :],

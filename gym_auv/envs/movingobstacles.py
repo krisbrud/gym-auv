@@ -27,15 +27,20 @@ class MovingObstacles(BaseEnvironment):
 
     def _generate(self):
         # Initializing path
-        nwaypoints = int(np.floor(4 * self.rng.rand() + 2))
+        # nwaypoints = int(np.floor(4 * self.rng.rand() + 2))
+        assert isinstance(self.rng, np.random.Generator)  # Helps the type checker
+
+        nwaypoints = self.rng.integers(2, 6)  # Non-inclusive upper bound
         self.path = RandomCurveThroughOrigin(self.rng, nwaypoints, length=800)
 
         # Initializing vessel
         init_state = self.path(0)
         init_angle = self.path.get_direction(0)
-        init_state[0] += 50 * (self.rng.rand() - 0.5)
-        init_state[1] += 50 * (self.rng.rand() - 0.5)
-        init_angle = geom.princip(init_angle + 2 * np.pi * (self.rng.rand() - 0.5))
+        
+        # init_state[0] += 50 * (self.rng.rand() - 0.5)
+        init_state[0] += 50 * (self.rng.random() - 0.5)
+        init_state[1] += 50 * (self.rng.random() - 0.5)
+        init_angle = geom.princip(init_angle + 2 * np.pi * (self.rng.random() - 0.5))
         self.vessel = Vessel(
             self.config,
             np.hstack([init_state, init_angle]),
@@ -58,7 +63,8 @@ class MovingObstacles(BaseEnvironment):
                 obst_radius_mean=10,
                 displacement_dist_std=500,
             )
-            obst_direction = self.rng.rand() * 2 * np.pi
+            # obst_direction = self.rng.rand() * 2 * np.pi
+            obst_direction = self.rng.random() * 2 * np.pi
 
             min_speed = 1  # m/s
             max_speed = 3
