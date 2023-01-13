@@ -23,6 +23,11 @@ class EpisodeConfig:
     )  # Minimum aboslute distance to the goal position before episode ends
     min_path_progress: float = 0.99  # Minimum path progress before scenario is considered successful and the episode ended
 
+    # Whether to use the new API introduced in gym 0.26.0
+    # True: return (obs, reward, done, info)
+    # False: return (obs, reward, terminated, truncated, info)
+    use_truncated_terminated_step_api: bool = True  
+
 
 @dataclass
 class SimulationConfig:
