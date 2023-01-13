@@ -275,7 +275,10 @@ class BaseEnvironment(gym.Env, ABC):
             "cross_track_error": [],
         }
 
-        return obs
+        if self.config.episode.use_truncated_terminated_step_api:
+            return obs, {}
+        else:
+            return obs
 
     def observe(self) -> np.ndarray:
         """Returns the array of observations at the current time-step.
@@ -401,7 +404,11 @@ class BaseEnvironment(gym.Env, ABC):
         info["collision_or_reached_goal"] = self.collision or self.reached_goal
 
         # Testing criteria for ending the episode
-        done = self._isdone()
+        # done = self._isdone()
+        truncated = self._is_truncated()
+        terminated = self._is_terminal()
+
+        done = terminated or truncated
 
         self._save_latest_step()
 
@@ -414,7 +421,12 @@ class BaseEnvironment(gym.Env, ABC):
             print(f"Done after {self.t_step} steps. Info: {info}")
             self._print_info()
 
-        return (obs, reward, done, info)
+        if self.config.episode.use_truncated_terminated_step_api:
+            # use new api from gym v0.26.0
+            return (obs, reward, terminated, truncated, info)
+        else:
+            # use old api
+            return (obs, reward, done, info)
 
     def _print_info(self) -> None:
         print(
@@ -480,17 +492,29 @@ class BaseEnvironment(gym.Env, ABC):
 
         return occupancy_grid
 
-    def _isdone(self) -> bool:
-        return any(
-            [
-                self.collision,
-                self.reached_goal,
-                # self.t_step >= self.config.episode.max_timesteps - 1
-                # and not self.test_mode,
-                # self.cumulative_reward < self.config.episode.min_cumulative_reward
-                # and not self.test_mode,
-            ]
-        )
+    def _is_terminal(self) -> bool:
+        """Returns True if the episode is done due to a terminal event, False otherwise."""
+        return self.collision or self.reached_goal
+
+    def _is_truncated(self) -> bool:
+        """Returns True if the episode is done due to a truncated event, False otherwise."""
+
+        is_timelimit_reached = self.t_step >= self.config.episode.max_timesteps - 1,
+        is_cumulative_reward_too_low = self.cumulative_reward < self.config.episode.min_cumulative_reward
+
+        return (is_timelimit_reached or is_cumulative_reward_too_low) and not self.test_mode
+
+    # def _isdone(self) -> bool:
+    #     return any(
+    #         [
+    #             self.collision,
+    #             self.reached_goal,
+    #             # self.t_step >= self.config.episode.max_timesteps - 1
+    #             # and not self.test_mode,
+    #             # self.cumulative_reward < self.config.episode.min_cumulative_reward
+    #             # and not self.test_mode,
+    #         ]
+    #     )
 
     def _update(self) -> None:
         """Updates the environment at each time-step. Can be customized in sub-classes."""
