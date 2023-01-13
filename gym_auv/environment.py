@@ -343,7 +343,8 @@ class BaseEnvironment(gym.Env, ABC):
             The image observation of the environment.
         """
         width, height = self.config.sensor.image_shape
-        renderer = Renderer2d(width=width, height=height, zoom=0.5)
+        zoom = (width / 2) / self.config.sensor.range
+        renderer = Renderer2d(width=width, height=height, zoom=zoom)
 
         image = renderer.render(state=self.renderable_state, render_mode="rgb_array", image_observation_mode=True)
         return image
