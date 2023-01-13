@@ -275,7 +275,7 @@ class BaseEnvironment(gym.Env, ABC):
             "cross_track_error": [],
         }
 
-        if self.config.episode.use_truncated_terminated_step_api:
+        if self.config.episode.use_terminated_truncated_step_api:
             return obs, {}
         else:
             return obs
@@ -349,7 +349,11 @@ class BaseEnvironment(gym.Env, ABC):
         zoom = (width / 2) / self.config.sensor.range
         renderer = Renderer2d(width=width, height=height, zoom=zoom)
 
-        image = renderer.render(state=self.renderable_state, render_mode="rgb_array", image_observation_mode=True)
+        image = renderer.render(
+            state=self.renderable_state,
+            render_mode="rgb_array",
+            image_observation_mode=True,
+        )
         return image
 
     def step(self, action: list) -> Tuple[np.ndarray, float, bool, dict]:
@@ -421,7 +425,7 @@ class BaseEnvironment(gym.Env, ABC):
             print(f"Done after {self.t_step} steps. Info: {info}")
             self._print_info()
 
-        if self.config.episode.use_truncated_terminated_step_api:
+        if self.config.episode.use_terminated_truncated_step_api:
             # use new api from gym v0.26.0
             return (obs, reward, terminated, truncated, info)
         else:
@@ -499,10 +503,12 @@ class BaseEnvironment(gym.Env, ABC):
     def _is_truncated(self) -> bool:
         """Returns True if the episode is done due to a truncated event, False otherwise."""
 
-        is_timelimit_reached = self.t_step >= self.config.episode.max_timesteps - 1,
-        is_cumulative_reward_too_low = self.cumulative_reward < self.config.episode.min_cumulative_reward
+        is_timelimit_reached = (self.t_step >= self.config.episode.max_timesteps - 1)
+        is_cumulative_reward_too_low = (
+            self.cumulative_reward < self.config.episode.min_cumulative_reward
+        )
 
-        return (is_timelimit_reached or is_cumulative_reward_too_low) and not self.test_mode
+        return bool(is_timelimit_reached or is_cumulative_reward_too_low)
 
     # def _isdone(self) -> bool:
     #     return any(

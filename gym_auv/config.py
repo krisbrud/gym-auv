@@ -17,7 +17,9 @@ class EpisodeConfig:
     min_cumulative_reward: float = float(
         -2000
     )  # Minimum cumulative reward received before episode ends
-    max_timesteps: int = 5000 # 10000  # Maximum amount of timesteps before episode ends
+    max_timesteps: int = (
+        3000  #  5000 # 10000  # Maximum amount of timesteps before episode ends
+    )
     min_goal_distance: float = float(
         5
     )  # Minimum aboslute distance to the goal position before episode ends
@@ -26,13 +28,13 @@ class EpisodeConfig:
     # Whether to use the new API introduced in gym 0.26.0
     # True: return (obs, reward, done, info)
     # False: return (obs, reward, terminated, truncated, info)
-    use_truncated_terminated_step_api: bool = True  
+    use_terminated_truncated_step_api: bool = False  # True
 
 
 @dataclass
 class SimulationConfig:
     # t_step_size: float = 0.1 #  1.0  # Length of simulation timestep [s]
-    t_step_size: float = 1.0 #  1.0  # Length of simulation timestep [s]
+    t_step_size: float = 1.0  #  1.0  # Length of simulation timestep [s]
     # sensor_frequency: float = (
     #     1.0  # Sensor execution frequency (0.0 = never execute, 1.0 = always execute)
     # )
@@ -58,21 +60,35 @@ class SensorConfig:
     range: float = 150.0  # Range of rangefinder sensors [m]
 
     # Log transform and the distance normalization cannot be True at the same time
-    apply_log_transform: bool = False  # Whether to use a log. transform when calculating closeness
-    apply_distance_normalization: bool = True  # Whether to normalize the sensor measurements from the Vessel to [0, 1]
+    apply_log_transform: bool = (
+        False  # Whether to use a log. transform when calculating closeness
+    )
+    apply_distance_normalization: bool = (
+        True  # Whether to normalize the sensor measurements from the Vessel to [0, 1]
+    )
 
     # use_relative_vectors: bool = True
-    observe_proprioceptive: bool = True  # Whether to include navigation states (surge, sway, yaw rate)
-    observe_cross_track_error: bool = True  # Whether to include cross-track error in the observation
-    observe_heading_error: bool = True  # Whether to include heading error in observation
+    observe_proprioceptive: bool = (
+        True  # Whether to include navigation states (surge, sway, yaw rate)
+    )
+    observe_cross_track_error: bool = (
+        True  # Whether to include cross-track error in the observation
+    )
+    observe_heading_error: bool = (
+        True  # Whether to include heading error in observation
+    )
     observe_progress: bool = True  # Observe the path progress in range [0, 1]
 
-    observe_la_heading_error: bool = True  # Whether to include the look-ahead heading error in the observation
+    observe_la_heading_error: bool = (
+        True  # Whether to include the look-ahead heading error in the observation
+    )
     # observe_los_heading_error: bool = True  # Whether to include the line-of-sight heading error in the observation
     # Note: la_heading error is defined as the difference between the path direction and the current heading, while
     # los_heading_error is the angle error between the current heading and the line-of-sight vector.
-    
-    observe_new_progress: bool = True  # Whether to include how much new progress was made in the observation
+
+    observe_new_progress: bool = (
+        True  # Whether to include how much new progress was made in the observation
+    )
     use_lidar: bool = (
         True
         # Whether rangefinder sensors for perception should be activated
@@ -83,14 +99,11 @@ class SensorConfig:
     image_channel_first: bool = False  # Whether to use channel first format for image output. Use True for PyTorch, False for Tensorflow.
     use_velocity_observations: bool = False
     occupancy_grid_size: int = 64
-    observe_obstacle_fun: Callable[
-        [int, float], bool
-    ] = observe_obstacle_fun  
+    observe_obstacle_fun: Callable[[int, float], bool] = observe_obstacle_fun
     # Function that outputs whether an obstacle should be observed (True),
     # or if a virtual obstacle based on the latest reading should be used (False).
     # This represents a trade-off between sensor accuracy and computation speed.
     # With real-world terrain, using virtual obstacles is critical for performance.
-    
 
     @property
     def lidar_shape(self) -> Tuple[int, int]:
@@ -111,7 +124,7 @@ class SensorConfig:
 
         if self.observe_proprioceptive:
             n_dense_observations += 3
-        
+
         if self.observe_cross_track_error:
             n_dense_observations += 1
 
@@ -120,7 +133,7 @@ class SensorConfig:
 
         if self.observe_la_heading_error:
             n_dense_observations += 1
-        
+
         # if self.observe_los_heading_error:
         #     n_dense_observations += 1
 
@@ -131,7 +144,6 @@ class SensorConfig:
             n_dense_observations += 1
 
         return n_dense_observations
-    
 
 
 @dataclass
