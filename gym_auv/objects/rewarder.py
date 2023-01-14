@@ -225,6 +225,8 @@ class LOSColavRewarder(BaseRewarder):
         self.params["collision"] = -500  #-2000.0 #  -10000.0
         self.params["lambda"] = 0.6  # 0.5  # _sample_lambda(scale=0.2)
         self.params["eta"] = 0  # _sample_eta()
+        self.params["negative_multiplier"] = 2
+        self.params["reward_scale"] = 0.5
 
         self.counter = 0
 
@@ -243,7 +245,7 @@ class LOSColavRewarder(BaseRewarder):
 
         if collision:
             reward = self.params["collision"] * (1 - self.params["lambda"])
-            return np.tanh(reward)
+            return reward * self.params["reward_scale"]
 
         # breakpoint()
 
@@ -254,8 +256,15 @@ class LOSColavRewarder(BaseRewarder):
         path_reward = los_path_reward(
             lookahead_unit_vec_ned=lookahead_vector_normalized_ned,
             velocity_ned=velocity_ned,
-            coeff=1.5,  #0.5,
+            coeff=0.8,  #0.5,
         )
+
+        if path_reward < 0:
+            # Double the penalty of going backwards
+            # This is intended to discourage the vessel from going in circles,
+            # without also multiplying slight negative rewards from closeness to obstacles
+            # while going in the right direction
+            path_reward *= self.params["negative_multiplier"]
 
         # Calculating obstacle avoidance reward component
         closeness_reward = meyer_colav_reward(
@@ -289,7 +298,10 @@ class LOSColavRewarder(BaseRewarder):
             # - self.params["penalty_yawrate"] * abs(self._vessel.yaw_rate)
         )
 
-        return np.tanh(reward)
+        # if reward < 0:
+        #     reward *= self.params["negative_multiplier"]
+
+        return reward * self.params["reward_scale"]
 
 
 class ColavRewarder(BaseRewarder):
