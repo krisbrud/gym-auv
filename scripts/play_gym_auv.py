@@ -1,4 +1,3 @@
-# %% 
 import os
 import gym
 import gym_auv
@@ -20,7 +19,6 @@ env = gym.make(env_name, env_config=gym_auv_config)
 rewards = []
 latest_data = []
 done_indices = []
-step_idx = 0
 
 def callback(obs_t, obs_tp1, action, rew, terminated, truncated, info):
     global step_idx
@@ -31,13 +29,11 @@ def callback(obs_t, obs_tp1, action, rew, terminated, truncated, info):
     done = truncated or terminated
     if done:
         done_indices.append(step_idx)
-    step_idx += 1  # Note: This is the step index of the _next_ step
 
     rewards.append(rew)
     latest_data.append(copy.deepcopy(info["latest_data"]))
 
     return [rew,]
-# plotter = PlayPlot(callback, 150, ["reward"])
 
 keys_to_action = {
     "w": np.array([1.0, 0]),
@@ -48,16 +44,9 @@ keys_to_action = {
     "wd": np.array([1.0, -1.0]),
 }
 
-noop = np.array([0, 0])
+noop = np.array([0, 0])  # Action if no key is pressed for a frame
 
 play(env, keys_to_action=keys_to_action, fps=10, noop=noop, callback=callback)
-# callback=plotter.callback)
-
-# print(rewards)
-# print("len rewards",len(rewards))
-# # print(latest_data)
-# print("len latest", len(latest_data))
-# print(f"{step_idx = }")
 
 def get_file_path(file_name):
     if not file_name.endswith(".pkl"):
@@ -83,4 +72,3 @@ if file_name: # If not empty or only whitespace (removed by strip)
 
     with open(file_name, "wb") as f:
         pickle.dump(episode_latest_data, f)
-# %%
