@@ -396,6 +396,7 @@ class BaseEnvironment(gym.Env, ABC):
         self.progress = vessel_data["progress"]
 
         # Receiving agent's reward
+        # reward = self.rewarder.calculate(vessel_data, parameters=self.config.rewarder.params)
         reward = self.rewarder.calculate()
         self.last_reward = reward
         self.cumulative_reward += reward
@@ -407,6 +408,8 @@ class BaseEnvironment(gym.Env, ABC):
         info["progress"] = self.progress
         info["collision_or_reached_goal"] = self.collision or self.reached_goal
 
+        if self.config.episode.return_latest_data_in_info:
+            info["latest_data"] = self.vessel.req_latest_data()
         # Testing criteria for ending the episode
         # done = self._isdone()
         truncated = self._is_truncated()

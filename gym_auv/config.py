@@ -11,6 +11,11 @@ from gym_auv.utils.observe_functions import observe_obstacle_fun
 from gym_auv.utils.sector_partitioning import sector_partition_fun
 
 
+# @dataclass
+# class RewarderConfig:
+
+
+
 @dataclass
 class EpisodeConfig:
     # ---- EPISODE ---- #
@@ -29,6 +34,10 @@ class EpisodeConfig:
     # True: return (obs, reward, done, info)
     # False: return (obs, reward, terminated, truncated, info)
     use_terminated_truncated_step_api: bool = False  # True
+    
+    # Whether to provide the state used for the rewarder in the info dict
+    # Should be set to true for exporting the environment state for reward shaping etc.
+    return_latest_data_in_info: bool = False
 
 
 @dataclass

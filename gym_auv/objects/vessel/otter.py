@@ -355,7 +355,7 @@ class Otter3DoF:
         )
 
         D_N = np.zeros((3, 3))
-        # D_N[2, 2] = -10 * self.N_r * abs(r)
+        D_N[2, 2] = -10 * self.N_r * abs(r)
 
         D = self.D_L + D_N
 
