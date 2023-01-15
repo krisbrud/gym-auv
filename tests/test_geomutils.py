@@ -33,3 +33,18 @@ def test_transform_body_to_ned():
 
     left_unit_vector_ned = transform_body_to_ned(left_unit_vector_body, np.zeros(2), heading)
     assert np.allclose(left_unit_vector_ned, np.array([1, -1]) / np.sqrt(2))
+
+def test_transform_body_to_ned2():
+    # Test that a straight-ahead velocity vector in the body frame is transformed correctly
+
+    straight_ahead_unit_vector_body = np.array([1, 0])
+    left_unit_vector_body = np.array([0, -1])
+
+    heading = -np.pi / 4  # 45 degrees clockwise
+
+    # Transform the vector to the NED frame
+    straight_ahead_unit_vector_ned = transform_body_to_ned(straight_ahead_unit_vector_body, np.zeros(2), heading)
+    assert np.allclose(straight_ahead_unit_vector_ned, np.array([1, -1]) / np.sqrt(2))
+
+    left_unit_vector_ned = transform_body_to_ned(left_unit_vector_body, np.zeros(2), heading)
+    assert np.allclose(left_unit_vector_ned, np.array([-1, -1]) / np.sqrt(2))

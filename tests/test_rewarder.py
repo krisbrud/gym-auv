@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from gym_auv.objects.rewarder import los_path_reward
+from gym_auv.utils.geomutils import transform_body_to_ned
 
 def test_los_path_reward():
     # Test that the reward is calculated correctly
@@ -12,3 +13,7 @@ def test_los_path_reward():
 
     assert np.allclose(1.0, los_path_reward(velocity_north_west, north_west_unit_vector))
     assert np.allclose(0.0, los_path_reward(velocity_north_east, north_west_unit_vector))  
+
+
+if __name__ == "__main__":
+    test_los_path_reward()
