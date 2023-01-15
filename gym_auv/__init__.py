@@ -35,6 +35,7 @@ DEBUG_CONFIG.episode.min_goal_distance = 0.1
 REALWORLD_CONFIG = deepcopy(Config())
 
 PATHFOLLOW_CONFIG = deepcopy(Config())
+PATHFOLLOW_CONFIG.rewarder.params = PathFollowParams()
 # PATHFOLLOW_CONFIG.sensor.use_lidar = False
 # PATHFOLLOW_CONFIG.episode.min_cumulative_reward = -1000
 # REALWORLD_CONFIG.simulation.t_step_size = 0.2
@@ -44,6 +45,8 @@ LOS_COLAV_CONFIG.rewarder.params = LosColavParams()
 LOS_COLAV_CONFIG.sensor.observe_new_progress = False
 LOS_COLAV_CONFIG.sensor.use_velocity_observations = True
 
+COLREG_CONFIG = deepcopy(Config())
+COLREG_CONFIG.rewarder.params = ColregParams()
 # REALWORLD_CONFIG.vessel.render_distance = 300
 # REALWORLD_CONFIG = DEFAULT_CONFIG.copy()
 # REALWORLD_CONFIG["t_step_size"] = 0.2
@@ -130,7 +133,7 @@ SCENARIOS = {
     },
     # "MovingObstaclesColreg-v0": {
     #     "entry_point": "gym_auv.envs:MovingObstaclesColreg",
-    #     "config": MOVING_CONFIG,
+        # "config": COLREG_CONFIG,
     # },
     # 'FilmScenario-v0':  {
     #     'entry_point': 'gym_auv.envs:FilmScenario',
