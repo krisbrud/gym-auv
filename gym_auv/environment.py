@@ -213,7 +213,7 @@ class BaseEnvironment(gym.Env, ABC):
         """Array defining the shape and bounds of the agent's observations."""
         return self._observation_space
 
-    def reset(self, save_history=True):
+    def reset(self, save_history=True, **kwargs):
         """Reset the environment's state. Returns observation.
 
         Returns
