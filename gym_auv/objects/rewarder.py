@@ -125,7 +125,6 @@ class PathFollowRewarder(BaseRewarder):
             - living_penalty
             + self.params["eta"] * self._vessel.speed / self._vessel.max_speed
             - self.params["penalty_yawrate"] * abs(self._vessel.yaw_rate)
-            # + slow_penalty
         )
 
         # if reward < 0:
@@ -376,7 +375,6 @@ class ColavRewarder(BaseRewarder):
             - living_penalty
             + self.params["eta"] * self._vessel.speed / self._vessel.max_speed
             - self.params["penalty_yawrate"] * abs(self._vessel.yaw_rate)
-            # + slow_penalty
         )
         
         if reward < 0:
