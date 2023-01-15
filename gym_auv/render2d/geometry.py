@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import List, Union
-from typing_extensions import Self
+# from typing_extensions import Self
 
 import numpy as np
 import pygame
@@ -56,7 +56,7 @@ class BasePointGeom(BaseGeom):
     def points(self):
         return self._points
 
-    def transform(self, transformation: Transformation) -> Self:
+    def transform(self, transformation: Transformation):
         self._points = list(map(lambda p: transformation.apply_to(p), self.points))
 
         return self
