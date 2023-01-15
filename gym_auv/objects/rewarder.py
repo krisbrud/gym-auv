@@ -1,6 +1,8 @@
 import numpy as np
 from abc import ABC, abstractmethod
 from gym_auv.objects.vessel import Vessel
+from dataclasses import dataclass
+from typing import Optional
 
 # TODO remove these
 deg2rad = np.pi / 180
@@ -17,6 +19,65 @@ def _sample_eta():
     y = np.random.gamma(shape=1.9, scale=0.6)
     return y
 
+@dataclass
+class RewarderParams:
+    # Colav rewarder
+    gamma_theta: Optional[float] = None
+    gamma_x: Optional[float] = None
+    gamma_v_y: Optional[float] = None
+    gamma_y_e: Optional[float] = None
+    penalty_yawrate: Optional[float] = None
+    penalty_torque_change: Optional[float] = None
+    cruise_speed: Optional[float] = None
+    neutral_speed: Optional[float] = None
+    collision: Optional[float] = None
+    lambda_: Optional[float] = None
+    eta: Optional[float] = None
+    negative_multiplier: Optional[float] = None
+    reward_scale: Optional[float] = None
+
+    # COLREG rewarder
+    gamma_x_stat: Optional[float] = None
+    gamma_x_starboard: Optional[float] = None
+    gamma_x_port: Optional[float] = None
+    alpha_lambda: Optional[float] = None
+    gamma_min_x: Optional[float] = None
+    gamma_weight: Optional[float] = None
+
+class ColavParams(RewarderParams):
+    gamma_theta = 10.0
+    gamma_x = 0.1  # 0.1
+    gamma_v_y = 1.0
+    gamma_y_e = 5.0
+    penalty_yawrate = 0  # 10.0
+    penalty_torque_change = 0.0
+    cruise_speed = 0.1
+    neutral_speed = 0.05
+    collision = -500  #-2000.0 #  -10000.0
+    lambda_ = 0.6  # 0.5  
+    eta = 0  # _sample_eta()
+    negative_multiplier = 2
+    reward_scale = 0.5
+
+class ColregParams(RewarderParams):
+    gamma_theta = 10.0
+    gamma_x_stat = 0.09
+    gamma_x_starboard = 0.07
+    gamma_x_port = 0.09
+    alpha_lambda = 3.5
+    gamma_min_x = 0.04
+    gamma_weight = 2
+    gamma_v_y = 2.0
+    gamma_y_e = 5.0
+    penalty_yawrate = 0.0
+    penalty_torque_change = 0.01
+    cruise_speed = 0.1
+    neutral_speed = 0.1
+    negative_multiplier = 2.0
+    collision = -10000.0
+    lambda_ = 0.5  
+    eta = 0.2  
+
 
 class BaseRewarder(ABC):
     def __init__(self, vessel: Vessel, test_mode) -> None:
@@ -30,10 +91,18 @@ class BaseRewarder(ABC):
         return self._vessel
 
     @abstractmethod
-    def calculate(self) -> float:
+    def calculate(self, vessel_data, parameters) -> float:
         """
         Calculates the step reward and decides whether the episode
         should be ended.
+
+        Parameters
+        ----------
+        vessel_data : dict
+            Dictionary containing the latest data of the vessel.
+            Returned by vessel.req_latest_data()
+        parameters : dict
+            Dictionary containing the parameters of the rewarder.
 
         Returns
         -------
