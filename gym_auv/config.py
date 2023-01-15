@@ -9,11 +9,12 @@ from typing import Any, Callable, List, Tuple, Union
 # import gym_auv
 from gym_auv.utils.observe_functions import observe_obstacle_fun
 from gym_auv.utils.sector_partitioning import sector_partition_fun
+from gym_auv.objects.rewarder import RewarderParams
 
 
-# @dataclass
-# class RewarderConfig:
-
+@dataclass
+class RewarderConfig:
+    params: RewarderParams
 
 
 @dataclass
@@ -176,6 +177,7 @@ class Config:
     simulation: SimulationConfig = SimulationConfig()
     vessel: VesselConfig = VesselConfig()
     rendering: RenderingConfig = RenderingConfig()
+    rewarder: RewarderConfig = RewarderConfig()
 
     def __iter__(self):
         return iter(dataclasses.fields(self))
