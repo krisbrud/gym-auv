@@ -37,7 +37,7 @@ class BaseEnvironment(gym.Env, ABC):
         env_config: Union[gym_auv.Config, dict],
         test_mode: bool = False,
         renderer: Union[str, None] = "2d",
-        # render_mode: str = "rgb_array",  # "human",
+        render_mode: str = "rgb_array",  # "human",
         verbose: bool = False,
         **kwargs,
     ):
@@ -116,7 +116,7 @@ class BaseEnvironment(gym.Env, ABC):
         # Initializing rendering
         self._renderer2d = None
         self._viewer3d = None
-        # self.render_mode = render_mode
+        self.render_mode = render_mode
         if self.renderer == "2d" or self.renderer == "both":
             self._renderer2d = Renderer2d(
                 render_fps=self.metadata["video.frames_per_second"]
@@ -544,7 +544,8 @@ class BaseEnvironment(gym.Env, ABC):
         if self._viewer3d is not None:
             self._viewer3d.close()
 
-    def render(self, mode="rgb_array", **kwargs):
+    # def render(self, mode="rgb_array", **kwargs):
+    def render(self):
         """Render one frame of the environment.
         The default mode will do something human friendly, such as pop up a window.
 
@@ -554,7 +555,7 @@ class BaseEnvironment(gym.Env, ABC):
         try:
             if self.renderer == "2d" or self.renderer == "both":
                 image_arr = self._renderer2d.render(
-                    state=self.renderable_state, render_mode=mode
+                    state=self.renderable_state, render_mode=self.render_mode
                 )
             # if self.renderer == "3d" or self.renderer == "both":
             #     image_arr = render3d.render_env(
@@ -568,7 +569,7 @@ class BaseEnvironment(gym.Env, ABC):
         else:
             self._last_image_frame = image_arr
 
-        if image_arr is None and mode == "rgb_array":
+        if image_arr is None and self.render_mode == "rgb_array":
             print("Warning: image_arr is None -> video is likely broken")
 
         return image_arr
