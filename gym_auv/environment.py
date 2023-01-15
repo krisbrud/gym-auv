@@ -261,7 +261,8 @@ class BaseEnvironment(gym.Env, ABC):
                 print(
                     "Warning: Rewarder not initialized by _generate() method call. Selecting default ColavRewarder instead."
                 )
-            self.rewarder = self._rewarder_class(self.vessel, self.test_mode)
+            self.rewarder = self._rewarder_class()
+            # self.rewarder = ColavRewarder() 
         if self.verbose:
             print("Generated scenario")
 
@@ -397,7 +398,8 @@ class BaseEnvironment(gym.Env, ABC):
 
         # Receiving agent's reward
         # reward = self.rewarder.calculate(vessel_data, parameters=self.config.rewarder.params)
-        reward = self.rewarder.calculate()
+        # reward = self.rewarder.calculate(vessel_data=vessel_data, parameters=self.config.rewarder.params)
+        reward = self.rewarder.calculate(vessel_data=vessel_data, params=self.config.rewarder.params)
         self.last_reward = reward
         self.cumulative_reward += reward
 
@@ -434,6 +436,11 @@ class BaseEnvironment(gym.Env, ABC):
         else:
             # use old api
             return (obs, reward, done, info)
+    
+    def _make_rewarder(self):
+        """Creates the rewarder for the environment."""
+        rewarder = Rewarder(self.config.rewarder)
+        return rewarder
 
     def _print_info(self) -> None:
         print(
@@ -589,8 +596,8 @@ class BaseEnvironment(gym.Env, ABC):
             cumulative_reward=self.cumulative_reward,
             t_step=self.t_step,
             episode=self.episode,
-            lambda_tradeoff=self.rewarder.params["lambda"],
-            eta=self.rewarder.params["eta"],
+            lambda_tradeoff=self.config.rewarder.params.lambda_,
+            eta=self.config.rewarder.params.eta,
             obstacles=self.obstacles,
             path=self.path,
             vessel=self.vessel,

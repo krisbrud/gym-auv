@@ -501,6 +501,12 @@ class Vessel:
             "collision": self._collision,
             "progress": self._progress,
             "reached_goal": self._reached_goal,
+            "speed": self.speed,
+            "max_speed": self.max_speed,
+            "n_sensors": self.n_sensors,
+            "sensor_angles": self.sensor_angles,
+            "sensor_range": self.config.sensor.range,
+            "yaw_rate": self.yaw_rate,
             # "max_progress":
         }
 

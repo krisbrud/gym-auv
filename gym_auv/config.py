@@ -9,12 +9,12 @@ from typing import Any, Callable, List, Tuple, Union
 # import gym_auv
 from gym_auv.utils.observe_functions import observe_obstacle_fun
 from gym_auv.utils.sector_partitioning import sector_partition_fun
-from gym_auv.objects.rewarder import RewarderParams
+from gym_auv.objects.rewarder import ColavParams, RewarderParams
 
 
 @dataclass
 class RewarderConfig:
-    params: RewarderParams
+    params: RewarderParams = ColavParams() 
 
 
 @dataclass

@@ -96,7 +96,7 @@ class MovingObstacles(BaseEnvironment):
             self.obstacles.append(obstacle)
 
         # Resetting rewarder instance
-        self.rewarder = self._rewarder_class(self.vessel, self.test_mode)
+        self.rewarder = self._rewarder_class()
 
         self._update()
 

@@ -1,6 +1,6 @@
 import numpy as np
 from abc import ABC, abstractmethod
-from gym_auv.objects.vessel import Vessel
+# from gym_auv.objects.vessel import Vessel
 from dataclasses import dataclass
 from typing import Optional
 
@@ -47,83 +47,77 @@ class RewarderParams:
 
 
 class ColavParams(RewarderParams):
-    gamma_theta = 10.0
-    gamma_x = 0.1  # 0.1
-    gamma_v_y = 1.0
-    gamma_y_e = 5.0
-    penalty_yawrate = 0  # 10.0
-    penalty_torque_change = 0.0
-    cruise_speed = 0.1
-    neutral_speed = 0.05
-    collision = -500  # -2000.0 #  -10000.0
-    lambda_ = 0.6  # 0.5
-    eta = 0  # _sample_eta()
-    negative_multiplier = 2
-    reward_scale = 0.5
+    def __init__(self):
+        self.gamma_theta = 10.0
+        self.gamma_x = 0.1  # 0.1
+        self.gamma_v_y = 1.0
+        self.gamma_y_e = 5.0
+        self.penalty_yawrate = 0  # 10.0
+        self.penalty_torque_change = 0.0
+        self.cruise_speed = 0.1
+        self.neutral_speed = 0.05
+        self.collision = -500  # -2000.0 #  -10000.0
+        self.lambda_ = 0.6  # 0.5
+        self.eta = 0  # _sample_eta()
+        self.negative_multiplier = 2
+        self.reward_scale = 0.5
 
 
 class ColregParams(RewarderParams):
-    gamma_theta = 10.0
-    gamma_x_stat = 0.09
-    gamma_x_starboard = 0.07
-    gamma_x_port = 0.09
-    alpha_lambda = 3.5
-    gamma_min_x = 0.04
-    gamma_weight = 2
-    gamma_v_y = 2.0
-    gamma_y_e = 5.0
-    penalty_yawrate = 0.0
-    penalty_torque_change = 0.01
-    cruise_speed = 0.1
-    neutral_speed = 0.1
-    negative_multiplier = 2.0
-    collision = -10000.0
-    lambda_ = 0.5
-    eta = 0.2
+    def __init__(self):
+        self.gamma_theta = 10.0
+        self.gamma_x_stat = 0.09
+        self.gamma_x_starboard = 0.07
+        self.gamma_x_port = 0.09
+        self.alpha_lambda = 3.5
+        self.gamma_min_x = 0.04
+        self.gamma_weight = 2
+        self.gamma_v_y = 2.0
+        self.gamma_y_e = 5.0
+        self.penalty_yawrate = 0.0
+        self.penalty_torque_change = 0.01
+        self.cruise_speed = 0.1
+        self.neutral_speed = 0.1
+        self.negative_multiplier = 2.0
+        self.collision = -10000.0
+        self.lambda_ = 0.5
+        self.eta = 0.2
 
 
 class PathFollowParams(RewarderParams):
-    gamma_theta = 10.0
-    gamma_x = 0.1
-    gamma_v_y = 1.0
-    gamma_y_e = 5.0
-    penalty_yawrate = 0  # 10.0 # 20  # 0.0
-    penalty_torque_change = 0.0
-    cruise_speed = 0.1
-    neutral_speed = 0.05  # 0.05
-    negative_multiplier = 2.0
-    collision = -10000.0
-    lambda_ = 0.5
-    eta = 0
+    def __init__(self):
+        self.gamma_theta = 10.0
+        self.gamma_x = 0.1
+        self.gamma_v_y = 1.0
+        self.gamma_y_e = 5.0
+        self.penalty_yawrate = 0  # 10.0 # 20  # 0.0
+        self.penalty_torque_change = 0.0
+        self.cruise_speed = 0.1
+        self.neutral_speed = 0.05  # 0.05
+        self.negative_multiplier = 2.0
+        self.collision = -10000.0
+        self.lambda_ = 0.5
+        self.eta = 0
 
 
 class LosColavParams(RewarderParams):
-    gamma_theta = 10.0
-    gamma_x = 0.1  # 0.1
-    gamma_v_y = 1.0
-    gamma_y_e = 5.0
-    penalty_yawrate = 0  # 10.0
-    penalty_torque_change = 0.0
-    cruise_speed = 0.1
-    neutral_speed = 0.05
-    collision = -500  # -2000.0 #  -10000.0
-    lambda_ = 0.6  # 0.5
-    eta = 0
-    negative_multiplier = 2
-    reward_scale = 0.5
+    def __init__(self):
+        self.gamma_theta = 10.0
+        self.gamma_x = 0.1  # 0.1
+        self.gamma_v_y = 1.0
+        self.gamma_y_e = 5.0
+        self.penalty_yawrate = 0  # 10.0
+        self.penalty_torque_change = 0.0
+        self.cruise_speed = 0.1
+        self.neutral_speed = 0.05
+        self.collision = -500  # -2000.0 #  -10000.0
+        self.lambda_ = 0.6  # 0.5
+        self.eta = 0
+        self.negative_multiplier = 2
+        self.reward_scale = 0.5
 
 
 class BaseRewarder(ABC):
-    def __init__(self, vessel: Vessel, test_mode) -> None:
-        self._vessel = vessel
-        self._test_mode = test_mode
-        self.params = {}
-
-    @property
-    def vessel(self) -> Vessel:
-        """Vessel instance that the reward is calculated with respect to."""
-        return self._vessel
-
     @abstractmethod
     def calculate(self, vessel_data, params: RewarderParams) -> float:
         """
@@ -144,31 +138,10 @@ class BaseRewarder(ABC):
             The reward for performing action at this timestep.
         """
 
-    def insight(self) -> np.ndarray:
-        """
-        Returns a numpy array with reward parameters for the agent
-        to have an insight into its reward function
-
-        Returns
-        -------
-        insight : np.array
-            The reward insight array at this timestep.
-        """
-        return np.array([])
-
-
 class PathFollowRewarder(BaseRewarder):
-    def __init__(self, vessel: Vessel, test_mode):
-        super().__init__(vessel, test_mode)
-
-    N_INSIGHTS = 0
-
-    def insight(self):
-        return np.array([])
-        # return np.array([np.log10(self.params['lambda'])])
-
+    """Path following rewarder, no collision avoidance."""
     def calculate(self, vessel_data, params: PathFollowParams):
-        # latest_data = self._vessel.req_latest_data()
+        # latest_data = vessel_data["req_latest_data()
         
         nav_states = vessel_data["navigation"]
         # measured_distances = vessel_data["distance_measurements"]
@@ -176,7 +149,7 @@ class PathFollowRewarder(BaseRewarder):
         collision = vessel_data["collision"]
 
         if collision:
-            reward = self.params["collision"] * (1 - self.params["lambda"])
+            reward = params.collision * (1 - params.lambda_)
             return reward
 
         reward = 0
@@ -187,11 +160,11 @@ class PathFollowRewarder(BaseRewarder):
 
         # Calculating path following reward component
         cross_track_performance = np.exp(
-            -self.params["gamma_y_e"] * np.abs(cross_track_error)
+            -params.gamma_y_e * np.abs(cross_track_error)
         )
-        # path_reward = (np.cos(heading_error) * self._vessel.speed / self._vessel.max_speed) * cross_track_performance
+        # path_reward = (np.cos(heading_error) * vessel_data["speed / vessel_data["max_speed) * cross_track_performance
         path_reward = (
-            1 + np.cos(heading_error) * self._vessel.speed / self._vessel.max_speed
+            1 + np.cos(heading_error) * vessel_data["speed"] / vessel_data["max_speed"]
         ) * (1 + cross_track_performance) - 1
 
         # Extra penalty for going backwards, as going continously in a circle is
@@ -200,25 +173,25 @@ class PathFollowRewarder(BaseRewarder):
         # path_reward = (
         #     1
         #     + min(np.cos(heading_error), gamma_backwards * np.cos(heading_error))
-        #     * self._vessel.speed / self._vessel.max_speed
+        #     * vessel_data["speed / vessel_data["max_speed
         # ) * (1 + cross_track_performance) - 1
 
         # Calculating living penalty
         living_penalty = (
-            self.params["lambda"] * (2 * self.params["neutral_speed"] + 1)
-            + self.params["eta"] * self.params["neutral_speed"]
+            params.lambda_ * (2 * params.neutral_speed + 1)
+            + params.eta * params.neutral_speed
         )
 
         # Calculating total reward
         reward = (
             path_reward
             - living_penalty
-            + self.params["eta"] * self._vessel.speed / self._vessel.max_speed
-            - self.params["penalty_yawrate"] * abs(self._vessel.yaw_rate)
+            + params.eta * vessel_data["speed"] / vessel_data["max_speed"]
+            - params.penalty_yawrate * abs(vessel_data["yaw_rate"])
         )
 
         # if reward < 0:
-        #     reward *= self.params["negative_multiplier"]
+        #     reward *= params.negative_multiplier
 
         return reward
 
@@ -280,44 +253,16 @@ def los_path_reward(
 
 
 class LOSColavRewarder(BaseRewarder):
-    """Similar to Colavrewarder, but with new path following reward based on Fossen-style Line-of-Sight Guidance"""
-
-    def __init__(self, vessel: Vessel, test_mode):
-        super().__init__(vessel, test_mode)
-        self.params["gamma_theta"] = 10.0
-        self.params["gamma_x"] = 0.1  # 0.1
-        self.params["gamma_v_y"] = 1.0
-        self.params["gamma_y_e"] = 5.0
-        self.params["penalty_yawrate"] = 0  # 10.0
-        self.params["penalty_torque_change"] = 0.0
-        self.params["cruise_speed"] = 0.1
-        self.params["neutral_speed"] = 0.05
-        self.params["collision"] = -500  # -2000.0 #  -10000.0
-        self.params["lambda"] = 0.6  # 0.5  # _sample_lambda(scale=0.2)
-        self.params["eta"] = 0  # _sample_eta()
-        self.params["negative_multiplier"] = 2
-        self.params["reward_scale"] = 0.5
-
-        self.counter = 0
-
-    N_INSIGHTS = 0
-
-    def insight(self):
-        return np.array([])
-        # return np.array([np.log10(self.params['lambda'])])
-
     def calculate(self, vessel_data, params: LosColavParams):
-        # latest_data = self._vessel.req_latest_data()
+        # latest_data = vessel_data["req_latest_data()
         nav_states = vessel_data["navigation"]
         measured_distances = vessel_data["distance_measurements"]
         measured_speeds = vessel_data["speed_measurements"]
         collision = vessel_data["collision"]
 
         if collision:
-            reward = self.params["collision"] * (1 - self.params["lambda"])
-            return reward * self.params["reward_scale"]
-
-        # breakpoint()
+            reward = params.collision * (1 - params.lambda_)
+            return reward * params.reward_scale
 
         # Calculating path following reward component
         lookahead_vector_normalized_ned = nav_states["lookahead_vector_normalized_ned"]
@@ -334,24 +279,24 @@ class LOSColavRewarder(BaseRewarder):
             # This is intended to discourage the vessel from going in circles,
             # without also multiplying slight negative rewards from closeness to obstacles
             # while going in the right direction
-            path_reward *= self.params["negative_multiplier"]
+            path_reward *= params.negative_multiplier
 
         # Calculating obstacle avoidance reward component
         closeness_reward = meyer_colav_reward(
-            n_sensors=self.vessel.n_sensors,
-            sensor_angles=self.vessel.sensor_angles,
+            n_sensors=vessel_data["n_sensors"],
+            sensor_angles=vessel_data["sensor_angles"],
             measured_distances=measured_distances,
             measured_speeds=measured_speeds,
-            sensor_range=self.vessel.config.sensor.range,
-            gamma_theta=self.params["gamma_theta"],
-            gamma_x=self.params["gamma_x"],
-            gamma_v_y=self.params["gamma_v_y"],
+            sensor_range=vessel_data["sensor_range"],
+            gamma_theta=params.gamma_theta,
+            gamma_x=params.gamma_x,
+            gamma_v_y=params.gamma_v_y,
         )
 
         # Calculating living penalty
         living_penalty = (
-            self.params["lambda"] * (2 * self.params["neutral_speed"] + 1)
-            + self.params["eta"] * self.params["neutral_speed"]
+            params.lambda_ * (2 * params.neutral_speed + 1)
+            + params.eta * params.neutral_speed
         )
 
         reached_goal_reward = 0
@@ -360,55 +305,30 @@ class LOSColavRewarder(BaseRewarder):
 
         # Calculating total reward
         reward = (
-            self.params["lambda"] * path_reward
+            params.lambda_ * path_reward
             + reached_goal_reward
-            + (1 - self.params["lambda"]) * closeness_reward
+            + (1 - params.lambda_) * closeness_reward
             - living_penalty
-            # + self.params["eta"] * self._vessel.speed / self._vessel.max_speed
-            # - self.params["penalty_yawrate"] * abs(self._vessel.yaw_rate)
+            # + params.eta * vessel_data["speed / vessel_data["max_speed
+            # - params.penalty_yawrate * abs(vessel_data["yaw_rate)
         )
 
         # if reward < 0:
-        #     reward *= self.params["negative_multiplier"]
+        #     reward *= params.negative_multiplier
 
-        return reward * self.params["reward_scale"]
+        return reward * params.reward_scale
 
 
 class ColavRewarder(BaseRewarder):
-    def __init__(self, vessel: Vessel, test_mode):
-        super().__init__(vessel, test_mode)
-        self.params["gamma_theta"] = 10.0
-        self.params["gamma_x"] = 0.1
-        self.params["gamma_v_y"] = 1.0
-        self.params["gamma_y_e"] = 5.0
-        self.params["penalty_yawrate"] = 0  # 10.0
-        self.params["penalty_torque_change"] = 0.0
-        self.params["penalty_slow"] = -2
-        self.params["cruise_speed"] = 0.1
-        # self.params["slow_speed"] = 0.03
-        self.params["neutral_speed"] = 0.05
-        self.params["negative_multiplier"] = 2.0
-        self.params["collision"] = -10000.0
-        self.params["lambda"] = 0.5  # 0.5  # _sample_lambda(scale=0.2)
-        self.params["eta"] = 0  # _sample_eta()
-
-        self.counter = 0
-
-    N_INSIGHTS = 0
-
-    def insight(self):
-        return np.array([])
-        # return np.array([np.log10(self.params['lambda'])])
-
     def calculate(self, vessel_data, params: ColavParams):
-        # vessel_data = self._vessel.req_latest_data()
+        # vessel_data = vessel_data["req_latest_data()
         nav_states = vessel_data["navigation"]
         measured_distances = vessel_data["distance_measurements"]
         measured_speeds = vessel_data["speed_measurements"]
         collision = vessel_data["collision"]
 
         if collision:
-            reward = self.params["collision"] * (1 - self.params["lambda"])
+            reward = params.collision * (1 - params.lambda_)
             return reward
 
         reward = 0
@@ -419,24 +339,24 @@ class ColavRewarder(BaseRewarder):
 
         # Calculating path following reward component
         cross_track_performance = np.exp(
-            -self.params["gamma_y_e"] * np.abs(cross_track_error)
+            -params.gamma_y_e * np.abs(cross_track_error)
         )
         path_reward = (
-            1 + np.cos(heading_error) * self._vessel.speed / self._vessel.max_speed
+            1 + np.cos(heading_error) * vessel_data["speed"] / vessel_data["max_speed"]
         ) * (1 + cross_track_performance) - 1
 
         # Calculating obstacle avoidance reward component
         closeness_penalty_num = 0
         closeness_penalty_den = 0
-        if self._vessel.n_sensors > 0:
-            for isensor in range(self._vessel.n_sensors):
-                angle = self._vessel.sensor_angles[isensor]
+        if vessel_data["n_sensors"] > 0:
+            for isensor in range(vessel_data["n_sensors"]):
+                angle = vessel_data["sensor_angles"][isensor]
                 x = measured_distances[isensor]
                 speed_vec = measured_speeds[:, isensor]
-                weight = 1 / (1 + np.abs(self.params["gamma_theta"] * angle))
-                raw_penalty = self._vessel.config.sensor.range * np.exp(
-                    -self.params["gamma_x"] * x
-                    + self.params["gamma_v_y"] * max(0, speed_vec[1])
+                weight = 1 / (1 + np.abs(params.gamma_theta * angle))
+                raw_penalty = vessel_data["sensor_range"] * np.exp(
+                    -params.gamma_x * x
+                    + params.gamma_v_y * max(0, speed_vec[1])
                 )
                 weighted_penalty = weight * raw_penalty
                 closeness_penalty_num += weighted_penalty
@@ -452,60 +372,35 @@ class ColavRewarder(BaseRewarder):
 
         # Calculating living penalty
         living_penalty = (
-            self.params["lambda"] * (2 * self.params["neutral_speed"] + 1)
-            + self.params["eta"] * self.params["neutral_speed"]
+            params.lambda_ * (2 * params.neutral_speed + 1)
+            + params.eta * params.neutral_speed
         )
 
         # Calculating total reward
         reward = (
-            self.params["lambda"] * path_reward
-            + (1 - self.params["lambda"]) * closeness_reward
+            params.lambda_ * path_reward
+            + (1 - params.lambda_) * closeness_reward
             - living_penalty
-            + self.params["eta"] * self._vessel.speed / self._vessel.max_speed
-            - self.params["penalty_yawrate"] * abs(self._vessel.yaw_rate)
+            + params.eta * vessel_data["speed"] / vessel_data["max_speed"]
+            - params.penalty_yawrate * abs(vessel_data["yaw_rate"])
         )
 
         if reward < 0:
-            reward *= self.params["negative_multiplier"]
+            reward *= params.negative_multiplier
 
         return reward
 
 
 class ColregRewarder(BaseRewarder):
-    def __init__(self, vessel, test_mode):
-        super().__init__(vessel, test_mode)
-        self.params["gamma_theta"] = 10.0
-        self.params["gamma_x_stat"] = 0.09
-        self.params["gamma_x_starboard"] = 0.07
-        self.params["gamma_x_port"] = 0.09
-        self.params["gamma_v_y"] = 2.0
-        self.params["gamma_y_e"] = 5.0
-        self.params["penalty_yawrate"] = 0.0
-        self.params["penalty_torque_change"] = 0.01
-        self.params["cruise_speed"] = 0.1
-        self.params["neutral_speed"] = 0.1
-        self.params["negative_multiplier"] = 2.0
-        self.params["collision"] = -10000.0
-        self.params["lambda"] = 0.5  # _sample_lambda(scale=0.2)
-        self.params["eta"] = 0.2  # _sample_eta()
-        self.params["alpha_lambda"] = 3.5
-        self.params["gamma_min_x"] = 0.04
-        self.params["gamma_weight"] = 2
-
-    N_INSIGHTS = 1
-
-    def insight(self):
-        return np.array([self.params["lambda"]])
-
     def calculate(self, vessel_data, params: ColregParams):
-        # latest_data = self._vessel.req_latest_data()
+        # latest_data = vessel_data["req_latest_data()
         nav_states = vessel_data["navigation"]
         measured_distances = vessel_data["distance_measurements"]
         measured_speeds = vessel_data["speed_measurements"]
         collision = vessel_data["collision"]
         # print([x[1] for x in measured_speeds])
         if collision:
-            reward = self.params["collision"]  # *(1-self.params['lambda'])
+            reward = params.collision  # *(1-params['lambda'])
             return reward
 
         reward = 0
@@ -516,10 +411,10 @@ class ColregRewarder(BaseRewarder):
 
         # Calculating path following reward component
         cross_track_performance = np.exp(
-            -self.params["gamma_y_e"] * np.abs(cross_track_error)
+            -params.gamma_y_e * np.abs(cross_track_error)
         )
         path_reward = (
-            1 + np.cos(heading_error) * self._vessel.speed / self._vessel.max_speed
+            1 + np.cos(heading_error) * vessel_data["speed"] / vessel_data["max_speed"]
         ) * (1 + cross_track_performance) - 1
 
         # Calculating obstacle avoidance reward component
@@ -534,22 +429,22 @@ class ColregRewarder(BaseRewarder):
 
         speed_weight = 2
 
-        if self._vessel.n_sensors > 0:
-            for isensor in range(self._vessel.n_sensors):
-                angle = self._vessel.sensor_angles[isensor]
+        if vessel_data["n_sensors > 0"]:
+            for isensor in range(vessel_data["n_sensors"]):
+                angle = vessel_data["sensor_angles"][isensor]
                 x = measured_distances[isensor]
                 speed_vec = measured_speeds[isensor]  # TODO
 
                 if speed_vec.any():
 
                     if speed_vec[1] > 0:
-                        self.params["lambda"] = 1 / (1 + np.exp(-0.04 * x + 4))
+                        params.lambda_ = 1 / (1 + np.exp(-0.04 * x + 4))
                     if speed_vec[1] < 0:
-                        self.params["lambda"] = 1 / (1 + np.exp(-0.06 * x + 3))
-                    lambdas.append(self.params["lambda"])
+                        params.lambda_ = 1 / (1 + np.exp(-0.06 * x + 3))
+                    lambdas.append(params.lambda_)
 
                     weight = 2 / (
-                        1 + np.exp(self.params["gamma_weight"] * np.abs(angle))
+                        1 + np.exp(params.gamma_weight * np.abs(angle))
                     )
                     moving_distances.append(x)
 
@@ -558,27 +453,27 @@ class ColregRewarder(BaseRewarder):
                     ):  # straffer høyre side
 
                         raw_penalty = 100 * np.exp(
-                            -self.params["gamma_x_starboard"] * x
+                            -params.gamma_x_starboard * x
                             + speed_weight * speed_vec[1]
                         )
                     else:
                         raw_penalty = 100 * np.exp(
-                            -self.params["gamma_x_port"] * x
+                            -params.gamma_x_port * x
                             + speed_weight * speed_vec[1]
                         )
                     # else:
-                    #    raw_penalty = 100*np.exp(-self.params['gamma_x_stat']*x)
+                    #    raw_penalty = 100*np.exp(-params['gamma_x_stat']*x)
 
                     weighted_penalty = (
-                        (1 - self.params["lambda"]) * weight * raw_penalty
+                        (1 - params.lambda_) * weight * raw_penalty
                     )
                     closeness_penalty_num += weighted_penalty
                     closeness_penalty_den += weight
 
                 else:
 
-                    weight = 1 / (1 + np.abs(self.params["gamma_theta"] * angle))
-                    raw_penalty = 100 * np.exp(-self.params["gamma_x_stat"] * x)
+                    weight = 1 / (1 + np.abs(params.gamma_theta * angle))
+                    raw_penalty = 100 * np.exp(-params.gamma_x_stat * x)
                     weighted_penalty = weight * raw_penalty
                     static_closeness_penalty_num += weighted_penalty
                     static_closeness_penalty_den += weight
@@ -593,10 +488,10 @@ class ColregRewarder(BaseRewarder):
 
         # if len(moving_distances) != 0:
         #    min_dist = np.amin(moving_distances)
-        #    self.params['lambda'] = 1/(1+np.exp(-0.04*min_dist+4))
-        # self.params['lambda'] = 1/(1+np.exp(-(self.params['gamma_min_x']*min_dist-self.params['alpha_lambda'])))
+        #    params['lambda'] = 1/(1+np.exp(-0.04*min_dist+4))
+        # params['lambda'] = 1/(1+np.exp(-(params['gamma_min_x']*min_dist-params['alpha_lambda'])))
         # else:
-        #    self.params['lambda'] = 1
+        #    params['lambda'] = 1
 
         if len(lambdas):
             path_lambda = np.amin(lambdas)
@@ -606,7 +501,7 @@ class ColregRewarder(BaseRewarder):
         # if path_reward > 0:
         #    path_reward = path_lambda*path_reward
         # Calculating living penalty
-        living_penalty = 1  # .2*(self.params['neutral_speed']+1) + self.params['eta']*self.params['neutral_speed']
+        living_penalty = 1  # .2*(params['neutral_speed']+1) + params['eta']*params['neutral_speed']
 
         # Calculating total reward
         reward = (
@@ -614,11 +509,11 @@ class ColregRewarder(BaseRewarder):
             + static_closeness_reward
             + closeness_reward
             - living_penalty
-            + self.params["eta"] * self._vessel.speed / self._vessel.max_speed
+            + params.eta * vessel_data["speed"] / vessel_data["max_speed"]
         )  # - \
-        # self.params['penalty_yawrate']*abs(self._vessel.yaw_rate)
+        # params['penalty_yawrate']*abs(vessel_data["yaw_rate)
 
         if reward < 0:
-            reward *= self.params["negative_multiplier"]
+            reward *= params.negative_multiplier
 
         return reward

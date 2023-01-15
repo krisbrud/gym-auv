@@ -377,7 +377,7 @@ class FilmScenario(RealWorldEnv):
         init_angle = self.path.get_direction(0)
 
         self.vessel = Vessel(self.config, np.hstack([init_state, init_angle]))
-        self.rewarder = ColregRewarder(self.vessel, test_mode=True)
+        self.rewarder = ColregRewarder()
         prog = self.path.get_closest_arclength(self.vessel.position)
         self.path_prog_hist = np.array([prog])
         self.max_path_prog = prog

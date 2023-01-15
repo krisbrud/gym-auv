@@ -11,6 +11,7 @@ from gym_auv.envs import (
     TestScenario4,
 )
 from gym_auv.envs.testscenario import DebugScenario, EmptyScenario, TestHeadOn
+from gym_auv.objects.rewarder import ColavParams, ColregParams, PathFollowParams, LosColavParams
 
 # import gym_auv.config.Config
 
@@ -39,6 +40,7 @@ PATHFOLLOW_CONFIG = deepcopy(Config())
 # REALWORLD_CONFIG.simulation.t_step_size = 0.2
 
 LOS_COLAV_CONFIG = deepcopy(Config())
+LOS_COLAV_CONFIG.rewarder.params = LosColavParams()
 LOS_COLAV_CONFIG.sensor.observe_new_progress = False
 LOS_COLAV_CONFIG.sensor.use_velocity_observations = True
 
