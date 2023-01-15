@@ -322,7 +322,7 @@ class ColavRewarder(BaseRewarder):
 
         if collision:
             reward = self.params["collision"] * (1 - self.params["lambda"])
-            return np.tanh(reward)
+            return reward
 
         reward = 0
 
@@ -382,7 +382,7 @@ class ColavRewarder(BaseRewarder):
         if reward < 0:
             reward *= self.params["negative_multiplier"]
 
-        return np.tanh(reward)
+        return reward
 
 
 class ColregRewarder(BaseRewarder):
