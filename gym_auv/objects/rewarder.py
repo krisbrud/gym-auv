@@ -118,10 +118,7 @@ class PathFollowRewarder(BaseRewarder):
         #     * self._vessel.speed / self._vessel.max_speed
         # ) * (1 + cross_track_performance) - 1
 
-        # slow_penalty = 0
-        # if self._vessel.speed < self.params["cruise_speed"]:
-        #     slow_penalty = -2
-        # Calculating living penalty
+       # Calculating living penalty
         living_penalty = (
             self.params["lambda"] * (2 * self.params["neutral_speed"] + 1)
             + self.params["eta"] * self.params["neutral_speed"]
@@ -135,15 +132,6 @@ class PathFollowRewarder(BaseRewarder):
             - self.params["penalty_yawrate"] * abs(self._vessel.yaw_rate)
             # + slow_penalty
         )
-
-        # self.counter += 1
-        # if self.counter == 500:
-        #     print(f"{path_reward = }")
-        #     print(f"{living_penalty = }")
-        #     print(f"{self.params['eta'] * self._vessel.speed / self._vessel.max_speed = }")
-        #     print(f"{self.params['penalty_yawrate'] * abs(self._vessel.yaw_rate) = }")
-        #     print(f"{slow_penalty = }")
-        #     self.counter = 0
 
         # if reward < 0:
         #     reward *= self.params["negative_multiplier"]
