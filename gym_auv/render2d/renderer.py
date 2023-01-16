@@ -119,9 +119,6 @@ class Renderer2d:
             angle=0,
         )
 
-        # centered_geoms = list(  # TODO use apply_transformation
-        #     map(lambda geom: geom.transform(camera_transformation), zoomed_geoms)
-        # )
         centered_geoms = apply_transformation(camera_transformation, zoomed_geoms)
 
         for geom in centered_geoms:
