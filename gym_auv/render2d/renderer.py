@@ -100,14 +100,14 @@ class Renderer2d:
 
         # Center camera on vessel by applying transform
         if image_observation_mode:
-            rotation = 0  # state.vessel.heading   # 0
+            rotation = 2 * state.vessel.heading  # state.vessel.heading   # 0
         else:
-            rotation = state.vessel.heading
+            rotation = state.vessel.heading # - (np.pi / 2)
 
         zoom_transformation = Transformation(
             translation=pygame.Vector2(0, 0),
-            # angle=-np.pi / 2 + rotation, #  state.vessel.heading,
-            angle=rotation, #  state.vessel.heading,
+            # angle=-np.pi / 2 + state.vessel.heading,
+            angle=rotation - (np.pi / 2), #  state.vessel.heading,
             scale=self.zoom,
         )
         zoomed_geoms = apply_transformation(zoom_transformation, body_geoms)

@@ -573,7 +573,7 @@ class BaseEnvironment(gym.Env, ABC):
                 image_arr = self._renderer2d.render(
                     state=self.renderable_state,
                     render_mode=self.render_mode,
-                    image_observation_mode=True,
+                    image_observation_mode=False,
                 )
             # if self.renderer == "3d" or self.renderer == "both":
             #     image_arr = render3d.render_env(
