@@ -60,7 +60,10 @@ class BaseEnvironment(gym.Env, ABC):
 
         if not hasattr(self, "_rewarder_class"):
             self._rewarder_class = ColavRewarder
-            print("WARNING: _rewarder_class not set in subclass, using default", self._rewarder_class)
+            print(
+                "WARNING: _rewarder_class not set in subclass, using default",
+                self._rewarder_class,
+            )
             self._n_moving_obst = 10
             self._n_moving_stat = 10
 
@@ -263,7 +266,7 @@ class BaseEnvironment(gym.Env, ABC):
                     "Warning: Rewarder not initialized by _generate() method call. Selecting default ColavRewarder instead."
                 )
             self.rewarder = self._rewarder_class()
-            # self.rewarder = ColavRewarder() 
+            # self.rewarder = ColavRewarder()
         if self.verbose:
             print("Generated scenario")
 
@@ -400,7 +403,9 @@ class BaseEnvironment(gym.Env, ABC):
         # Receiving agent's reward
         # reward = self.rewarder.calculate(vessel_data, parameters=self.config.rewarder.params)
         # reward = self.rewarder.calculate(vessel_data=vessel_data, parameters=self.config.rewarder.params)
-        reward = self.rewarder.calculate(vessel_data=vessel_data, params=self.config.rewarder.params)
+        reward = self.rewarder.calculate(
+            vessel_data=vessel_data, params=self.config.rewarder.params
+        )
         self.last_reward = reward
         self.cumulative_reward += reward
 
@@ -437,7 +442,7 @@ class BaseEnvironment(gym.Env, ABC):
         else:
             # use old api
             return (obs, reward, done, info)
-    
+
     # def _make_rewarder(self):
     #     """Creates the rewarder for the environment."""
     #     rewarder = Rewarder(self.config.rewarder)
@@ -514,7 +519,7 @@ class BaseEnvironment(gym.Env, ABC):
     def _is_truncated(self) -> bool:
         """Returns True if the episode is done due to a truncated event, False otherwise."""
 
-        is_timelimit_reached = (self.t_step >= self.config.episode.max_timesteps - 1)
+        is_timelimit_reached = self.t_step >= self.config.episode.max_timesteps - 1
         is_cumulative_reward_too_low = (
             self.cumulative_reward < self.config.episode.min_cumulative_reward
         )
@@ -566,7 +571,9 @@ class BaseEnvironment(gym.Env, ABC):
         try:
             if self.renderer == "2d" or self.renderer == "both":
                 image_arr = self._renderer2d.render(
-                    state=self.renderable_state, render_mode=self.render_mode
+                    state=self.renderable_state,
+                    render_mode=self.render_mode,
+                    image_observation_mode=True,
                 )
             # if self.renderer == "3d" or self.renderer == "both":
             #     image_arr = render3d.render_env(
