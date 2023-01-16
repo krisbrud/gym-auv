@@ -19,6 +19,7 @@ env = gym.make(env_name, env_config=gym_auv_config)
 rewards = []
 latest_data = []
 done_indices = []
+step_idx = 0
 
 def callback(obs_t, obs_tp1, action, rew, terminated, truncated, info):
     global step_idx
@@ -29,6 +30,8 @@ def callback(obs_t, obs_tp1, action, rew, terminated, truncated, info):
     done = truncated or terminated
     if done:
         done_indices.append(step_idx)
+    
+    step_idx += 1
 
     rewards.append(rew)
     latest_data.append(copy.deepcopy(info["latest_data"]))
@@ -46,7 +49,7 @@ keys_to_action = {
 
 noop = np.array([0, 0])  # Action if no key is pressed for a frame
 
-play(env, keys_to_action=keys_to_action, fps=10, noop=noop, callback=callback)
+play(env, keys_to_action=keys_to_action, fps=30, noop=noop, callback=callback)
 
 def get_file_path(file_name):
     if not file_name.endswith(".pkl"):
@@ -68,7 +71,10 @@ if file_name: # If not empty or only whitespace (removed by strip)
 
     file_path = get_file_path(file_name)
 
-    episode_latest_data = latest_data[:done_indices[0]]
+    if len(done_indices) > 0:
+        episode_latest_data = latest_data[:done_indices[0]]
+    else:
+        episode_latest_data = latest_data
 
-    with open(file_name, "wb") as f:
+    with open(file_path, "wb") as f:
         pickle.dump(episode_latest_data, f)

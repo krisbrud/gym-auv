@@ -105,6 +105,7 @@ class SensorConfig:
     )
     use_occupancy_grid: bool = False  # True
     use_image_observation: bool = True  # Whether to use image output from renderer
+    image_observation_range: float = 160.0  # Range of image observation from center to edge [m]
     image_shape: Tuple[int, int] = (64, 64)  # Shape of image output from renderer
     image_channel_first: bool = False  # Whether to use channel first format for image output. Use True for PyTorch, False for Tensorflow.
     use_velocity_observations: bool = False
