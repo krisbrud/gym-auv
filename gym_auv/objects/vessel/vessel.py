@@ -430,8 +430,13 @@ class Vessel:
         lookahead_path_error_x = relative_pos_lookahead[0] / 100
         lookahead_path_error_y = relative_pos_lookahead[1] / 100
         
+
         # Calculate a unit vector pointing in the direction of the lookahead point
         lookahead_vector_normalized_ned = relative_pos_lookahead / linalg.norm(relative_pos_lookahead)
+
+        print(f"velocity_ned: {self.velocity_ned}")
+        print(f"lookahead_vector_normalized_ned: {lookahead_vector_normalized_ned}")
+        print(f"position: {self.position}")
 
         self._last_navi_state_dict = {
             "surge_velocity": self.velocity[0],

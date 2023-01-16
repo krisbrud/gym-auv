@@ -114,7 +114,6 @@ def _render_obstacles(obstacles: List[BaseObstacle]) -> List[BaseGeom]:
 
     return geoms
 
-
 def make_world_frame_geoms(state: RenderableState) -> List[BaseGeom]:
     geoms = []
 

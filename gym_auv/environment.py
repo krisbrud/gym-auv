@@ -59,6 +59,7 @@ class BaseEnvironment(gym.Env, ABC):
         """
 
         if not hasattr(self, "_rewarder_class"):
+            raise ValueError("feil feil neineinei")
             self._rewarder_class = ColavRewarder
             self._n_moving_obst = 10
             self._n_moving_stat = 10
@@ -437,10 +438,10 @@ class BaseEnvironment(gym.Env, ABC):
             # use old api
             return (obs, reward, done, info)
     
-    def _make_rewarder(self):
-        """Creates the rewarder for the environment."""
-        rewarder = Rewarder(self.config.rewarder)
-        return rewarder
+    # def _make_rewarder(self):
+    #     """Creates the rewarder for the environment."""
+    #     rewarder = Rewarder(self.config.rewarder)
+    #     return rewarder
 
     def _print_info(self) -> None:
         print(

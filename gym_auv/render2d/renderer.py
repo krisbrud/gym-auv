@@ -128,6 +128,12 @@ class Renderer2d:
 
         self.screen.blit(self.surf, (0, 0))
 
+
+        if not image_observation_mode:        
+            self.render_text(f"Reward: {state.last_reward:.2f}", (10, 10))
+            self.render_text(f"Cumulative reward: {state.cumulative_reward:.2f}", (10, 40))
+            
+
         if render_mode == "human":
             pygame.event.pump()
             self.clock.tick(self.render_fps)
@@ -140,6 +146,11 @@ class Renderer2d:
 
     def render_geom(self, geom: BaseGeom):
         geom.render(self.surf)
+    
+    def render_text(self, text, pos):
+        font = pygame.font.SysFont(None, 24)
+        text_img = font.render(text, True, colors.BLACK_BLUE)
+        self.screen.blit(text_img, pos)
 
     @property
     def screen_size(self) -> Tuple[int, int]:
