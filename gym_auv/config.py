@@ -24,7 +24,7 @@ class EpisodeConfig:
         -2000
     )  # Minimum cumulative reward received before episode ends
     max_timesteps: int = (
-        3000  #  5000 # 10000  # Maximum amount of timesteps before episode ends
+        2000  #  5000 # 10000  # Maximum amount of timesteps before episode ends
     )
     min_goal_distance: float = float(
         5
