@@ -60,6 +60,7 @@ class BaseEnvironment(gym.Env, ABC):
 
         if not hasattr(self, "_rewarder_class"):
             self._rewarder_class = ColavRewarder
+            print("WARNING: _rewarder_class not set in subclass, using default", self._rewarder_class)
             self._n_moving_obst = 10
             self._n_moving_stat = 10
 
