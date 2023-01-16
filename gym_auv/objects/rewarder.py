@@ -114,9 +114,9 @@ class LosColavParams(RewarderParams):
         self.lambda_ = 0.5  # 0.5
         self.eta = 0
         self.negative_multiplier = 2
-        self.reward_scale = 0.5
+        self.reward_scale = 0.6
 
-        self.path_reward_scale = 1.5
+        self.path_reward_scale = 2.5
         self.colav_reward_scale = 0.2
 
 

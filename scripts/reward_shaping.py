@@ -45,12 +45,12 @@ class LosColavParams(RewarderParams):
         self.reward_scale = 0.5
 """
 
-params.lambda_ = 0.5  # Colav/pathfollow trade off
+params.lambda_ = 0.6  # Colav/pathfollow trade off
 params.gamma_x = 0.1  # Distance weight
 params.gamma_v_y = 1.0  # Speed weight towards target
 params.gamma_y_e = 5.0   
 params.gamma_theta = 10.0  # Weighting of penalty for angle
-params.path_reward_scale = 1.5
+params.path_reward_scale = 2.5 
 params.colav_reward_scale = 0.2
 params.negative_multiplier = 2.0
 
