@@ -117,7 +117,7 @@ class LosColavParams(RewarderParams):
         self.reward_scale = 0.5
 
         self.path_reward_scale = 1.0
-        self.colav_reward_scale = 1.0
+        self.colav_reward_scale = 0.5
 
 
 class BaseRewarder(ABC):
@@ -274,7 +274,7 @@ class LOSColavRewarder(BaseRewarder):
         path_reward = los_path_reward(
             lookahead_unit_vec_ned=lookahead_vector_normalized_ned,
             velocity_ned=velocity_ned,
-            coeff=1.0,  # 0.5,
+            coeff=params.path_reward_scale,  # 0.5,
         )
 
         if path_reward < 0:
@@ -294,7 +294,7 @@ class LOSColavRewarder(BaseRewarder):
             gamma_theta=params.gamma_theta,
             gamma_x=params.gamma_x,
             gamma_v_y=params.gamma_v_y,
-        )
+        ) * params.colav_reward_scale
 
         # Calculating living penalty
         living_penalty = (
@@ -308,9 +308,9 @@ class LOSColavRewarder(BaseRewarder):
 
         # Calculating total reward
         reward = (
-            params.lambda_ * path_reward * params.path_reward_scale
+            params.lambda_ * path_reward
             + reached_goal_reward
-            + (1 - params.lambda_) * closeness_reward * params.colav_reward_scale
+            + (1 - params.lambda_) * closeness_reward 
             - living_penalty
             # + params.eta * vessel_data["speed / vessel_data["max_speed
             # - params.penalty_yawrate * abs(vessel_data["yaw_rate)
