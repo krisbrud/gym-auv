@@ -59,7 +59,6 @@ class BaseEnvironment(gym.Env, ABC):
         """
 
         if not hasattr(self, "_rewarder_class"):
-            raise ValueError("feil feil neineinei")
             self._rewarder_class = ColavRewarder
             self._n_moving_obst = 10
             self._n_moving_stat = 10
