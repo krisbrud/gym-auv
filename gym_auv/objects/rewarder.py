@@ -111,13 +111,13 @@ class LosColavParams(RewarderParams):
         self.cruise_speed = 0.1
         self.neutral_speed = 0.05
         self.collision = -500  # -2000.0 #  -10000.0
-        self.lambda_ = 0.6  # 0.5
+        self.lambda_ = 0.5  # 0.5
         self.eta = 0
         self.negative_multiplier = 2
         self.reward_scale = 0.5
 
-        self.path_reward_scale = 1.0
-        self.colav_reward_scale = 0.5
+        self.path_reward_scale = 1.5
+        self.colav_reward_scale = 0.2
 
 
 class BaseRewarder(ABC):
