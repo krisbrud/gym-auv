@@ -539,7 +539,7 @@ def plot_trajectory(
     plt.close(fig)
 
 
-def plot_scenario(env, fig_dir, fig_postfix="", show=True):
+def plot_scenario(env, fig_dir, fig_postfix="", show=True, also_save_png=True):
     path = env.path(np.linspace(0, env.path.length, 1000))
 
     plt.style.use("ggplot")
@@ -619,10 +619,14 @@ def plot_scenario(env, fig_dir, fig_postfix="", show=True):
             )
         obst = ax.add_patch(obst_object)
 
+    # ax.set_ylabel(r"North (km)")
     ax.set_ylabel(r"North (km)")
+    # ax.set_xlabel(r"East (km)")
     ax.set_xlabel(r"East (km)")
-    ax.xaxis.set_major_formatter(FuncFormatter(lambda y, _: "{:.1f}".format(y / 100)))
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: "{:.1f}".format(y / 100)))
+    # ax.xaxis.set_major_formatter(FuncFormatter(lambda y, _: "{:.1f}".format(y / 100)))
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda y, _: "{:.1f}".format(y / 1000)))
+    # ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: "{:.1f}".format(y / 100)))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: "{:.1f}".format(y / 1000)))
     ax.set_xlim(axis_min_x, axis_max_x)
     ax.set_ylim(axis_min_y, axis_max_y)
     # ax.legend()
@@ -662,6 +666,13 @@ def plot_scenario(env, fig_dir, fig_postfix="", show=True):
     fig.savefig(
         os.path.join(fig_dir, "Scenario_{}.pdf".format(fig_postfix)), format="pdf"
     )
+    if also_save_png:
+        fig.savefig(
+            os.path.join(fig_dir, "Scenario_{}.png".format(fig_postfix)),
+            format="png",
+            dpi=300,
+        )
+    
     if show:
         plt.show()
     plt.close(fig)

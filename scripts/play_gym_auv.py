@@ -51,6 +51,8 @@ noop = np.array([0, 0])  # Action if no key is pressed for a frame
 
 play(env, keys_to_action=keys_to_action, fps=30, noop=noop, callback=callback)
 
+print(env.last_episode)
+
 def get_file_path(file_name):
     if not file_name.endswith(".pkl"):
         file_name += ".pkl"

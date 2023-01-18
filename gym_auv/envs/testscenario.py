@@ -22,7 +22,8 @@ class TestScenario1(BaseEnvironment):
         self.path = Path([[0, 1100], [0, 1100]])
 
         init_state = self.path(0)
-        init_angle = self.path.get_direction(0)
+        # init_angle = self.path.get_direction(0)
+        init_angle = -self.path.get_direction(0)
 
         self.vessel = Vessel(self.config, np.hstack([init_state, init_angle]))
         prog = self.path.get_closest_arclength(self.vessel.position)

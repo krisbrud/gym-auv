@@ -71,6 +71,8 @@ class BaseEnvironment(gym.Env, ABC):
         self.renderer = renderer
         self.verbose = verbose
 
+        # breakpoint()
+
         # As some RL frameworks (RLlib) requires the config object to be a dictionary,
         # a workaround for this is wrapping our `Config` object in a dict, while keeping type safety of
         # using dataclasses for config
@@ -206,6 +208,8 @@ class BaseEnvironment(gym.Env, ABC):
             self._observation_space = gym.spaces.Box(
                 low=-1, high=1, shape=(observation_size), dtype=np.float32
             )
+        
+        # breakpoint()
 
     @property
     def action_space(self) -> gym.spaces.Box:

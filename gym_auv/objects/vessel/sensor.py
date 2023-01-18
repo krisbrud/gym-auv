@@ -102,7 +102,7 @@ def find_rays_to_simulate_for_obstacles(
                 print(obstacle.enclosing_circle.center.centroid)
                 print("radius", obstacle.enclosing_circle.radius)
                 print(p0_point.centroid)
-                breakpoint()
+                # breakpoint()
                 idx_min_ray, idx_max_ray = _find_limit_angle_rays(
                     obstacle.enclosing_circle, p0_point, heading, angle_per_ray
                 )
