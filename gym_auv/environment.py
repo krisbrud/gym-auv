@@ -553,6 +553,7 @@ class BaseEnvironment(gym.Env, ABC):
 
     def close(self):
         """Closes the environment. To be called after usage."""
+        print("Closing environment...")
         pass
         if self._renderer2d is not None:
             # self._renderer2d.close()
