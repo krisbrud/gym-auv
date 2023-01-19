@@ -110,7 +110,7 @@ def plot_observations_and_reconstructions(obs_and_rec, filename = None):
 
         cols = 5 if i % 2 == 0 else 10
         inner = gridspec.GridSpecFromSubplotSpec(2, cols,
-                        subplot_spec=outer[i], wspace=0.0, hspace=-0.8 )
+                        subplot_spec=outer[i], wspace=0.0, hspace=-0.81 )
 
         for j in range(2 * cols):
             # Iterate over cols in parts, spanning 2 rows
@@ -156,6 +156,29 @@ def plot_observations_and_reconstructions(obs_and_rec, filename = None):
             # t = ax.text(0.5,0.5, 'outer=%d, inner=%d' % (i, j))
             t = ax.text(32, 90, r"$$t = " + str(idx + 1) + r"$$")
 
+            x_offset_a = -100
+            y_offset_a = 40
+            if i == 0 and j == 0:
+                obs_text = ax.text(x_offset_a, y_offset_a, "Observation")
+                obs_text.set_ha('left')
+            
+            if i == 0 and j == 5:
+                pred_text = ax.text(x_offset_a, y_offset_a, "Predictions")
+                pred_text.set_ha('left')
+
+            x_offset_b = 35 
+            y_offset_b = -15
+            big_fontsize = 20
+            if i == 0 and j == 2:
+                ctx_text = ax.text(x_offset_b, y_offset_b, "Context", fontsize=big_fontsize)
+                ctx_text.set_ha('center')
+            
+            x_offset_c = 64 
+            if i == 1 and j == 4:
+                pred_text = ax.text(x_offset_c, y_offset_b, "Open loop prediction", fontsize=big_fontsize)
+                pred_text.set_ha('center')
+
+
             t.set_ha('center')
             ax.set_xticks([])
             ax.set_yticks([])
@@ -168,7 +191,7 @@ def plot_observations_and_reconstructions(obs_and_rec, filename = None):
 
 def plot_and_save_all(obs_and_rec_list):
     for i, obrec in enumerate(obs_and_rec_list):
-        plot_observations_and_reconstructions(obrec, f"testfig-{i}.pdf")
+        plot_observations_and_reconstructions(obrec, f"reconstruction-testfig-{i}.pdf")
 
 # plot_observations_and_reconstructions(obs_and_rec[0], "testfig.pdf")
 plot_and_save_all(obs_and_rec)

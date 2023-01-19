@@ -85,7 +85,7 @@ class Renderer2d:
         self.surf = pygame.Surface(self.screen_size)
         self.surf.fill(colors.LIGHT_BLUE)
         # Make geometry
-        world_geoms = make_world_frame_geoms(state=state)
+        world_geoms = make_world_frame_geoms(state=state, image_observation_mode=image_observation_mode) 
 
         should_render_sensors = not image_observation_mode  # Don't render sensors if we're making an image observation
         body_geoms = make_body_frame_geoms(state=state, render_sensors=should_render_sensors)
