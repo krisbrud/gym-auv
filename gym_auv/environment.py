@@ -410,6 +410,8 @@ class BaseEnvironment(gym.Env, ABC):
         reward = self.rewarder.calculate(
             vessel_data=vessel_data, params=self.config.rewarder.params
         )
+        if self.config.rewarder.tanh_squash_rewards:
+            reward = np.tanh(reward)
         self.last_reward = reward
         self.cumulative_reward += reward
 

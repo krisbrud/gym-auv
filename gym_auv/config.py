@@ -15,6 +15,7 @@ from gym_auv.objects.rewarder import ColavParams, RewarderParams
 @dataclass
 class RewarderConfig:
     params: RewarderParams = ColavParams() 
+    tanh_squash_rewards: bool = True  # Whether to squash rewards with tanh
 
 
 @dataclass
