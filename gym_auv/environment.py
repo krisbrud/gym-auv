@@ -415,12 +415,13 @@ class BaseEnvironment(gym.Env, ABC):
         self.last_reward = reward
         self.cumulative_reward += reward
 
-        info = {}
-        info["collision"] = self.collision
-        info["reached_goal"] = self.reached_goal
-        info["goal_distance"] = self.goal_distance
-        info["progress"] = self.progress
-        info["collision_or_reached_goal"] = self.collision or self.reached_goal
+        # info = {}
+        # info["collision"] = self.collision
+        # info["reached_goal"] = self.reached_goal
+        # info["goal_distance"] = self.goal_distance
+        # info["progress"] = self.progress
+        # info["collision_or_reached_goal"] = self.collision or self.reached_goal
+        info = self.get_info()
 
         if self.config.episode.return_latest_data_in_info:
             info["latest_data"] = self.vessel.req_latest_data()
@@ -449,10 +450,16 @@ class BaseEnvironment(gym.Env, ABC):
             # use old api
             return (obs, reward, done, info)
 
-    # def _make_rewarder(self):
-    #     """Creates the rewarder for the environment."""
-    #     rewarder = Rewarder(self.config.rewarder)
-    #     return rewarder
+
+    def get_info(self) -> dict:
+        """Returns the info dictionary from the latest step."""
+        info = {}
+        info["collision"] = self.collision
+        info["reached_goal"] = self.reached_goal
+        info["goal_distance"] = self.goal_distance
+        info["progress"] = self.progress
+        info["collision_or_reached_goal"] = self.collision or self.reached_goal
+        return info 
 
     def _print_info(self) -> None:
         print(
