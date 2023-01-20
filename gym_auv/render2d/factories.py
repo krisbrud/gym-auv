@@ -1,7 +1,7 @@
 import pygame
 import numpy as np
 
-from typing import List
+from typing import List, Union
 from gym_auv.render2d.geometry import (
     Circle,
     FilledPolygon,
@@ -30,9 +30,13 @@ def _render_path(path: Path) -> PolyLine:
     return polyline
 
 
-def _render_path_taken(vessel: Vessel) -> PolyLine:
+def _render_path_taken(vessel: Vessel, only_last_n: Union[int, None] = None) -> PolyLine:
     # previous positions
-    points = ndarray_to_vector2_list(vessel.path_taken)
+    path_taken = vessel.path_taken
+    if only_last_n is not None:
+        path_taken = path_taken[-only_last_n:]  # Only last 100 points if image observation mode
+
+    points = ndarray_to_vector2_list(path_taken)
     path_taken_line = PolyLine(
         points=points,
         color=colors.BLUE_GREEN,
@@ -114,13 +118,18 @@ def _render_obstacles(obstacles: List[BaseObstacle]) -> List[BaseGeom]:
 
     return geoms
 
-def make_world_frame_geoms(state: RenderableState) -> List[BaseGeom]:
+def make_world_frame_geoms(state: RenderableState, image_observation_mode: bool) -> List[BaseGeom]:
     geoms = []
 
     if state.path is not None:
         geoms.append(_render_path(path=state.path))
         if len(state.vessel.path_taken) > 1:  # Avoid rendering a single point, which causes a crash
-            geoms.append(_render_path_taken(vessel=state.vessel))
+            if image_observation_mode:
+                only_last_n = 100
+            else:
+                only_last_n = None  # Render all points
+
+            geoms.append(_render_path_taken(vessel=state.vessel, only_last_n=only_last_n))
     geoms.extend(_render_obstacles(obstacles=state.obstacles))
     if state.path is not None:
         geoms.extend(_render_progress(path=state.path, vessel=state.vessel))

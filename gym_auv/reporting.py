@@ -176,6 +176,7 @@ def plot_trajectory(
         figure in.
     """
 
+    print("in plot trajectory")
     # print('Plotting with local = ' + str(local))
 
     path = env.last_episode["path"]
@@ -187,6 +188,7 @@ def plot_trajectory(
     if fig_prefix != "" and not fig_prefix[0] == "_":
         fig_prefix = "_" + fig_prefix
 
+    print("Before setting plot style")
     plt.style.use("ggplot")
     plt.rc("font", family="serif")
     plt.rc("xtick", labelsize=12)
@@ -197,6 +199,7 @@ def plot_trajectory(
     ax = fig.add_subplot(1, 1, 1)
     ax.set_aspect(1.0)
 
+    print("here 1")
     if local:
         axis_min_x = env.vessel.position[0] - size
         axis_max_x = env.vessel.position[0] + size
@@ -220,6 +223,8 @@ def plot_trajectory(
             axis_max_x += d / 2
         axis_max = max(axis_max_x, axis_max_y)
         axis_min = min(axis_min_x, axis_min_y)
+    
+    print("Before plotting obstacles")
 
     for obst in obstacles:
         if isinstance(obst, CircularObstacle):
@@ -244,6 +249,7 @@ def plot_trajectory(
             )
             obst = ax.add_patch(obst_object)
 
+    print("Before plotting dynamic obstacle trajectories")
     for obst in obstacles:
         if not obst.static:
             # if isinstance(obst, VesselObstacle):
@@ -282,6 +288,7 @@ def plot_trajectory(
                 zorder=9,
             )
 
+    print("Before more plotting")
     for obst in obstacles:
         if isinstance(obst, VesselObstacle):
             if local and (
@@ -359,6 +366,7 @@ def plot_trajectory(
                 # lc = LineCollection(segments, color=colors, linewidth=0.5, linestyle='--', zorder=9)
                 # ax.add_collection(lc)
 
+    print("more plotting")
     if local:
         vessel_obst = VesselObstacle(
             width=env.vessel.width,
@@ -399,6 +407,7 @@ def plot_trajectory(
             )
             ax.add_patch(vessel_obst_object)
 
+    print("Before setting some formatting")
     if local and size <= 50:
         ax.set_ylabel(r"North (m)")
         ax.set_xlabel(r"East (m)")
@@ -433,6 +442,7 @@ def plot_trajectory(
         zorder=8,
     )
 
+    print("Before looking at episode_dict")
     if episode_dict is None or local:
         pathcolor = "red"
         L = len(env.vessel.heading_taken)
@@ -509,6 +519,7 @@ def plot_trajectory(
             )
             ax.add_patch(waypoint_marker)
 
+    print("on the way towards the end")
     if not local:
         ax.annotate(
             "Goal",

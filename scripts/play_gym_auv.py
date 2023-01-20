@@ -5,6 +5,7 @@ import copy
 import pickle
 
 from gym.utils.play import play, PlayPlot
+from gym_auv.reporting import plot_trajectory
 import numpy as np
 
 
@@ -13,6 +14,7 @@ gym_auv_config.episode.use_terminated_truncated_step_api = True
 gym_auv_config.episode.return_latest_data_in_info = True
 
 env_name = "MovingObstaclesLosRewarder-v0" 
+# env_name = "TestScenario1-v0"
 env = gym.make(env_name, env_config=gym_auv_config)
 
 
@@ -51,7 +53,17 @@ noop = np.array([0, 0])  # Action if no key is pressed for a frame
 
 play(env, keys_to_action=keys_to_action, fps=30, noop=noop, callback=callback)
 
+<<<<<<< HEAD
 print(env.last_episode)
+=======
+
+# print()
+# fig_dir = os.path.join(os.path.dirname(__file__), "test_plots")
+
+# # env_copy = copy.deepcopy(env)
+# plot_trajectory(env, fig_dir)
+
+>>>>>>> origin/make-episode-figures
 
 def get_file_path(file_name):
     if not file_name.endswith(".pkl"):
