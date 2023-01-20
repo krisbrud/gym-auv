@@ -44,7 +44,7 @@ LOS_COLAV_CONFIG = deepcopy(Config())
 LOS_COLAV_CONFIG.rewarder.params = LosColavParams()
 LOS_COLAV_CONFIG.sensor.observe_new_progress = False
 LOS_COLAV_CONFIG.sensor.use_velocity_observations = True
-LOS_COLAV_CONFIG.sensor.use_image_observation = False
+# LOS_COLAV_CONFIG.sensor.use_image_observation = False
 
 COLREG_CONFIG = deepcopy(Config())
 COLREG_CONFIG.rewarder.params = ColregParams()
