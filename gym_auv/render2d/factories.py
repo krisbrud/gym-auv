@@ -124,7 +124,7 @@ def make_world_frame_geoms(state: RenderableState, image_observation_mode: bool)
     if state.path is not None:
         geoms.append(_render_path(path=state.path))
         if len(state.vessel.path_taken) > 1:  # Avoid rendering a single point, which causes a crash
-            if image_observation_mode or True:
+            if image_observation_mode:
                 only_last_n = 100
             else:
                 only_last_n = None  # Render all points
