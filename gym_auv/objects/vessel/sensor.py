@@ -176,7 +176,7 @@ def simulate_sensor(sensor_angle, p0_point, sensor_range, obstacles):
 
         closest_obstacle = obst_references[min_idx]
         
-        if not closest_obstacle.static:
+        if False: #  not closest_obstacle.static:
             obst_speed_homogenous = geom.to_homogeneous([closest_obstacle.dx, closest_obstacle.dy])
             obst_speed_rel_homogenous = geom.Rz(-sensor_angle - np.pi / 2).dot(
                 obst_speed_homogenous
