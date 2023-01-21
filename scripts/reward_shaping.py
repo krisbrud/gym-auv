@@ -73,13 +73,63 @@ for episode_name, episode in episodes.items():
 
 # Calculate cumulative rewards for all episodes
 cumulative_rewards = {key: np.cumsum(rewards[key]) for key, reward in rewards.items()}
+def prettify_name(name):
+    """Prettify episode name, by removing snake case and replacing with spaces"""    
+    return name.replace("_", " ").capitalize()
+
+plt.style.use('ggplot')
 
 # Plot cumulative rewards for all episodes, with episode name as label using seaborn
+
 for episode_name, cumulative_reward in cumulative_rewards.items():
+    pretty_name = prettify_name(episode_name)
+
+    # Color code the episodes according to the cumulative reward at the end using a cmap
+
+
     sns.lineplot(x=range(len(cumulative_reward)), y=cumulative_reward, label=episode_name)
 
 plt.xlabel("Time step")
 plt.ylabel(f"Cumulative reward {'(tanh)' if use_tanh else ''}")
 
+
+# %%
+
+def _make_df_from_cumulative_rewards(cumulative_rewards):
+    """Make rows from each element of each dictionary in the cumulative rewards dictionary"""
+    import pandas as pd
+    df = pd.DataFrame()
+    for episode_name, cumulative_reward in cumulative_rewards.items():
+        df_episode = pd.DataFrame(cumulative_reward, columns=["time_step", "cumulative_reward"])
+        df_episode["episode"] = episode_name
+        df = df.append(df_episode, ignore_index=True)
+    return df
+
+# %%
+import matplotlib.pyplot as plt
+import seaborn as sns
+from matplotlib.colors import ListedColormap
+import pandas as pd
+
+# Create a dataframe from the cumulative_rewards list
+df = pd.DataFrame({'episode': [k for k in cumulative_rewards.keys()], 
+                   'cumulative_reward': [v[-1] for v in cumulative_rewards.values()]})
+
+# Sort the dataframe by cumulative_reward
+df = df.sort_values(by='cumulative_reward')
+
+# Set ggplot style
+plt.style.use('ggplot')
+# sns.set_style("ggplot")
+
+# Create colormap
+# cmap = ListedColormap(['red','blue'], N=10)
+
+# Plot the data using matplotlib
+plt.scatter(df['episode'], df['cumulative_reward'], c=df['cumulative_reward'], cmap=cmap)
+plt.xlabel('Episode')
+plt.ylabel('Cumulative Reward')
+plt.colorbar()
+plt.show()
 
 # %%
