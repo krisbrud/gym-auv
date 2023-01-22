@@ -13,23 +13,11 @@ from gym_auv.objects.vessel.sensor import (
 import shapely
 import shapely.geometry
 
-# def sensor_end(range, angle):
-#     return np.array([range * np.cos(angle), range * np.sin(angle)])
-
 
 def make_sensor_ends(sensor_range, angle):
     return np.array([sensor_range * np.cos(angle), sensor_range * np.sin(angle)]).T
 
 
-# sensor_range = 150
-# n_sensors = 180
-# sensor_starts = np.zeros((n_sensors, 2))
-# # angles = np.deg2rad(np.linspace(0, 360, n_sensors, endpoint=False))
-# angles = np.deg2rad(np.linspace(-180 + 2, 180 + 2, n_sensors, endpoint=False))
-
-# sensor_ends_raw = make_sensor_ends(sensor_range, angles)
-# print(sensor_ends_raw)
-# print(sensor_ends_raw.shape)
 def make_vessel_obstacle(own_vessel=False) -> VesselObstacle:
     if own_vessel:
         pos = [0, 0]
@@ -53,6 +41,14 @@ def make_circular_obstacle() -> CircularObstacle:
     pos = np.array([-80, 100])
     # pos = np.array([6, 4.8])
     radius = 40
+
+    return CircularObstacle(pos, radius)
+
+
+def make_circular_obstacle2() -> CircularObstacle:
+    pos = np.array([-45, -100])
+    # pos = np.array([6, 4.8])
+    radius = 30
 
     return CircularObstacle(pos, radius)
 
@@ -127,14 +123,6 @@ def get_minimum_rotated_rect(obst):
 
 
 def find_rays_for_obstacles(obstacles, own_pos, own_heading, n_rays=180):
-    # obstacles_per_ray = find_rays_to_simulate_for_obstacles(
-    #     [vessel_obst],
-    #     shapely.geometry.Point(*vessel.position),
-    #     vessel.heading,
-    #     vessel._d_sensor_angle,
-    #     n_rays=vessel.config.sensor.n_lidar_rays,
-    # )
-
     obstacles_per_ray = find_rays_to_simulate_for_obstacles(
         obstacles,
         shapely.geometry.Point(*own_pos),
@@ -144,71 +132,72 @@ def find_rays_for_obstacles(obstacles, own_pos, own_heading, n_rays=180):
     )
     return obstacles_per_ray
 
+
 sensor_range = 150
 n_sensors = 180
 sensor_starts = np.zeros((n_sensors, 2))
-# angles = np.deg2rad(np.linspace(0, 360, n_sensors, endpoint=False))
 angles = np.deg2rad(np.linspace(-180 + 2, 180 + 2, n_sensors, endpoint=False))
-
-# print(sensor_ends_raw)
-# print(sensor_ends_raw.shape)
-
 circular_obst = make_circular_obstacle()
+circular_obst2 = make_circular_obstacle2()
+
 own_pos = [0, 0]
 own_heading = np.deg2rad(60)
 vessel_obst = make_vessel_obstacle()
 own_vessel_obst = make_vessel_obstacle(own_vessel=True)
-# sensor_ends_raw = make_sensor_ends(sensor_range, angles)
 sensor_ends_raw = make_sensor_ends(sensor_range, angles + own_heading)
 
-obstacles = [vessel_obst, circular_obst]
+obstacles = [vessel_obst, circular_obst, circular_obst2]
 rays_for_obstacles = find_rays_for_obstacles(
     obstacles, own_pos, own_heading, n_rays=n_sensors
 )
 p0_point = shapely.geometry.Point(*own_pos)
 
-simulated_ranges = []
-for angle in angles:
-    result = simulate_sensor(
-        own_heading + angle,
-        p0_point,
-        sensor_range,
-        [vessel_obst, circular_obst],
-        # [vessel_obst],
-    )
-    simulated_range = result[0]
-    simulated_ranges.append(simulated_range)
-simulated_rays = np.array(simulated_ranges)
-# simulated_endpoints_body = (
-#     simulated_rays * np.array([np.cos(angles), np.sin(angles)])
-# ).T
-simulated_endpoints = (
-    simulated_rays
-    * np.array([np.cos(angles + own_heading), np.sin(angles + own_heading)])
-).T
+def get_simulated_endpoints(own_heading, p0_point, sensor_range, obstacles):
+    simulated_ranges = []
+    for angle in angles:
+        result = simulate_sensor(
+            own_heading + angle,
+            p0_point,
+            sensor_range,
+            obstacles,
+            # [vessel_obst],
+        )
+        simulated_range = result[0]
+        simulated_ranges.append(simulated_range)
+    simulated_rays = np.array(simulated_ranges)
 
-print(simulated_range)
-
-# for i, obsts in enumerate(rays_for_vessel_obst):
+    simulated_endpoints = (
+        simulated_rays
+        * np.array([np.cos(angles + own_heading), np.sin(angles + own_heading)])
+    ).T
+    return simulated_endpoints
+# simulated_ranges = []
+# for angle in angles:
 #     result = simulate_sensor(
-#         own_heading,
+#         own_heading + angle,
 #         p0_point,
 #         sensor_range,
-#         [obsts],
+#         obstacles,
 #         # [vessel_obst],
 #     )
-#     print("result", result)
+#     simulated_range = result[0]
+#     simulated_ranges.append(simulated_range)
+# simulated_rays = np.array(simulated_ranges)
+
+# simulated_endpoints = (
+#     simulated_rays
+#     * np.array([np.cos(angles + own_heading), np.sin(angles + own_heading)])
+# ).T
+
+simulated_endpoints = get_simulated_endpoints(own_heading, p0_point, sensor_range, obstacles)
+
+# print(simulated_range)
+
 
 plt.style.use("ggplot")
 
 
-# TODO Make plot with 2 obstacles and all sensors simulated
-
-# hex_color = "#" + "f0f0f0"
-# hex_color = "#" + "82aa8c"  # "f0f0f0"
-# not_activated_color = mcolors.to_rgba(hex_color)
 not_activated_color = (220 / 255, 220 / 255, 220 / 255, 1.0)
-# colors = ["r"] * n_sensors
 colors = [not_activated_color] * n_sensors
 
 
@@ -229,12 +218,7 @@ def plot_enclosing_circle(obst, ax):
     ax.add_patch(circle_object)
 
 
-# activated_color_hex = "#8c4c4c"
 activated_color_hex = "#ff5c5c"
-
-# for i in range(0, 20):
-#     colors[i] = mcolors.to_rgba(activated_color_hex)
-
 fig, ax = plt.subplots(figsize=(6, 6))
 
 
@@ -250,13 +234,6 @@ def plot_sensor_rays_same_color(sensor_starts, sensor_ends_raw, color, ax):
         # plt.plot([x1, x2], [y1, y2],  f"{color}-", color=color)
         # plt.plot([x1, x2], [y1, y2], color=color)
         ax.plot([x1, x2], [y1, y2], color=color)
-
-
-# vessel_mrr = get_minimum_rotated_rect(vessel_obst)
-
-# plot_vessel_obst(vessel_obst, ax)
-# plot_enclosing_circle(vessel_obst, ax)
-# plot_mrr(vessel_obst, ax)
 
 
 def make_fig_ax():
@@ -284,6 +261,7 @@ def plot0():
     # Plot obstacles
     plot_vessel_obst(vessel_obst, ax)
     plot_circular_obst(circular_obst, ax)
+    plot_circular_obst(circular_obst2, ax)
 
     return fig, ax
 
@@ -301,6 +279,11 @@ def plot1():
     # Plot obstacles
     plot_vessel_obst(vessel_obst, ax)
     plot_circular_obst(circular_obst, ax)
+    plot_circular_obst(circular_obst2, ax)
+    plot_enclosing_circle(vessel_obst, ax)
+    plot_mrr(vessel_obst, ax)
+
+
 
     return fig, ax
 
@@ -333,10 +316,12 @@ def plot2():
     # Plot obstacles
     plot_vessel_obst(vessel_obst, ax)
     plot_circular_obst(circular_obst, ax)
+    plot_circular_obst(circular_obst2, ax)
     plot_enclosing_circle(vessel_obst, ax)
     plot_mrr(vessel_obst, ax)
 
     return fig, ax
+
 
 def plot3():
     # Plot gray sensor rays
@@ -366,13 +351,14 @@ def plot3():
     # Plot obstacles
     plot_vessel_obst(vessel_obst, ax)
     plot_circular_obst(circular_obst, ax)
+    plot_circular_obst(circular_obst2, ax)
     # plot_enclosing_circle(vessel_obst, ax)
     # plot_mrr(vessel_obst, ax)
 
     return fig, ax
 
 
-filename_prefix = "rangefinder-plot-"
+filename_prefix = "rangefinder_figs/rangefinder-plot-"
 
 fig0, ax0 = plot0()
 fig0.savefig(f"{filename_prefix}0.pdf")
@@ -391,16 +377,4 @@ fig3.savefig(f"{filename_prefix}3.pdf")
 fig3.show()
 
 
-# Turn of axes
-# plt.gca().set_axis_off()
-# ax.set_axis_off()
-
-# Set aspect ratio to 1
-# plt.gca().set_aspect("equal")
-# ax.set_aspect"equal")
-
-# fig.show()
-
-# plt.savefig("test-lines.svg")
-# plt.show()
 # %%

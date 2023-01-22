@@ -12,9 +12,13 @@ import numpy as np
 gym_auv_config = copy.deepcopy(gym_auv.LOS_COLAV_CONFIG)
 gym_auv_config.episode.use_terminated_truncated_step_api = True
 gym_auv_config.episode.return_latest_data_in_info = True
-gym_auv_config.sensor.n_lidar_rays = 100
+gym_auv_config.sensor.n_lidar_rays = 256
 
-env_name = "MovingObstaclesLosRewarder-v0" 
+# env_name = "MovingObstaclesLosRewarder-v0" 
+# env_name = "TestScenario1-v0"
+# env_name = "TestScenario2-v0"
+# env_name = "TestScenario3-v0"
+env_name = "TestScenario4-v0"
 # env_name = "TestScenario1-v0"
 env = gym.make(env_name, env_config=gym_auv_config)
 
